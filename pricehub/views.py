@@ -1,0 +1,161 @@
+# pricehub/utils.py
+import re
+import urllib.request
+import urllib.parse
+import json
+from typing import Optional, Tuple, List
+
+# 네이버 API 정보
+NAVER_CLIENT_ID = "S_iul25XJKSybg_fiSAc"
+NAVER_CLIENT_SECRET = "_73PsEM4om"
+
+
+def generate_pokemon_search_query(card_name: str, rarity: str, expansion_name: str) -> str:
+    """
+    포켓몬카드 검색어 생성
+    
+    Args:
+        card_name: 카드명 (예: "팽도리")
+        rarity: 레어도 (예: "AR")
+        expansion_name: 확장팩명 (예: "인페르노X")
+    
+    Returns:
+        검색어 (예: "포켓몬카드 팽도리 AR 인페르노X")
+    """
+    # 기본 형식: 포켓몬카드 {카드명} {레어도} {확장팩명}
+    search_query = f"포켓몬카드 {card_name}"
+    
+    # 레어도 추가
+    if rarity:
+        search_query += f" {rarity}"
+    
+    # 확장팩명 추가
+    if expansion_name:
+        search_query += f" {expansion_name}"
+    
+    return search_query.strip()
+
+
+def search_naver_shopping(search_query: str) -> List[dict]:
+    """
+    네이버 쇼핑 API 검색
+    
+    Args:
+        search_query: 검색어
+    
+    Returns:
+        검색 결과 리스트
+    """
+    try:
+        enc_text = urllib.parse.quote(search_query)
+        url = f"https://openapi.naver.com/v1/search/shop?query={enc_text}&sort=sim&exclude=used:rental:cbshop&display=20"
+        
+        request = urllib.request.Request(url)
+        request.add_header("X-Naver-Client-Id", NAVER_CLIENT_ID)
+        request.add_header("X-Naver-Client-Secret", NAVER_CLIENT_SECRET)
+        
+        response = urllib.request.urlopen(request)
+        if response.getcode() == 200:
+            result = json.loads(response.read())
+            return result.get('items', [])
+        else:
+            print(f"❌ API 요청 실패: {response.getcode()}")
+            return []
+    except Exception as e:
+        print(f"❌ 예외 발생: {e}")
+        return []
+
+
+def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str]) -> Tuple[Optional[float], int]:
+    """
+    포켓몬카드 검색 결과 필터링
+    
+    Args:
+        items: API 검색 결과
+        card_name: 카드명
+        rarity: 레어도
+    
+    Returns:
+        (최저가, 유효 상품 수)
+    """
+    min_price = None
+    valid_count = 0
+    
+    # 제외할 판매처
+    excluded_malls = ["화성스토어-TCG-", "네이버", "쿠팡"]
+    
+    # 제외 키워드
+    excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
+    
+    for item in items:
+        title = item['title']
+        price = float(item['lprice'])
+        mall_name = item.get('mallName', '')
+        
+        # 제외 판매처 체크
+        if mall_name in excluded_malls:
+            continue
+        
+        # 일본판 제외
+        if any(keyword in title for keyword in excluded_keywords):
+            continue
+        
+        # HTML 태그 제거
+        clean_title = re.sub(r'<[^>]+>', '', title)
+        
+        # 카드명 매칭 (띄어쓰기 제거하고 비교)
+        card_name_no_space = re.sub(r'\s+', '', card_name)
+        title_no_space = re.sub(r'\s+', '', clean_title)
+        
+        if card_name_no_space.lower() not in title_no_space.lower():
+            continue
+        
+        # 레어도 매칭
+        if rarity and rarity not in clean_title:
+            continue
+        
+        # 유효한 상품
+        valid_count += 1
+        
+        # 최저가 업데이트
+        if min_price is None or price < min_price:
+            min_price = price
+    
+    return min_price, valid_count
+
+
+def get_lowest_price_for_card(card_name: str, rarity: str, expansion_name: str) -> Tuple[Optional[float], int, str]:
+    """
+    포켓몬카드 최저가 검색
+    
+    Args:
+        card_name: 카드명
+        rarity: 레어도
+        expansion_name: 확장팩명
+    
+    Returns:
+        (최저가, 유효 상품 수, 검색어)
+    """
+    # 검색어 생성
+    search_query = generate_pokemon_search_query(card_name, rarity, expansion_name)
+    
+    print(f"🔍 검색어: {search_query}")
+    
+    # 네이버 쇼핑 검색
+    items = search_naver_shopping(search_query)
+    
+    if not items:
+        print(f"❌ 검색 결과 없음")
+        return None, 0, search_query
+    
+    print(f"✅ 검색 결과: {len(items)}개")
+    
+    # 필터링
+    min_price, valid_count = filter_pokemon_items(items, card_name, rarity)
+    
+    if min_price:
+        print(f"💰 최저가: {int(min_price)}원 (유효 상품: {valid_count}개)")
+    else:
+        print(f"❌ 필터링 후 유효 상품 없음")
+    
+    return min_price, valid_count, search_query
