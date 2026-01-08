@@ -154,28 +154,47 @@ def test_single_card_tcg999(card_id: int):
 
 
 if __name__ == '__main__':
-    print("\n" + "=" * 80)
-    print("🎯 TCG999 가격 수집 도구")
-    print("=" * 80)
-    print("\n선택하세요:")
-    print("  1. 모든 카드 TCG999 가격 수집")
-    print("  2. 특정 확장팩 TCG999 가격 수집")
-    print("  3. 단일 카드 TCG999 테스트")
-    print("  4. 종료")
+    import sys
     
-    choice = input("\n선택 (1/2/3/4): ").strip()
-    
-    if choice == '1':
-        confirm = input("모든 카드의 TCG999 가격을 수집하시겠습니까? (yes/no): ")
-        if confirm.lower() == 'yes':
+    # 크론잡 자동 실행: 인자 없이 실행되면 바로 수집 시작
+    if len(sys.argv) == 1:
+        try:
+            sys.stdin.fileno()
+            manual_mode = True
+        except:
+            manual_mode = False
+            
+        if not manual_mode:
+            # 자동 실행 모드
+            from datetime import datetime
+            print(f"\n{'='*80}")
+            print(f"🎯 TCG999 자동 실행 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"{'='*80}\n")
             collect_all_tcg999_prices()
-    elif choice == '2':
-        expansion_code = input("확장팩 코드를 입력하세요 (예: M2): ").strip()
-        collect_expansion_tcg999_prices(expansion_code)
-    elif choice == '3':
-        card_id = int(input("카드 ID를 입력하세요: ").strip())
-        test_single_card_tcg999(card_id)
-    elif choice == '4':
-        print("종료합니다.")
-    else:
-        print("❌ 잘못된 선택입니다.")
+        else:
+            # 수동 실행 모드 (대화형)
+            print("\n" + "=" * 80)
+            print("🎯 TCG999 가격 수집 도구")
+            print("=" * 80)
+            print("\n선택하세요:")
+            print("  1. 모든 카드 TCG999 가격 수집")
+            print("  2. 특정 확장팩 TCG999 가격 수집")
+            print("  3. 단일 카드 TCG999 테스트")
+            print("  4. 종료")
+            
+            choice = input("\n선택 (1/2/3/4): ").strip()
+            
+            if choice == '1':
+                confirm = input("모든 카드의 TCG999 가격을 수집하시겠습니까? (yes/no): ")
+                if confirm.lower() == 'yes':
+                    collect_all_tcg999_prices()
+            elif choice == '2':
+                expansion_code = input("확장팩 코드를 입력하세요 (예: M2): ").strip()
+                collect_expansion_tcg999_prices(expansion_code)
+            elif choice == '3':
+                card_id = int(input("카드 ID를 입력하세요: ").strip())
+                test_single_card_tcg999(card_id)
+            elif choice == '4':
+                print("종료합니다.")
+            else:
+                print("❌ 잘못된 선택입니다.")
