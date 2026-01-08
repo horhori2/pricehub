@@ -2,6 +2,7 @@
 
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export DJANGO_SETTINGS_MODULE=config.settings
+export CRON_MODE=true  # 크론 모드 표시
 
 cd /home/ubuntu/pricehub
 source /home/ubuntu/pricehub/venv/bin/activate
