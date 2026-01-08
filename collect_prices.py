@@ -192,13 +192,20 @@ def test_single_card(card_id: int):
 
 if __name__ == '__main__':
     import sys
+    import os
     from datetime import datetime
     
-    # stdin이 터미널인지 확인
-    is_terminal = sys.stdin.isatty()
+    # 환경변수로 크론 실행 여부 확인
+    is_cron = os.getenv('CRON_MODE') == 'true'
     
-    if is_terminal:
-        # 수동 실행 (터미널에서 직접 실행 - 메뉴 표시)
+    # 또는 stdin 체크
+    try:
+        is_interactive = sys.stdin.isatty() and not is_cron
+    except:
+        is_interactive = False
+    
+    if is_interactive:
+        # 수동 실행 (메뉴)
         print("\n" + "=" * 80)
         print("💰 포켓몬카드 가격 수집 도구")
         print("=" * 80)
@@ -225,7 +232,7 @@ if __name__ == '__main__':
         else:
             print("❌ 잘못된 선택입니다.")
     else:
-        # 자동 실행 (크론잡 - 바로 수집)
+        # 자동 실행 (크론)
         print(f"\n{'='*80}")
         print(f"🤖 자동 실행 모드 - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"{'='*80}\n")

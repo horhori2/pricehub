@@ -155,11 +155,17 @@ def test_single_card_tcg999(card_id: int):
 
 if __name__ == '__main__':
     import sys
+    import os
     from datetime import datetime
     
-    is_terminal = sys.stdin.isatty()
+    is_cron = os.getenv('CRON_MODE') == 'true'
     
-    if is_terminal:
+    try:
+        is_interactive = sys.stdin.isatty() and not is_cron
+    except:
+        is_interactive = False
+    
+    if is_interactive:
         # 수동 실행
         print("\n" + "=" * 80)
         print("🎯 TCG999 가격 수집 도구")
