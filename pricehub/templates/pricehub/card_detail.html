@@ -1,0 +1,149 @@
+{% extends 'pricehub/base.html' %}
+
+{% block title %}{{ card.name }} - 가격 정보{% endblock %}
+
+{% block breadcrumb %}
+<div class="breadcrumb">
+    <a href="{% url 'pricehub:expansion_list' %}">확장팩 목록</a> &gt; 
+    <a href="{% url 'pricehub:card_list' card.expansion.code %}">{{ card.expansion.name }}</a> &gt; 
+    {{ card.name }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div style="display: grid; grid-template-columns: 250px 1fr; gap: 30px;">
+        <div>
+            {% if card.image_url %}
+            <img src="{{ card.image_url }}" alt="{{ card.name }}" 
+                 style="width: 100%; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            {% else %}
+            <div style="width: 100%; height: 350px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                        border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 5em;">
+                🎴
+            </div>
+            {% endif %}
+        </div>
+        
+        <div>
+            <h2 style="margin-bottom: 10px;">{{ card.name }}</h2>
+            <p style="color: #666; margin-bottom: 5px;">확장팩: {{ card.expansion.name }} ({{ card.expansion.code }})</p>
+            <p style="color: #666; margin-bottom: 5px;">카드번호: {{ card.card_number }}</p>
+            <p style="color: #666; margin-bottom: 20px;">레어도: {{ card.rarity }}</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px;">
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px;">
+                    <h3 style="font-size: 1em; color: #666; margin-bottom: 10px;">💰 일반 최저가</h3>
+                    {% if latest_general %}
+                    <p style="font-size: 2em; font-weight: bold; color: #333;">{{ latest_general.price|floatformat:0 }}원</p>
+                    <p style="font-size: 0.9em; color: #999; margin-top: 5px;">{{ latest_general.source }}</p>
+                    <p style="font-size: 0.8em; color: #999;">{{ latest_general.collected_at|date:"Y-m-d H:i" }}</p>
+                    {% else %}
+                    <p style="font-size: 1.2em; color: #999;">가격 정보 없음</p>
+                    {% endif %}
+                </div>
+                
+                <div style="background: #f0f4ff; padding: 20px; border-radius: 8px;">
+                    <h3 style="font-size: 1em; color: #667eea; margin-bottom: 10px;">🎯 TCG999 가격</h3>
+                    {% if latest_tcg999 %}
+                    <p style="font-size: 2em; font-weight: bold; color: #667eea;">{{ latest_tcg999.price|floatformat:0 }}원</p>
+                    <p style="font-size: 0.9em; color: #999; margin-top: 5px;">{{ latest_tcg999.store_name }}</p>
+                    <p style="font-size: 0.8em; color: #999;">{{ latest_tcg999.collected_at|date:"Y-m-d H:i" }}</p>
+                    {% else %}
+                    <p style="font-size: 1.2em; color: #999;">가격 정보 없음</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 30px;">
+    <h3 style="margin-bottom: 20px;">📈 가격 추이</h3>
+    <canvas id="priceChart" style="max-height: 400px;"></canvas>
+</div>
+
+<!-- 차트 데이터를 JSON으로 전달 -->
+<script id="chart-data" type="application/json">
+    {
+        "general": {
+            "labels": {{ general_chart_data.labels|safe }},
+            "data": {{ general_chart_data.data|safe }}
+        },
+        "tcg999": {
+            "labels": {{ tcg999_chart_data.labels|safe }},
+            "data": {{ tcg999_chart_data.data|safe }}
+        }
+    }
+</script>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // JSON 데이터 파싱
+    const chartDataElement = document.getElementById('chart-data');
+    const chartData = JSON.parse(chartDataElement.textContent);
+    
+    const generalLabels = chartData.general.labels;
+    const generalData = chartData.general.data;
+    const tcg999Labels = chartData.tcg999.labels;
+    const tcg999Data = chartData.tcg999.data;
+    
+    // 모든 날짜 합치기
+    const allLabels = [...new Set([...generalLabels, ...tcg999Labels])].sort();
+    
+    // 차트 생성
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: allLabels,
+            datasets: [
+                {
+                    label: '일반 최저가',
+                    data: generalData,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'TCG999',
+                    data: tcg999Data,
+                    borderColor: '#f093fb',
+                    backgroundColor: 'rgba(240, 147, 251, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + '원';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString() + '원';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}
