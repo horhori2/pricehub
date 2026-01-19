@@ -55,7 +55,7 @@ ALL_RARITIES = ['UR', 'SSR', 'SR', 'RR', 'RRR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR'
 
 def normalize_shop_code(code: str) -> str:
     """상품코드를 정규화 (대소문자 통일)"""
-    return code.upper().strip() if code else ''
+    return code.upper().strip() if code else '' 
 
 
 def is_japanese_card(shop_code: str) -> bool:
