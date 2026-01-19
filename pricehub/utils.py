@@ -12,6 +12,9 @@ NAVER_CLIENT_SECRET = "_73PsEM4om"
 # 검색어에서 제외할 레어도 (일반 레어도)
 EXCLUDED_RARITIES = ['RR', 'RRR', 'R', 'U', 'C']
 
+# 모든 특수 레어도 목록 (필터링용)
+SPECIAL_RARITIES = ['UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러', '이로치', '미러']
+
 
 def generate_pokemon_search_query(card_name: str, rarity: str, expansion_name: str) -> str:
     """
@@ -214,7 +217,15 @@ def filter_tcg999_items(items: List[dict], card_name: str, rarity: Optional[str]
         
         # 레어도가 검색어에 없는데 상품명에 특수 레어도가 있으면 제외
         if not rarity or rarity in EXCLUDED_RARITIES:
-            unwanted_rarity = re.search(r'\b(MUR|UR|SSR|SR|RR|RRR|CHR|CSR|BWR|AR|SAR|HR|몬스터볼|마스터볼|이로치)\b', clean_title)
+            # 특수 레어도 패턴 생성 (긴 것부터 매칭)
+            rarity_pattern = r'\b(' + '|'.join([
+                '로켓단 미러', '타입 미러', '볼 미러',
+                '마스터볼', '몬스터볼',
+                'UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
+                '이로치', '미러'
+            ]) + r')\b'
+            
+            unwanted_rarity = re.search(rarity_pattern, clean_title)
             if unwanted_rarity:
                 continue
         
