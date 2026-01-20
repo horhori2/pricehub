@@ -50,7 +50,7 @@ EXPANSION_INFO = {
 EXCLUDED_RARITIES = ['RR', 'RRR', 'R', 'U', 'C']
 
 # 모든 레어도 목록
-ALL_RARITIES = ['UR', 'SSR', 'SR', 'RR', 'RRR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'R', 'U', 'C', '몬스터볼', '마스터볼', '이로치', '미러']
+ALL_RARITIES = ['UR', 'SSR', 'SR', 'RR', 'RRR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA', 'R', 'U', 'C', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러', '이로치', '미러']
 
 
 def normalize_shop_code(code: str) -> str:
@@ -130,8 +130,8 @@ def parse_product_name(product_name: str) -> dict:
     rarity = None
     card_name = text
     
-    # 특수 레어도 패턴 (복합 레어도 우선 처리)
-    special_rarities = ['마스터볼 미러', '몬스터볼 미러', '마스터볼', '몬스터볼', '이로치']
+    # 특수 레어도 패턴 (복합 레어도 우선 처리 - 긴 것부터)
+    special_rarities = ['마스터볼 미러', '몬스터볼 미러', '로켓단 미러', '타입 미러', '볼 미러', '마스터볼', '몬스터볼', '이로치']
     
     for special_rarity in special_rarities:
         # 특수 레어도의 마지막 출현 위치 찾기
@@ -142,6 +142,12 @@ def parse_product_name(product_name: str) -> dict:
                 rarity = '마스터볼'
             elif special_rarity == '몬스터볼 미러':
                 rarity = '몬스터볼'
+            elif special_rarity == '로켓단 미러':
+                rarity = '로켓단 미러'
+            elif special_rarity == '타입 미러':
+                rarity = '타입 미러'
+            elif special_rarity == '볼 미러':
+                rarity = '볼 미러'
             else:
                 rarity = special_rarity
             
@@ -151,7 +157,7 @@ def parse_product_name(product_name: str) -> dict:
     
     # 일반 레어도 체크 (특수 레어도가 없을 때만)
     if not rarity:
-        for rare in ['UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', '미러']:
+        for rare in ['UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA', '미러']:
             # 단어 경계를 확인하여 정확히 매칭
             pattern = rf'\b{rare}\b'
             match = re.search(pattern, text)
