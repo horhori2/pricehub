@@ -98,7 +98,7 @@ def check_item_filters(title, mall_name, required_rarity, required_pokemon_name)
     """포켓몬카드 필터링 체크"""
     
     # 제외 판매처
-    if mall_name in ["화성스토어-TCG-", "네이버", "쿠팡"]:
+    if mall_name in ["화성스토어-TCG-", "카드 베이스", "네이버", "쿠팡"]:
         return False, f"제외: 판매처 {mall_name}"
     
     # 일본판 제외

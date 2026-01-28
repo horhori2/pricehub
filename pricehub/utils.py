@@ -89,7 +89,7 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
     min_price_mall = None
     
     # 제외할 판매처
-    excluded_malls = ["화성스토어-TCG-", "네이버", "쿠팡"]
+    excluded_malls = ["화성스토어-TCG-", "카드 베이스", "네이버", "쿠팡"]
     
     # 제외 키워드
     excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']

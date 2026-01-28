@@ -48,15 +48,16 @@
                     </span>
                 </td>
                 <td style="padding: 15px; text-align: right; font-weight: 500;">
-                    {% if card.prices.all %}
-                        {{ card.prices.all.0.price|floatformat:0 }}원
+                    {% if card.latest_general_price %}
+                        {{ card.latest_general_price|floatformat:0 }}원
+                        <br><span style="font-size: 0.8em; color: #999;">{{ card.latest_general_source }}</span>
                     {% else %}
                         <span style="color: #999;">-</span>
                     {% endif %}
                 </td>
                 <td style="padding: 15px; text-align: right; font-weight: 500; color: #667eea;">
-                    {% if card.target_prices.all %}
-                        {{ card.target_prices.all.0.price|floatformat:0 }}원
+                    {% if card.latest_tcg999_price %}
+                        {{ card.latest_tcg999_price|floatformat:0 }}원
                     {% else %}
                         <span style="color: #999;">-</span>
                     {% endif %}

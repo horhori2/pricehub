@@ -1,6 +1,5 @@
-# pricehub/views.py
 from django.shortcuts import render, get_object_or_404
-from django.db.models import Prefetch, Count
+from django.db.models import Prefetch, Count, OuterRef, Subquery
 from .models import Expansion, Card, CardPrice, TargetStorePrice
 
 
@@ -17,13 +16,24 @@ def expansion_list(request):
 
 
 def card_list(request, code):
-    """확장팩 내 카드 목록 페이지"""
+    """확장팩 내 카드 목록 페이지 (최적화 버전)"""
     expansion = get_object_or_404(Expansion, code=code)
     
-    # 카드 목록 (최신 가격 포함)
-    cards = Card.objects.filter(expansion=expansion).prefetch_related(
-        Prefetch('prices', queryset=CardPrice.objects.order_by('-collected_at')[:1]),
-        Prefetch('target_prices', queryset=TargetStorePrice.objects.order_by('-collected_at')[:1])
+    # Subquery로 최신 가격 가져오기
+    latest_general_subquery = CardPrice.objects.filter(
+        card=OuterRef('pk')
+    ).order_by('-collected_at')
+    
+    latest_tcg999_subquery = TargetStorePrice.objects.filter(
+        card=OuterRef('pk')
+    ).order_by('-collected_at')
+    
+    # 카드 목록 (annotate로 최신 가격 포함)
+    cards = Card.objects.filter(expansion=expansion).annotate(
+        latest_general_price=Subquery(latest_general_subquery.values('price')[:1]),
+        latest_general_source=Subquery(latest_general_subquery.values('source')[:1]),
+        latest_tcg999_price=Subquery(latest_tcg999_subquery.values('price')[:1]),
+        latest_tcg999_store=Subquery(latest_tcg999_subquery.values('store_name')[:1]),
     ).order_by('card_number')
     
     context = {
