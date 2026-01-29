@@ -2,6 +2,30 @@
 
 {% block title %}{{ card.name }} - 가격 정보{% endblock %}
 
+{% block extra_css %}
+<style>
+    .period-btn {
+        display: inline-block;
+        padding: 8px 15px;
+        font-size: 0.9em;
+        background: #667eea;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        transition: background 0.3s;
+    }
+    
+    .period-btn:hover {
+        background: #5568d3;
+    }
+    
+    .period-btn.period-active {
+        background: #5568d3;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+</style>
+{% endblock %}
+
 {% block breadcrumb %}
 <div class="breadcrumb">
     <a href="{% url 'pricehub:expansion_list' %}">확장팩 목록</a> &gt; 
@@ -11,6 +35,7 @@
 {% endblock %}
 
 {% block content %}
+<!-- 카드 정보 카드 -->
 <div class="card">
     <div style="display: grid; grid-template-columns: 250px 1fr; gap: 30px;">
         <div>
@@ -58,8 +83,83 @@
     </div>
 </div>
 
-<div class="card" style="margin-top: 30px;">
-    <h3 style="margin-bottom: 20px;">📈 가격 추이</h3>
+<!-- 가격 통계 -->
+<div class="card" style="margin-top: 20px;">
+    <h3 style="margin-bottom: 20px;">📊 가격 통계</h3>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+        <!-- 일반 최저가 통계 -->
+        <div>
+            <h4 style="font-size: 0.9em; color: #666; margin-bottom: 15px;">💰 일반 최저가</h4>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center;">
+                    <p style="font-size: 0.8em; color: #999; margin-bottom: 5px;">최저</p>
+                    <p style="font-size: 1.3em; font-weight: bold; color: #28a745;">
+                        {% if stats.general.min %}{{ stats.general.min|floatformat:0 }}원{% else %}-{% endif %}
+                    </p>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center;">
+                    <p style="font-size: 0.8em; color: #999; margin-bottom: 5px;">평균</p>
+                    <p style="font-size: 1.3em; font-weight: bold; color: #333;">
+                        {% if stats.general.avg %}{{ stats.general.avg|floatformat:0 }}원{% else %}-{% endif %}
+                    </p>
+                </div>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: center;">
+                    <p style="font-size: 0.8em; color: #999; margin-bottom: 5px;">최고</p>
+                    <p style="font-size: 1.3em; font-weight: bold; color: #dc3545;">
+                        {% if stats.general.max %}{{ stats.general.max|floatformat:0 }}원{% else %}-{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- TCG999 통계 -->
+        <div>
+            <h4 style="font-size: 0.9em; color: #667eea; margin-bottom: 15px;">🎯 TCG999</h4>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <div style="background: #f0f4ff; padding: 15px; border-radius: 5px; text-align: center;">
+                    <p style="font-size: 0.8em; color: #999; margin-bottom: 5px;">최저</p>
+                    <p style="font-size: 1.3em; font-weight: bold; color: #28a745;">
+                        {% if stats.tcg999.min %}{{ stats.tcg999.min|floatformat:0 }}원{% else %}-{% endif %}
+                    </p>
+                </div>
+                <div style="background: #f0f4ff; padding: 15px; border-radius: 5px; text-align: center;">
+                    <p style="font-size: 0.8em; color: #999; margin-bottom: 5px;">평균</p>
+                    <p style="font-size: 1.3em; font-weight: bold; color: #667eea;">
+                        {% if stats.tcg999.avg %}{{ stats.tcg999.avg|floatformat:0 }}원{% else %}-{% endif %}
+                    </p>
+                </div>
+                <div style="background: #f0f4ff; padding: 15px; border-radius: 5px; text-align: center;">
+                    <p style="font-size: 0.8em; color: #999; margin-bottom: 5px;">최고</p>
+                    <p style="font-size: 1.3em; font-weight: bold; color: #dc3545;">
+                        {% if stats.tcg999.max %}{{ stats.tcg999.max|floatformat:0 }}원{% else %}-{% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 가격 추이 그래프 -->
+<div class="card" style="margin-top: 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>📈 가격 추이</h3>
+        
+        <!-- 기간 선택 버튼 (수정됨) -->
+        <div style="display: flex; gap: 10px;">
+            <a href="?period=7" class="period-btn {% if period == '7' %}period-active{% endif %}">
+                1주일
+            </a>
+            <a href="?period=30" class="period-btn {% if period == '30' or not period %}period-active{% endif %}">
+                1개월
+            </a>
+            <a href="?period=90" class="period-btn {% if period == '90' %}period-active{% endif %}">
+                3개월
+            </a>
+            <a href="?period=all" class="period-btn {% if period == 'all' %}period-active{% endif %}">
+                전체
+            </a>
+        </div>
+    </div>
     <canvas id="priceChart" style="max-height: 400px;"></canvas>
 </div>
 
@@ -106,7 +206,9 @@
                     borderColor: '#667eea',
                     backgroundColor: 'rgba(102, 126, 234, 0.1)',
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    pointRadius: 3,
+                    pointHoverRadius: 6
                 },
                 {
                     label: 'TCG999',
@@ -114,18 +216,39 @@
                     borderColor: '#f093fb',
                     backgroundColor: 'rgba(240, 147, 251, 0.1)',
                     tension: 0.4,
-                    fill: true
+                    fill: true,
+                    pointRadius: 3,
+                    pointHoverRadius: 6
                 }
             ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
             plugins: {
                 legend: {
                     position: 'top',
+                    labels: {
+                        font: {
+                            size: 14
+                        },
+                        usePointStyle: true,
+                        padding: 15
+                    }
                 },
                 tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 14
+                    },
+                    bodyFont: {
+                        size: 13
+                    },
                     callbacks: {
                         label: function(context) {
                             return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + '원';
@@ -134,8 +257,16 @@
                 }
             },
             scales: {
+                x: {
+                    grid: {
+                        display: false
+                    }
+                },
                 y: {
                     beginAtZero: false,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    },
                     ticks: {
                         callback: function(value) {
                             return value.toLocaleString() + '원';

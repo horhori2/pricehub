@@ -1,0 +1,122 @@
+{% extends 'pricehub/base.html' %}
+
+{% block title %}{{ query }} 검색 결과 - 포켓몬 카드 가격{% endblock %}
+
+{% block breadcrumb %}
+<div class="breadcrumb">
+    <a href="{% url 'pricehub:expansion_list' %}">확장팩 목록</a> &gt; 검색 결과
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 30px;">
+    <h2>🔍 "{{ query }}" 검색 결과</h2>
+    <p style="color: #666; margin-top: 10px;">
+        총 {{ count }}개의 카드를 찾았습니다.
+        {% if expansion_filter %}
+            ({{ expansion_filter }} 확장팩)
+        {% endif %}
+    </p>
+    
+    <!-- 확장팩별 그룹 표시 (선택사항) -->
+    {% if count > 0 %}
+    <div style="margin-top: 15px;">
+        <p style="font-size: 0.9em; color: #999;">
+            💡 특정 확장팩 내에서 검색하려면 확장팩 페이지에서 검색하세요.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+{% if count > 0 %}
+<div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+        <thead style="background: #667eea; color: white;">
+            <tr>
+                <th style="padding: 15px; text-align: left;">확장팩</th>
+                <th style="padding: 15px; text-align: left;">카드번호</th>
+                <th style="padding: 15px; text-align: left;">이미지</th>
+                <th style="padding: 15px; text-align: left;">카드명</th>
+                <th style="padding: 15px; text-align: center;">레어도</th>
+                <th style="padding: 15px; text-align: right;">일반 최저가</th>
+                <th style="padding: 15px; text-align: right;">TCG999</th>
+                <th style="padding: 15px; text-align: center;">상세</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for card in cards %}
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 15px;">
+                    <a href="{% url 'pricehub:card_list' card.expansion.code %}" 
+                       style="color: #667eea; text-decoration: none; font-weight: 500;">
+                        {{ card.expansion.name }}
+                    </a>
+                    <br>
+                    <span style="font-size: 0.8em; color: #999;">{{ card.expansion.code }}</span>
+                </td>
+                <td style="padding: 15px;">{{ card.card_number }}</td>
+                <td style="padding: 15px;">
+                    {% if card.image_url %}
+                    <img src="{{ card.image_url }}" alt="{{ card.name }}" 
+                         style="width: 60px; height: 80px; object-fit: cover; border-radius: 5px;">
+                    {% else %}
+                    <div style="width: 60px; height: 80px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+                        🎴
+                    </div>
+                    {% endif %}
+                </td>
+                <td style="padding: 15px;">
+                    <span style="font-weight: 500;">{{ card.name }}</span>
+                </td>
+                <td style="padding: 15px; text-align: center;">
+                    <span style="background: #f0f0f0; padding: 5px 10px; border-radius: 3px; font-size: 0.9em;">
+                        {{ card.rarity }}
+                    </span>
+                </td>
+                <td style="padding: 15px; text-align: right; font-weight: 500;">
+                    {% if card.latest_general_price %}
+                        {{ card.latest_general_price|floatformat:0 }}원
+                        <br><span style="font-size: 0.8em; color: #999;">{{ card.latest_general_source }}</span>
+                    {% else %}
+                        <span style="color: #999;">-</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 15px; text-align: right; font-weight: 500; color: #667eea;">
+                    {% if card.latest_tcg999_price %}
+                        {{ card.latest_tcg999_price|floatformat:0 }}원
+                    {% else %}
+                        <span style="color: #999;">-</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 15px; text-align: center;">
+                    <a href="{% url 'pricehub:card_detail' card.id %}" class="btn" style="padding: 5px 15px; font-size: 0.9em;">
+                        📊 차트
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card" style="text-align: center; padding: 60px 20px;">
+    <div style="font-size: 4em; margin-bottom: 20px;">🔍</div>
+    <h3 style="margin-bottom: 10px; color: #666;">검색 결과가 없습니다</h3>
+    <p style="color: #999;">다른 검색어로 시도해보세요.</p>
+</div>
+{% endif %}
+{% endblock %}
+```
+
+## 사용 방법
+
+### 1. 전체 검색 (헤더 검색바)
+```
+메인 페이지 헤더 검색 → 모든 확장팩에서 검색
+예: "피카츄" → 모든 확장팩의 피카츄 카드
+```
+
+### 2. 확장팩 내 검색
+```
+확장팩 선택 → 확장팩 페이지 내 검색바 사용
+예: "인페르노X" 확장팩 → "피카츄" 검색 → 인페르노X의 피카츄만

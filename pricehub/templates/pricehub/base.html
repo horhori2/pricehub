@@ -34,6 +34,60 @@
         header h1 {
             text-align: center;
             font-size: 2em;
+            margin-bottom: 15px;
+        }
+        
+        header h1 a {
+            color: white;
+            text-decoration: none;
+        }
+        
+        header h1 a:hover {
+            opacity: 0.9;
+        }
+        
+        /* 검색바 스타일 */
+        .search-container {
+            max-width: 600px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 12px 20px;
+            font-size: 1em;
+            border: none;
+            border-radius: 25px;
+            outline: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .search-input:focus {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        
+        .search-btn {
+            padding: 12px 30px;
+            font-size: 1em;
+            background: white;
+            color: #667eea;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         
         .breadcrumb {
@@ -85,7 +139,20 @@
 <body>
     <header>
         <div class="container">
-            <h1>🎴 포켓몬 카드 가격 정보</h1>
+            <h1><a href="{% url 'pricehub:expansion_list' %}">🎴 포켓몬 카드 가격 정보</a></h1>
+            
+            <!-- 검색바 -->
+            <div class="search-container">
+                <form method="get" action="{% url 'pricehub:card_search' %}" class="search-form">
+                    <input type="text" 
+                           name="q" 
+                           class="search-input" 
+                           placeholder="카드명 또는 카드번호로 검색... (예: 피카츄, 001)"
+                           value="{{ request.GET.q }}"
+                           autocomplete="off">
+                    <button type="submit" class="search-btn">🔍 검색</button>
+                </form>
+            </div>
         </div>
     </header>
     

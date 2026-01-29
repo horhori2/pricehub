@@ -59,6 +59,7 @@ class Card(models.Model):
         ('AR', 'AR'),
         ('SAR', 'SAR'),
         ('HR', 'HR'),
+        ('MUR', 'MUR'),
         ('MA', 'MA'),
         ('R', 'R'),
         ('U', 'U'),
