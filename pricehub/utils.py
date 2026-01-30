@@ -12,8 +12,8 @@ NAVER_CLIENT_SECRET = "_73PsEM4om"
 # 검색어에서 제외할 레어도 (일반 레어도)
 EXCLUDED_RARITIES = ['RR', 'RRR', 'R', 'U', 'C']
 
-# 모든 특수 레어도 목록 (필터링용)
-SPECIAL_RARITIES = ['UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러', '이로치', '미러']
+# 모든 특수 레어도 목록 (필터링용) - MUR 추가
+SPECIAL_RARITIES = ['UR', 'MUR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러', '이로치', '미러']
 
 
 def generate_pokemon_search_query(card_name: str, rarity: str, expansion_name: str) -> str:
@@ -94,43 +94,69 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
     # 제외 키워드
     excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
     
-    for item in items:
+    print(f"\n📋 필터링 상세 로그 (총 {len(items)}개):")
+    
+    for idx, item in enumerate(items, 1):
         title = item['title']
         price = float(item['lprice'])
         mall_name = item.get('mallName', '알 수 없음')
         
+        print(f"\n[{idx}] 가격: {int(price)}원 / 판매처: {mall_name}")
+        
+        # HTML 태그 제거
+        clean_title = re.sub(r'<[^>]+>', '', title)
+        print(f"    제목: {clean_title}")
+        
         # 제외 판매처 체크
         if mall_name in excluded_malls:
+            print(f"    ❌ 제외 판매처")
             continue
         
         # 일본판 제외
         if any(keyword in title for keyword in excluded_keywords):
+            print(f"    ❌ 일본판 키워드 포함")
             continue
-        
-        # HTML 태그 제거
-        clean_title = re.sub(r'<[^>]+>', '', title)
         
         # 카드명 매칭 (띄어쓰기 제거하고 비교)
         card_name_no_space = re.sub(r'\s+', '', card_name)
         title_no_space = re.sub(r'\s+', '', clean_title)
         
         if card_name_no_space.lower() not in title_no_space.lower():
+            print(f"    ❌ 카드명 불일치")
+            print(f"       찾는 카드명: {card_name_no_space}")
+            print(f"       상품 제목: {title_no_space}")
             continue
+        
+        print(f"    ✅ 카드명 일치")
         
         # 레어도 매칭 (일반 레어도는 필터링 안함)
         if rarity and rarity not in EXCLUDED_RARITIES:
-            if rarity not in clean_title:
+            # MUR은 "MUR" 또는 "mur"만 인식
+            if rarity == 'MUR':
+                clean_title_upper = clean_title.upper()
+                if 'MUR' not in clean_title_upper:
+                    print(f"    ❌ MUR 레어도 불일치")
+                    continue
+                print(f"    ✅ MUR 레어도 일치")
+            elif rarity not in clean_title:
+                print(f"    ❌ 레어도 '{rarity}' 불일치")
                 continue
         
         # 유효한 상품
         valid_count += 1
+        print(f"    ✅ 유효한 상품!")
         
         # 최저가 업데이트
         if min_price is None or price < min_price:
             min_price = price
             min_price_mall = mall_name
+            print(f"    💰 최저가 업데이트: {int(min_price)}원")
+    
+    print(f"\n📊 필터링 결과: 유효 상품 {valid_count}개")
     
     return min_price, valid_count, min_price_mall
+
+
 
 
 def get_lowest_price_for_card(card_name: str, rarity: str, expansion_name: str) -> Tuple[Optional[float], int, str, Optional[str]]:
@@ -187,7 +213,9 @@ def filter_tcg999_items(items: List[dict], card_name: str, rarity: Optional[str]
     # 제외 키워드
     excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
     
-    for item in items:
+    print(f"\n🎯 TCG999 필터링 상세 로그:")
+    
+    for idx, item in enumerate(items, 1):
         title = item['title']
         price = float(item['lprice'])
         mall_name = item.get('mallName', '')
@@ -196,23 +224,40 @@ def filter_tcg999_items(items: List[dict], card_name: str, rarity: Optional[str]
         if mall_name != 'TCG999':
             continue
         
-        # 일본판 제외
-        if any(keyword in title for keyword in excluded_keywords):
-            continue
+        print(f"\n[TCG999 발견] 가격: {int(price)}원")
         
         # HTML 태그 제거
         clean_title = re.sub(r'<[^>]+>', '', title)
+        print(f"    제목: {clean_title}")
+        
+        # 일본판 제외
+        if any(keyword in title for keyword in excluded_keywords):
+            print(f"    ❌ 일본판 키워드 포함")
+            continue
         
         # 카드명 매칭 (띄어쓰기 제거하고 비교)
         card_name_no_space = re.sub(r'\s+', '', card_name)
         title_no_space = re.sub(r'\s+', '', clean_title)
         
         if card_name_no_space.lower() not in title_no_space.lower():
+            print(f"    ❌ 카드명 불일치")
+            print(f"       찾는 카드명: {card_name_no_space}")
+            print(f"       상품 제목: {title_no_space}")
             continue
+        
+        print(f"    ✅ 카드명 일치")
         
         # 레어도 매칭 (일반 레어도는 필터링 안함)
         if rarity and rarity not in EXCLUDED_RARITIES:
-            if rarity not in clean_title:
+            # MUR은 "MUR" 또는 "mur"만 인식
+            if rarity == 'MUR':
+                clean_title_upper = clean_title.upper()
+                if 'MUR' not in clean_title_upper:
+                    print(f"    ❌ MUR 레어도 불일치")
+                    continue
+                print(f"    ✅ MUR 레어도 일치")
+            elif rarity not in clean_title:
+                print(f"    ❌ 레어도 '{rarity}' 불일치")
                 continue
         
         # 레어도가 검색어에 없는데 상품명에 특수 레어도가 있으면 제외
@@ -221,19 +266,20 @@ def filter_tcg999_items(items: List[dict], card_name: str, rarity: Optional[str]
             rarity_pattern = r'\b(' + '|'.join([
                 '로켓단 미러', '타입 미러', '볼 미러',
                 '마스터볼', '몬스터볼',
-                'UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
+                'MUR', 'UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
                 '이로치', '미러'
             ]) + r')\b'
             
-            unwanted_rarity = re.search(rarity_pattern, clean_title)
+            unwanted_rarity = re.search(rarity_pattern, clean_title, re.IGNORECASE)
             if unwanted_rarity:
+                print(f"    ❌ 원치 않는 레어도 발견: {unwanted_rarity.group()}")
                 continue
         
         # 첫 번째 매칭된 TCG999 상품 반환
+        print(f"    ✅ TCG999 유효 상품!")
         return price, mall_name
     
     return None, None
-
 
 def get_tcg999_price_for_card(card_name: str, rarity: str, expansion_name: str) -> Tuple[Optional[float], str, Optional[str]]:
     """
