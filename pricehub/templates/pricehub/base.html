@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}포켓몬 카드 가격 정보{% endblock %}</title>
+    <title>{% block title %}카드 가격 정보{% endblock %}</title>
     <style>
         * {
             margin: 0;
@@ -44,6 +44,33 @@
         
         header h1 a:hover {
             opacity: 0.9;
+        }
+        
+        /* 네비게이션 탭 */
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .nav-tab {
+            padding: 10px 30px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .nav-tab:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .nav-tab.active {
+            background: white;
+            color: #667eea;
         }
         
         /* 검색바 스타일 */
@@ -139,15 +166,29 @@
 <body>
     <header>
         <div class="container">
-            <h1><a href="{% url 'pricehub:expansion_list' %}">🎴 포켓몬 카드 가격 정보</a></h1>
+            <h1><a href="/">🎴 카드 가격 정보</a></h1>
+            
+            <!-- 네비게이션 탭 -->
+            <div class="nav-tabs">
+                <a href="{% url 'pricehub:expansion_list' %}" class="nav-tab {% if request.resolver_match.url_name == 'expansion_list' or 'onepiece' not in request.path %}active{% endif %}">
+                    포켓몬 카드
+                </a>
+                <a href="{% url 'pricehub:onepiece_expansion_list' %}" class="nav-tab {% if 'onepiece' in request.path %}active{% endif %}">
+                    원피스 카드
+                </a>
+            </div>
             
             <!-- 검색바 -->
             <div class="search-container">
+                {% if 'onepiece' in request.path %}
+                <form method="get" action="{% url 'pricehub:onepiece_card_search' %}" class="search-form">
+                {% else %}
                 <form method="get" action="{% url 'pricehub:card_search' %}" class="search-form">
+                {% endif %}
                     <input type="text" 
                            name="q" 
                            class="search-input" 
-                           placeholder="카드명 또는 카드번호로 검색... (예: 피카츄, 001)"
+                           placeholder="카드명 또는 카드번호로 검색..."
                            value="{{ request.GET.q }}"
                            autocomplete="off">
                     <button type="submit" class="search-btn">🔍 검색</button>
@@ -162,7 +203,7 @@
     </div>
     
     <footer>
-        <p>&copy; 2026 Pokemon Card Price Hub</p>
+        <p>&copy; 2026 Card Price Hub</p>
     </footer>
     
     {% block extra_js %}{% endblock %}
