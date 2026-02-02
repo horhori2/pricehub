@@ -1,0 +1,241 @@
+{% extends 'pricehub/base.html' %}
+
+{% block title %}{{ expansion.name }} - 카드 목록{% endblock %}
+
+{% block extra_css %}
+<style>
+    .sort-select {
+        padding: 10px 15px;
+        border: 2px solid #667eea;
+        border-radius: 5px;
+        font-size: 0.95em;
+        outline: none;
+        cursor: pointer;
+        background: white;
+        color: #333;
+    }
+    
+    .sort-select:focus {
+        border-color: #5568d3;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 25px !important;
+        transition: background 0.2s;
+    }
+    
+    .sortable-header:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    .sortable-header::after {
+        content: '↕';
+        position: absolute;
+        right: 10px;
+        opacity: 0.5;
+        font-size: 0.9em;
+    }
+    
+    .sortable-header.active-asc::after {
+        content: '↑';
+        opacity: 1;
+        font-weight: bold;
+    }
+    
+    .sortable-header.active-desc::after {
+        content: '↓';
+        opacity: 1;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block breadcrumb %}
+<div class="breadcrumb">
+    <a href="{% url 'pricehub:onepiece_expansion_list' %}">원피스 확장팩 목록</a> &gt; {{ expansion.name }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 30px;">
+    <h2>{{ expansion.name }} ({{ expansion.code }})</h2>
+    <p style="color: #666; margin-top: 10px;">총 {{ total_count }}장</p>
+    
+    <!-- 검색바 및 정렬 옵션 -->
+    <div style="margin-top: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+        <!-- 검색바 -->
+        <form method="get" style="display: flex; gap: 10px; flex: 1; min-width: 300px;">
+            <input type="text" 
+                   name="q" 
+                   style="flex: 1; padding: 10px 15px; border: 2px solid #667eea; border-radius: 5px; font-size: 1em; outline: none;"
+                   placeholder="이 확장팩에서 검색..."
+                   value="{{ query }}"
+                   autocomplete="off">
+            <input type="hidden" name="sort" value="{{ sort_by }}">
+            <button type="submit" 
+                    style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                🔍 검색
+            </button>
+            {% if query %}
+            <a href="?sort={{ sort_by }}" 
+               style="padding: 10px 20px; background: #999; color: white; border-radius: 5px; text-decoration: none; display: flex; align-items: center;">
+                ✕
+            </a>
+            {% endif %}
+        </form>
+        
+        <!-- 정렬 옵션 -->
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <label style="font-weight: 500; color: #666;">정렬:</label>
+            <select class="sort-select" onchange="location.href=this.value">
+                <option value="?q={{ query }}&sort=number" {% if sort_by == 'number' %}selected{% endif %}>
+                    📋 카드번호순
+                </option>
+                <option value="?q={{ query }}&sort=name" {% if sort_by == 'name' %}selected{% endif %}>
+                    🔤 카드명순
+                </option>
+                <option value="?q={{ query }}&sort=rarity" {% if sort_by == 'rarity' %}selected{% endif %}>
+                    ⭐ 레어도순
+                </option>
+                <option value="?q={{ query }}&sort=general_high" {% if sort_by == 'general_high' %}selected{% endif %}>
+                    💰 최저가 높은순
+                </option>
+                <option value="?q={{ query }}&sort=general_low" {% if sort_by == 'general_low' %}selected{% endif %}>
+                    💸 최저가 낮은순
+                </option>
+                <option value="?q={{ query }}&sort=tcg999_high" {% if sort_by == 'tcg999_high' %}selected{% endif %}>
+                    🎯 TCG999 높은순
+                </option>
+                <option value="?q={{ query }}&sort=tcg999_low" {% if sort_by == 'tcg999_low' %}selected{% endif %}>
+                    🎯 TCG999 낮은순
+                </option>
+            </select>
+        </div>
+    </div>
+    
+    {% if query %}
+    <p style="margin-top: 15px; color: #667eea; font-weight: 500;">
+        "{{ query }}" 검색 결과: {{ cards.count }}개
+    </p>
+    {% endif %}
+    
+    <p style="margin-top: 10px; font-size: 0.9em; color: #999;">
+        💡 테이블 헤더를 클릭하여 정렬할 수 있습니다
+    </p>
+</div>
+
+<div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+        <thead style="background: #667eea; color: white;">
+            <tr>
+                <th class="sortable-header {% if sort_by == 'number' %}active-asc{% endif %}" 
+                    onclick="location.href='?q={{ query }}&sort=number'"
+                    style="padding: 15px; text-align: left;">
+                    카드번호
+                </th>
+                <th style="padding: 15px; text-align: left;">이미지</th>
+                <th class="sortable-header {% if sort_by == 'name' %}active-asc{% endif %}" 
+                    onclick="location.href='?q={{ query }}&sort=name'"
+                    style="padding: 15px; text-align: left;">
+                    카드명
+                </th>
+                <th class="sortable-header {% if sort_by == 'rarity' %}active-asc{% endif %}" 
+                    onclick="location.href='?q={{ query }}&sort=rarity'"
+                    style="padding: 15px; text-align: center;">
+                    레어도
+                </th>
+                <th class="sortable-header {% if sort_by == 'general_low' %}active-asc{% elif sort_by == 'general_high' %}active-desc{% endif %}" 
+                    onclick="toggleSort('general', '{{ query }}', '{{ sort_by }}')"
+                    style="padding: 15px; text-align: right;">
+                    일반 최저가
+                </th>
+                <th class="sortable-header {% if sort_by == 'tcg999_low' %}active-asc{% elif sort_by == 'tcg999_high' %}active-desc{% endif %}" 
+                    onclick="toggleSort('tcg999', '{{ query }}', '{{ sort_by }}')"
+                    style="padding: 15px; text-align: right;">
+                    TCG999
+                </th>
+                <th style="padding: 15px; text-align: center;">상세</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for card in cards %}
+            <tr style="border-bottom: 1px solid #eee;">
+                <td style="padding: 15px;">{{ card.card_number }}</td>
+                <td style="padding: 15px;">
+                    {% if card.image_url %}
+                    <img src="{{ card.image_url }}" alt="{{ card.name }}" 
+                         style="width: 60px; height: 80px; object-fit: cover; border-radius: 5px;">
+                    {% else %}
+                    <div style="width: 60px; height: 80px; background: #f0f0f0; border-radius: 5px; display: flex; align-items: center; justify-content: center;">
+                        🏴‍☠️
+                    </div>
+                    {% endif %}
+                </td>
+                <td style="padding: 15px; font-weight: 500;">{{ card.name }}</td>
+                <td style="padding: 15px; text-align: center;">
+                    <span style="background: #f0f0f0; padding: 5px 10px; border-radius: 3px; font-size: 0.9em;">
+                        {{ card.rarity }}
+                    </span>
+                </td>
+                <td style="padding: 15px; text-align: right; font-weight: 500;">
+                    {% if card.latest_general_price %}
+                        {{ card.latest_general_price|floatformat:0 }}원
+                        <br><span style="font-size: 0.8em; color: #999;">{{ card.latest_general_source }}</span>
+                    {% else %}
+                        <span style="color: #999;">-</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 15px; text-align: right; font-weight: 500; color: #667eea;">
+                    {% if card.latest_tcg999_price %}
+                        {{ card.latest_tcg999_price|floatformat:0 }}원
+                    {% else %}
+                        <span style="color: #999;">-</span>
+                    {% endif %}
+                </td>
+                <td style="padding: 15px; text-align: center;">
+                    <a href="{% url 'pricehub:onepiece_card_detail' card.id %}" class="btn" style="padding: 5px 15px; font-size: 0.9em;">
+                        📊 차트
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" style="padding: 50px; text-align: center; color: #999;">
+                    {% if query %}
+                        "{{ query }}"에 대한 검색 결과가 없습니다.
+                    {% else %}
+                        등록된 카드가 없습니다.
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function toggleSort(type, query, currentSort) {
+        let newSort;
+        
+        if (type === 'general') {
+            if (currentSort === 'general_low') {
+                newSort = 'general_high';
+            } else {
+                newSort = 'general_low';
+            }
+        } else if (type === 'tcg999') {
+            if (currentSort === 'tcg999_low') {
+                newSort = 'tcg999_high';
+            } else {
+                newSort = 'tcg999_low';
+            }
+        }
+        
+        location.href = '?q=' + query + '&sort=' + newSort;
+    }
+</script>
+{% endblock %}

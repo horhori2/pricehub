@@ -373,3 +373,252 @@ def get_all_prices_for_card(card_name: str, rarity: str, expansion_name: str) ->
         'tcg999_price': (tcg999_price, tcg999_mall),
         'search_query': search_query
     }
+
+# pricehub/utils.py 끝에 추가
+
+# ==================== 원피스 카드 유틸리티 ====================
+
+def generate_onepiece_search_query(card_name: str, rarity: str, expansion_name: str, card_number: str, is_manga: bool = False) -> str:
+    """
+    원피스 카드 검색어 생성
+    
+    Args:
+        card_name: 카드명
+        rarity: 레어도 (예: "SR", "P-SR", "SP-SR")
+        expansion_name: 확장팩명
+        card_number: 카드번호 (예: "OP10-046", "OP10-046_P1")
+        is_manga: 망가(슈퍼 패러렐) 여부
+    
+    Returns:
+        검색 쿼리 문자열
+    """
+    # 기본 카드번호에서 _P 제거
+    base_card_number = re.sub(r"_[Pp]\d+", "", card_number, flags=re.IGNORECASE)
+    
+    # 망가(슈퍼 패러렐) 처리
+    if is_manga:
+        search_query = f"망가 {base_card_number}"
+        print(f"  슈퍼 패러렐(망가) 검색어: {search_query}")
+        return search_query
+    
+    # 스페셜 카드 처리 (SP-SP)
+    if rarity == 'SP-SP':
+        search_query = f"SP {base_card_number}"
+        print(f"  스페셜 카드 검색어: {search_query}")
+        return search_query
+    
+    # 패러렐 카드 처리
+    if rarity.startswith('P-'):
+        search_query = f"패러렐 {base_card_number}"
+        print(f"  패러렐 카드 검색어: {search_query}")
+        return search_query
+    
+    # 일반 카드 (ST, P-프로모 등)
+    if base_card_number.startswith('ST') or base_card_number.startswith('P-'):
+        search_query = f"원피스 {base_card_number}"
+        print(f"  일반 카드 검색어: {search_query}")
+        return search_query
+    
+    # 기본 카드번호만
+    print(f"  기본 검색어: {base_card_number}")
+    return base_card_number
+
+
+def get_onepiece_all_prices(card_name: str, rarity: str, expansion_name: str, card_number: str, is_manga: bool = False) -> dict:
+    """
+    원피스 카드 가격 통합 검색
+    
+    Args:
+        card_name: 카드명
+        rarity: 레어도
+        expansion_name: 확장팩명
+        card_number: 카드번호
+        is_manga: 망가(슈퍼 패러렐) 여부
+    
+    Returns:
+        {
+            'general_price': (최저가, 유효상품수, 판매처),
+            'cardkingdom_price': (카드킹덤가격, 판매처),
+            'search_query': 검색어
+        }
+    """
+    # 검색어 생성 (is_manga 파라미터 추가)
+    search_query = generate_onepiece_search_query(card_name, rarity, expansion_name, card_number, is_manga)
+    
+    print(f"🔍 [원피스 통합검색] 검색어: {search_query}")
+    
+    # 네이버 쇼핑 검색
+    items = search_naver_shopping(search_query)
+    
+    if not items:
+        print(f"❌ 검색 결과 없음")
+        return {
+            'general_price': (None, 0, None),
+            'cardkingdom_price': (None, None),
+            'search_query': search_query
+        }
+    
+    print(f"✅ 검색 결과: {len(items)}개")
+    
+    # 1. 일반 최저가 필터링 (is_manga 사용)
+    min_price, valid_count, min_price_mall = filter_onepiece_items(items, card_number, rarity, is_manga)
+    
+    # 2. 카드킹덤 필터링 (is_manga 사용)
+    cardkingdom_price, cardkingdom_mall = filter_onepiece_cardkingdom_items(items, card_number, rarity, is_manga)
+    
+    # 결과 출력
+    if min_price:
+        print(f"💰 일반 최저가: {int(min_price)}원 ({min_price_mall}) - 유효: {valid_count}개")
+    else:
+        print(f"⚠️ 일반 최저가 없음")
+    
+    if cardkingdom_price:
+        print(f"👑 카드킹덤: {int(cardkingdom_price)}원")
+    else:
+        print(f"⚠️ 카드킹덤 없음")
+    
+    return {
+        'general_price': (min_price, valid_count, min_price_mall),
+        'cardkingdom_price': (cardkingdom_price, cardkingdom_mall),
+        'search_query': search_query
+    }
+
+
+def filter_onepiece_items(items: List[dict], card_number: str, rarity: str, is_manga: bool = False) -> Tuple[Optional[float], int, Optional[str]]:
+    """
+    원피스 카드 검색 결과 필터링 (일반 최저가)
+    
+    Args:
+        items: API 검색 결과
+        card_number: 카드번호
+        rarity: 레어도
+        is_manga: 망가 여부
+    """
+    min_price = None
+    valid_count = 0
+    min_price_mall = None
+    
+    excluded_malls = ["화성스토어-TCG-", "카드 베이스", "네이버", "쿠팡"]
+    excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
+    
+    base_card_number = re.sub(r"_[Pp]\d+", "", card_number, flags=re.IGNORECASE)
+    
+    # 스페셜 여부 (SP-SP)
+    is_special = rarity == 'SP-SP'
+    # 패러렐 여부
+    is_parallel = rarity.startswith('P-')
+    
+    for item in items:
+        title = item['title']
+        price = float(item['lprice'])
+        mall_name = item.get('mallName', '알 수 없음')
+        
+        if mall_name in excluded_malls:
+            continue
+        
+        if any(keyword in title for keyword in excluded_keywords):
+            continue
+        
+        clean_title = re.sub(r'<[^>]+>', '', title)
+        
+        if base_card_number not in clean_title:
+            continue
+        
+        # 망가(슈퍼 패러렐) 키워드 확인
+        if is_manga:
+            super_parallel_keywords = ['슈퍼 패러렐', '슈퍼패러렐', '슈퍼파라렐', '슈퍼 파라렐']
+            manga_keywords = ['망가', 'MANGA', 'manga']
+            
+            has_super_parallel = any(kw in clean_title for kw in super_parallel_keywords)
+            has_manga = any(kw in clean_title for kw in manga_keywords)
+            
+            if not (has_super_parallel or has_manga):
+                continue
+            
+            # 가격 체크: 200,000원 미만 제외
+            if price < 200000:
+                continue
+        
+        # 스페셜 카드 키워드 확인
+        elif is_special:
+            special_keywords = ['스페셜', 'SP']
+            if not any(kw in clean_title for kw in special_keywords):
+                continue
+        
+        # 패러렐 키워드 확인
+        elif is_parallel:
+            parallel_keywords = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레']
+            if not any(kw in clean_title for kw in parallel_keywords):
+                continue
+        
+        valid_count += 1
+        
+        if min_price is None or price < min_price:
+            min_price = price
+            min_price_mall = mall_name
+    
+    return min_price, valid_count, min_price_mall
+
+
+def filter_onepiece_cardkingdom_items(items: List[dict], card_number: str, rarity: str, is_manga: bool = False) -> Tuple[Optional[float], Optional[str]]:
+    """
+    원피스 카드 카드킹덤 전용 필터링
+    
+    Args:
+        items: API 검색 결과
+        card_number: 카드번호
+        rarity: 레어도
+        is_manga: 망가 여부
+    """
+    excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
+    base_card_number = re.sub(r"_[Pp]\d+", "", card_number, flags=re.IGNORECASE)
+    
+    # 스페셜/패러렐 여부
+    is_special = rarity == 'SP-SP'
+    is_parallel = rarity.startswith('P-')
+    
+    cardkingdom_keywords = ['카드킹덤', 'CARDKINGDOM', 'cardkingdom', '카드 킹덤']
+    
+    for item in items:
+        title = item['title']
+        price = float(item['lprice'])
+        mall_name = item.get('mallName', '')
+        
+        has_cardkingdom = any(keyword in mall_name or keyword in title for keyword in cardkingdom_keywords)
+        if not has_cardkingdom:
+            continue
+        
+        if any(keyword in title for keyword in excluded_keywords):
+            continue
+        
+        clean_title = re.sub(r'<[^>]+>', '', title)
+        
+        if base_card_number not in clean_title:
+            continue
+        
+        # 망가 키워드 확인
+        if is_manga:
+            super_parallel_keywords = ['슈퍼 패러렐', '슈퍼패러렐', '슈퍼파라렐', '슈퍼 파라렐']
+            manga_keywords = ['망가', 'MANGA', 'manga']
+            
+            has_super_parallel = any(kw in clean_title for kw in super_parallel_keywords)
+            has_manga_kw = any(kw in clean_title for kw in manga_keywords)
+            
+            if not (has_super_parallel or has_manga_kw):
+                continue
+            
+            if price < 200000:
+                continue
+        
+        elif is_special:
+            if not any(kw in clean_title for kw in ['스페셜', 'SP']):
+                continue
+        
+        elif is_parallel:
+            parallel_keywords = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레']
+            if not any(kw in clean_title for kw in parallel_keywords):
+                continue
+        
+        return price, mall_name if mall_name else '카드킹덤'
+    
+    return None, None
