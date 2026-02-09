@@ -1,0 +1,51 @@
+{% extends 'pricehub/base.html' %}
+
+{% block title %}포켓몬 일본판 확장팩 목록{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h2>🗾 포켓몬 일본판 확장팩</h2>
+    </div>
+    <div class="col-md-4">
+        <form action="{% url 'pricehub:japan_card_search' %}" method="get" class="d-flex">
+            <input type="text" name="q" class="form-control me-2" placeholder="카드 검색...">
+            <button type="submit" class="btn btn-primary">검색</button>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    {% for expansion in expansions %}
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            {% if expansion.image_url %}
+            <img src="{{ expansion.image_url }}" class="card-img-top" alt="{{ expansion.name }}">
+            {% else %}
+            <div class="card-img-top bg-secondary text-white d-flex align-items-center justify-content-center" style="height: 200px;">
+                <span>이미지 없음</span>
+            </div>
+            {% endif %}
+            <div class="card-body">
+                <h5 class="card-title">{{ expansion.name }}</h5>
+                <p class="card-text">
+                    <small class="text-muted">코드: {{ expansion.code }}</small><br>
+                    {% if expansion.release_date %}
+                    <small class="text-muted">출시일: {{ expansion.release_date|date:"Y-m-d" }}</small><br>
+                    {% endif %}
+                    <span class="badge bg-primary">카드 {{ expansion.card_count }}장</span>
+                    <span class="badge bg-success">가격 {{ expansion.price_count }}개</span>
+                </p>
+                <a href="{% url 'pricehub:japan_card_list' expansion.code %}" class="btn btn-primary w-100">
+                    카드 목록 보기
+                </a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="alert alert-info">등록된 확장팩이 없습니다.</div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
