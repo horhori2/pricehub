@@ -262,7 +262,8 @@ def collect_prices_for_expansion_bulk(expansion_code: str):
             JapanCardPrice.objects.create(
                 card=card,
                 price=price_info['price'],
-                source='유유테이'
+                source='유유테이',
+                collected_at=timezone.now()
             )
             
             price_found += 1

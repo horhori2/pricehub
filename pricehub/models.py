@@ -1,6 +1,7 @@
 # pricehub/models.py
 from django.db import models
 from django.core.validators import MinValueValidator
+from django.utils import timezone
 
 
 class Expansion(models.Model):
@@ -372,7 +373,7 @@ class JapanCardPrice(models.Model):
     card = models.ForeignKey(JapanCard, on_delete=models.CASCADE, related_name='prices', verbose_name="카드")
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="가격")
     source = models.CharField(max_length=100, verbose_name="출처")
-    collected_at = models.DateTimeField(auto_now_add=True, verbose_name="수집일시")
+    collected_at = models.DateTimeField(default=timezone.now, verbose_name="수집일시")
     
     class Meta:
         db_table = 'japan_card_price'
