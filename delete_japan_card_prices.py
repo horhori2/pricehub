@@ -1,12 +1,13 @@
 # delete_japan_card_prices.py
 import os
 import django
+from pricehub.models import JapanCardPrice
 
 # Django 설정 초기화
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'your_project_name.settings')
 django.setup()
 
-from pricehub.models import JapanCardPrice
+
 
 def delete_japan_card_prices():
     """japan_card_price 테이블의 모든 데이터를 삭제"""
