@@ -1,0 +1,61 @@
+{% extends 'pricehub/base.html' %}
+
+{% block title %}포켓몬 일본판 검색 결과{% endblock %}
+
+{% block content %}
+<h2>🔍 검색 결과: "{{ query }}"</h2>
+
+{% if cards %}
+<p class="text-muted">{{ cards.count }}개의 카드를 찾았습니다.</p>
+
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>이미지</th>
+                <th>확장팩</th>
+                <th>카드번호</th>
+                <th>카드명</th>
+                <th>레어도</th>
+                <th>최신가격</th>
+                <th>상세</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for card in cards %}
+            <tr>
+                <td>
+                    {% if card.image_url %}
+                    <img src="{{ card.image_url }}" alt="{{ card.name }}" style="width: 60px;">
+                    {% endif %}
+                </td>
+                <td>{{ card.expansion.name }}</td>
+                <td>{{ card.card_number }}</td>
+                <td>
+                    {{ card.name }}
+                    {% if card.mirror_type %}
+                    <br><small class="text-muted">{{ card.mirror_type }}</small>
+                    {% endif %}
+                </td>
+                <td><span class="badge bg-secondary">{{ card.rarity }}</span></td>
+                <td>
+                    {% if card.latest_price %}
+                    ¥{{ card.latest_price|floatformat:0 }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'pricehub:japan_card_detail' card.id %}" class="btn btn-sm btn-primary">상세</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    검색 결과가 없습니다.
+</div>
+{% endif %}
+{% endblock %}

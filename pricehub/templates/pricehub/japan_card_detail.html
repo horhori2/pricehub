@@ -1,0 +1,225 @@
+{% extends 'pricehub/base.html' %}
+
+{% block title %}{{ card.name }} - 카드 상세{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'pricehub:japan_expansion_list' %}">일본판 확장팩</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'pricehub:japan_card_list' card.expansion.code %}">{{ card.expansion.name }}</a></li>
+        <li class="breadcrumb-item active">{{ card.name }}</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <!-- 카드 이미지 및 기본 정보 -->
+    <div class="col-md-4">
+        {% if card.image_url %}
+        <img src="{{ card.image_url }}" class="img-fluid rounded shadow" alt="{{ card.name }}">
+        {% else %}
+        <div class="bg-secondary text-white text-center rounded shadow p-5">
+            <p>이미지 없음</p>
+        </div>
+        {% endif %}
+        
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">카드 정보</h5>
+                <table class="table table-sm">
+                    <tr>
+                        <th>카드번호:</th>
+                        <td>{{ card.card_number }}</td>
+                    </tr>
+                    <tr>
+                        <th>레어도:</th>
+                        <td><span class="badge bg-secondary">{{ card.rarity }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>미러:</th>
+                        <td>
+                            {% if card.is_mirror %}
+                            <span class="badge bg-info">미러</span>
+                            {% if card.mirror_type %}
+                            <br><small>{{ card.mirror_type }}</small>
+                            {% endif %}
+                            {% else %}
+                            일반
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>확장팩:</th>
+                        <td>{{ card.expansion.name }}</td>
+                    </tr>
+                    <tr>
+                        <th>상품코드:</th>
+                        <td><small>{{ card.shop_product_code }}</small></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 가격 정보 및 차트 -->
+    <div class="col-md-8">
+        <h2>{{ card.name }}</h2>
+        
+        <!-- 가격 통계 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">현재가</h6>
+                        <h4 class="card-title">
+                            {% if price_stats.current %}
+                            ¥{{ price_stats.current|floatformat:0 }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">최저가</h6>
+                        <h4 class="card-title text-success">
+                            {% if price_stats.min %}
+                            ¥{{ price_stats.min|floatformat:0 }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">최고가</h6>
+                        <h4 class="card-title text-danger">
+                            {% if price_stats.max %}
+                            ¥{{ price_stats.max|floatformat:0 }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-subtitle mb-2 text-muted">평균가</h6>
+                        <h4 class="card-title">
+                            {% if price_stats.avg %}
+                            ¥{{ price_stats.avg|floatformat:0 }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </h4>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 기간 선택 -->
+        <div class="btn-group mb-3" role="group">
+            <a href="?period=1week" class="btn btn-outline-primary {% if period == '1week' %}active{% endif %}">1주일</a>
+            <a href="?period=1month" class="btn btn-outline-primary {% if period == '1month' %}active{% endif %}">1개월</a>
+            <a href="?period=3months" class="btn btn-outline-primary {% if period == '3months' %}active{% endif %}">3개월</a>
+            <a href="?period=all" class="btn btn-outline-primary {% if period == 'all' %}active{% endif %}">전체</a>
+        </div>
+
+        <!-- 가격 차트 -->
+        <div class="card">
+            <div class="card-header">
+                가격 추이 ({{ period_label }})
+            </div>
+            <div class="card-body">
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 가격 기록 테이블 -->
+        <div class="card mt-3">
+            <div class="card-header">
+                가격 기록 ({{ price_stats.count }}개)
+            </div>
+            <div class="card-body">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>수집일시</th>
+                                <th>가격</th>
+                                <th>출처</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for price in prices %}
+                            <tr>
+                                <td>{{ price.collected_at|date:"Y-m-d H:i" }}</td>
+                                <td>¥{{ price.price|floatformat:0 }}</td>
+                                <td>{{ price.source }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="3" class="text-center">가격 기록이 없습니다.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const ctx = document.getElementById('priceChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_data.labels|safe }},
+        datasets: [{
+            label: '가격 (엔)',
+            data: {{ chart_data.prices|safe }},
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top'
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return '¥' + context.parsed.y.toFixed(0);
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: false,
+                ticks: {
+                    callback: function(value) {
+                        return '¥' + value.toFixed(0);
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

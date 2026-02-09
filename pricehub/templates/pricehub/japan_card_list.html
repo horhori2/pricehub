@@ -1,0 +1,106 @@
+{% extends 'pricehub/base.html' %}
+
+{% block title %}{{ expansion.name }} - 카드 목록{% endblock %}
+
+{% block content %}
+<h2>🗾 {{ expansion.name }}</h2>
+<p class="text-muted">{{ expansion.code }}</p>
+
+<!-- 검색 및 필터 -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <input type="text" name="q" class="form-control" placeholder="카드명 또는 번호" value="{{ query }}">
+            </div>
+            <div class="col-md-2">
+                <select name="rarity" class="form-select">
+                    <option value="">전체 레어도</option>
+                    {% for rarity in rarities %}
+                    <option value="{{ rarity }}" {% if rarity_filter == rarity %}selected{% endif %}>{{ rarity }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="mirror" class="form-select">
+                    <option value="">전체</option>
+                    <option value="normal" {% if mirror_filter == 'normal' %}selected{% endif %}>일반</option>
+                    <option value="mirror" {% if mirror_filter == 'mirror' %}selected{% endif %}>미러</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="sort" class="form-select">
+                    <option value="card_number" {% if sort_by == 'card_number' %}selected{% endif %}>카드번호순</option>
+                    <option value="name" {% if sort_by == 'name' %}selected{% endif %}>카드명순</option>
+                    <option value="rarity" {% if sort_by == 'rarity' %}selected{% endif %}>레어도순</option>
+                    <option value="price" {% if sort_by == 'price' %}selected{% endif %}>가격순</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-primary w-100">검색</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 카드 목록 테이블 -->
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>이미지</th>
+                <th>카드번호</th>
+                <th>카드명</th>
+                <th>레어도</th>
+                <th>미러</th>
+                <th>최신가격</th>
+                <th>상세</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for card in cards %}
+            <tr>
+                <td>
+                    {% if card.image_url %}
+                    <img src="{{ card.image_url }}" alt="{{ card.name }}" style="width: 60px; height: auto;">
+                    {% else %}
+                    <div class="bg-secondary text-white text-center" style="width: 60px; height: 80px; line-height: 80px;">
+                        <small>No Image</small>
+                    </div>
+                    {% endif %}
+                </td>
+                <td>{{ card.card_number }}</td>
+                <td>
+                    {{ card.name }}
+                    {% if card.mirror_type %}
+                    <br><small class="text-muted">{{ card.mirror_type }}</small>
+                    {% endif %}
+                </td>
+                <td><span class="badge bg-secondary">{{ card.rarity }}</span></td>
+                <td>
+                    {% if card.is_mirror %}
+                    <span class="badge bg-info">미러</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if card.latest_price %}
+                    ¥{{ card.latest_price|floatformat:0 }}
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'pricehub:japan_card_detail' card.id %}" class="btn btn-sm btn-primary">상세</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="text-center">카드가 없습니다.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p class="text-muted">총 {{ cards.count }}장</p>
+{% endblock %}

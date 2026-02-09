@@ -299,3 +299,103 @@ class OnePieceTargetStorePrice(models.Model):
     
     def __str__(self):
         return f"{self.card.name} - {self.price}원 ({self.store_name})"
+
+
+# 기존 포켓몬 한글판 모델은 그대로 유지
+# Expansion, Card, CardPrice, TargetStorePrice
+
+# ==================== 포켓몬 일본판 모델 ====================
+
+class JapanExpansion(models.Model):
+    """포켓몬 일본판 확장팩"""
+    code = models.CharField(max_length=20, unique=True, verbose_name="확장팩 코드")
+    name = models.CharField(max_length=200, verbose_name="확장팩명")
+    release_date = models.DateField(null=True, blank=True, verbose_name="출시일")
+    image_url = models.URLField(max_length=500, blank=True, verbose_name="이미지 URL")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
+    
+    class Meta:
+        db_table = 'japan_expansion'
+        verbose_name = '포켓몬 일본판 확장팩'
+        verbose_name_plural = '포켓몬 일본판 확장팩 목록'
+        ordering = ['-release_date', '-created_at']
+    
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
+class JapanCard(models.Model):
+    """포켓몬 일본판 카드"""
+    RARITY_CHOICES = [
+        ('MUR', 'MUR'),
+        ('UR', 'UR'),
+        ('SSR', 'SSR'),
+        ('SAR', 'SAR'),
+        ('SR', 'SR'),
+        ('HR', 'HR'),
+        ('CSR', 'CSR'),
+        ('CHR', 'CHR'),
+        ('AR', 'AR'),
+        ('BWR', 'BWR'),
+        ('마스터볼', '마스터볼'),
+        ('몬스터볼', '몬스터볼'),
+        ('이로치', '이로치'),
+        ('미러', '미러'),
+        ('RRR', 'RRR'),
+        ('RR', 'RR'),
+        ('R', 'R'),
+        ('U', 'U'),
+        ('C', 'C'),
+    ]
+    
+    expansion = models.ForeignKey(JapanExpansion, on_delete=models.CASCADE, related_name='cards', verbose_name="확장팩")
+    shop_product_code = models.CharField(max_length=50, unique=True, verbose_name="상품코드")
+    card_number = models.CharField(max_length=20, verbose_name="카드번호")
+    name = models.CharField(max_length=100, verbose_name="카드명")
+    rarity = models.CharField(max_length=20, choices=RARITY_CHOICES, verbose_name="레어도")
+    is_mirror = models.BooleanField(default=False, verbose_name="미러")
+    mirror_type = models.CharField(max_length=50, blank=True, verbose_name="미러 타입")  # 추가
+    image_url = models.URLField(max_length=500, blank=True, verbose_name="이미지 URL")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
+    
+    class Meta:
+        db_table = 'japan_card'
+        verbose_name = '포켓몬 일본판 카드'
+        verbose_name_plural = '포켓몬 일본판 카드 목록'
+        ordering = ['expansion', 'card_number']
+    
+    def __str__(self):
+        return f"{self.name} ({self.card_number}) - {self.expansion.name}"
+
+class JapanCardPrice(models.Model):
+    """포켓몬 일본판 카드 일반 최저가"""
+    card = models.ForeignKey(JapanCard, on_delete=models.CASCADE, related_name='prices', verbose_name="카드")
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="가격")
+    source = models.CharField(max_length=100, verbose_name="출처")
+    collected_at = models.DateTimeField(auto_now_add=True, verbose_name="수집일시")
+    
+    class Meta:
+        db_table = 'japan_card_price'
+        verbose_name = '포켓몬 일본판 카드 가격'
+        verbose_name_plural = '포켓몬 일본판 카드 가격 목록'
+        ordering = ['-collected_at']
+    
+    def __str__(self):
+        return f"{self.card.name} - {self.price}원 ({self.collected_at.strftime('%Y-%m-%d')})"
+
+
+class JapanTargetStorePrice(models.Model):
+    """포켓몬 일본판 카드 TCG999 가격"""
+    card = models.ForeignKey(JapanCard, on_delete=models.CASCADE, related_name='tcg999_prices', verbose_name="카드")
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="가격")
+    store_name = models.CharField(max_length=100, verbose_name="판매처")
+    collected_at = models.DateTimeField(auto_now_add=True, verbose_name="수집일시")
+    
+    class Meta:
+        db_table = 'japan_target_store_price'
+        verbose_name = '포켓몬 일본판 TCG999 가격'
+        verbose_name_plural = '포켓몬 일본판 TCG999 가격 목록'
+        ordering = ['-collected_at']
+    
+    def __str__(self):
+        return f"{self.card.name} - {self.price}원 ({self.store_name})"

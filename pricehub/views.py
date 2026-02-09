@@ -5,11 +5,14 @@ from django.db.models import (
     Case, When, Value, IntegerField
 )
 from .models import (
-    # 포켓몬
+    # 포켓몬 한글판
     Expansion, Card, CardPrice, TargetStorePrice,
     # 원피스
-    OnePieceExpansion, OnePieceCard, OnePieceCardPrice, OnePieceTargetStorePrice
+    OnePieceExpansion, OnePieceCard, OnePieceCardPrice, OnePieceTargetStorePrice,
+    # 포켓몬 일본판
+    JapanExpansion, JapanCard, JapanCardPrice
 )
+from datetime import datetime, timedelta
 
 # ==================== 포켓몬 카드 뷰 ====================
 
@@ -65,11 +68,11 @@ def card_search(request):
     return render(request, 'pricehub/search_results.html', context)
 
 
-def card_list(request, code):
+def card_list(request, expansion_code):
     """확장팩 내 카드 목록 페이지 (검색 및 정렬 기능 포함)"""
     from django.db.models import Case, When, Value, IntegerField
     
-    expansion = get_object_or_404(Expansion, code=code)
+    expansion = get_object_or_404(Expansion, code=expansion_code)
     
     # 검색어 가져오기
     query = request.GET.get('q', '').strip()
@@ -305,11 +308,11 @@ def onepiece_card_search(request):
     return render(request, 'pricehub/onepiece_search_results.html', context)
 
 
-def onepiece_card_list(request, code):
+def onepiece_card_list(request, expansion_code):
     """원피스 확장팩 내 카드 목록 페이지"""
     from .models import OnePieceExpansion, OnePieceCard, OnePieceCardPrice, OnePieceTargetStorePrice
     
-    expansion = get_object_or_404(OnePieceExpansion, code=code)
+    expansion = get_object_or_404(OnePieceExpansion, code=expansion_code)
     
     # 검색어 가져오기
     query = request.GET.get('q', '').strip()
@@ -479,3 +482,195 @@ def onepiece_card_detail(request, card_id):
         'stats': stats,
     }
     return render(request, 'pricehub/onepiece_card_detail.html', context)
+
+# ==================== 포켓몬 일본판 뷰 ====================
+
+def japan_expansion_list(request):
+    """일본판 확장팩 목록"""
+    expansions = JapanExpansion.objects.all().order_by('-release_date', '-created_at')
+    
+    # 각 확장팩별 카드 수 및 최신 가격 추가
+    for expansion in expansions:
+        expansion.card_count = JapanCard.objects.filter(expansion=expansion).count()
+        
+        # 최신 가격이 있는 카드 수
+        latest_prices = JapanCardPrice.objects.filter(
+            card__expansion=expansion
+        ).values('card').distinct()
+        expansion.price_count = latest_prices.count()
+    
+    context = {
+        'expansions': expansions,
+        'page_title': '포켓몬 일본판 확장팩 목록'
+    }
+    return render(request, 'pricehub/japan_expansion_list.html', context)
+
+
+def japan_card_search(request):
+    """일본판 카드 검색"""
+    query = request.GET.get('q', '')
+    
+    if not query:
+        return render(request, 'pricehub/japan_search_results.html', {
+            'cards': [],
+            'query': query,
+            'page_title': '포켓몬 일본판 카드 검색'
+        })
+    
+    # 카드 검색
+    cards = JapanCard.objects.filter(
+        Q(name__icontains=query) | 
+        Q(card_number__icontains=query) |
+        Q(shop_product_code__icontains=query)
+    ).select_related('expansion').order_by('expansion', 'card_number')
+    
+    # 최신 가격 추가
+    latest_price_subquery = JapanCardPrice.objects.filter(
+        card=OuterRef('pk')
+    ).order_by('-collected_at').values('price')[:1]
+    
+    cards = cards.annotate(
+        latest_price=Subquery(latest_price_subquery)
+    )
+    
+    context = {
+        'cards': cards,
+        'query': query,
+        'page_title': f'포켓몬 일본판 검색: {query}'
+    }
+    return render(request, 'pricehub/japan_search_results.html', context)
+
+
+def japan_card_list(request, expansion_code):
+    """일본판 확장팩 내 카드 목록"""
+    expansion = get_object_or_404(JapanExpansion, code=expansion_code)
+    
+    # 검색 및 필터
+    query = request.GET.get('q', '')
+    rarity_filter = request.GET.get('rarity', '')
+    mirror_filter = request.GET.get('mirror', '')
+    sort_by = request.GET.get('sort', 'card_number')
+    
+    # 기본 쿼리
+    cards = JapanCard.objects.filter(expansion=expansion).select_related('expansion')
+    
+    # 검색
+    if query:
+        cards = cards.filter(
+            Q(name__icontains=query) | 
+            Q(card_number__icontains=query)
+        )
+    
+    # 레어도 필터
+    if rarity_filter:
+        cards = cards.filter(rarity=rarity_filter)
+    
+    # 미러 필터
+    if mirror_filter == 'mirror':
+        cards = cards.filter(is_mirror=True)
+    elif mirror_filter == 'normal':
+        cards = cards.filter(is_mirror=False)
+    
+    # 최신 가격 서브쿼리
+    latest_price_subquery = JapanCardPrice.objects.filter(
+        card=OuterRef('pk')
+    ).order_by('-collected_at').values('price')[:1]
+    
+    cards = cards.annotate(
+        latest_price=Subquery(latest_price_subquery)
+    )
+    
+    # 정렬
+    if sort_by == 'card_number':
+        cards = cards.order_by('card_number', 'mirror_type')
+    elif sort_by == 'name':
+        cards = cards.order_by('name')
+    elif sort_by == 'rarity':
+        cards = cards.order_by('rarity', 'card_number')
+    elif sort_by == 'price':
+        cards = cards.order_by('-latest_price', 'card_number')
+    
+    # 레어도 목록 (필터용)
+    rarities = JapanCard.objects.filter(expansion=expansion).values_list('rarity', flat=True).distinct().order_by('rarity')
+    
+    context = {
+        'expansion': expansion,
+        'cards': cards,
+        'rarities': rarities,
+        'query': query,
+        'rarity_filter': rarity_filter,
+        'mirror_filter': mirror_filter,
+        'sort_by': sort_by,
+        'page_title': f'{expansion.name} - 카드 목록'
+    }
+    return render(request, 'pricehub/japan_card_list.html', context)
+
+
+def japan_card_detail(request, card_id):
+    """일본판 카드 상세"""
+    card = get_object_or_404(
+        JapanCard.objects.select_related('expansion'),
+        id=card_id
+    )
+    
+    # 기간 필터
+    period = request.GET.get('period', '1month')
+    
+    # 기간 계산
+    now = datetime.now()
+    if period == '1week':
+        start_date = now - timedelta(days=7)
+        period_label = '1주일'
+    elif period == '3months':
+        start_date = now - timedelta(days=90)
+        period_label = '3개월'
+    elif period == 'all':
+        start_date = None
+        period_label = '전체'
+    else:  # 1month
+        start_date = now - timedelta(days=30)
+        period_label = '1개월'
+    
+    # 가격 데이터
+    if start_date:
+        prices = JapanCardPrice.objects.filter(
+            card=card,
+            collected_at__gte=start_date
+        ).order_by('collected_at')
+    else:
+        prices = JapanCardPrice.objects.filter(card=card).order_by('collected_at')
+    
+    # 통계
+    price_stats = {
+        'current': None,
+        'min': None,
+        'max': None,
+        'avg': None,
+        'count': prices.count()
+    }
+    
+    if prices.exists():
+        latest_price = prices.last()
+        price_stats['current'] = latest_price.price
+        
+        price_values = [p.price for p in prices]
+        price_stats['min'] = min(price_values)
+        price_stats['max'] = max(price_values)
+        price_stats['avg'] = sum(price_values) / len(price_values)
+    
+    # 차트 데이터
+    chart_data = {
+        'labels': [p.collected_at.strftime('%Y-%m-%d') for p in prices],
+        'prices': [float(p.price) for p in prices]
+    }
+    
+    context = {
+        'card': card,
+        'prices': prices,
+        'price_stats': price_stats,
+        'chart_data': chart_data,
+        'period': period,
+        'period_label': period_label,
+        'page_title': f'{card.name} - 카드 상세'
+    }
+    return render(request, 'pricehub/japan_card_detail.html', context)
