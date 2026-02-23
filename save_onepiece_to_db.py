@@ -13,6 +13,7 @@ from pricehub.models import OnePieceExpansion, OnePieceCard
 
 # ==================== 원피스 시리즈 목록 ====================
 SERIES_LIST = [
+    {'code': 'EBK-02', 'name': '[EBK-02] 엑스트라 부스터 팩 Anime 25th collection'},
     {'code': 'OPK-10', 'name': '[OPK-10] 부스터 팩 왕족의 혈통'},
     {'code': 'OPK-09', 'name': '[OPK-09] 부스터 팩 새로운 황제'},
     {'code': 'OPK-08', 'name': '[OPK-08] 부스터 팩 두 전설'},
