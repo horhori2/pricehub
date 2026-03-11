@@ -44,6 +44,7 @@ EXPANSION_INFO = {
     'M2': '인페르노X',
     'S10A': '다크판타즈마',
     'M2A': 'MEGA드림ex',
+    'M3': '니힐제로'
 }
 
 # 검색에서 제외할 레어도
@@ -279,8 +280,8 @@ def process_excel_file(file_path: str, dry_run: bool = True) -> tuple:
             shop_code = row[1].value
             # D열 (인덱스 3) - 상품명
             product_name = row[3].value
-            # U열 (인덱스 20) - 이미지 URL
-            image_url = row[20].value if len(row) > 20 else ''
+            # U+5열 (인덱스 25) - 이미지 URL
+            image_url = row[25].value if len(row) > 25 else ''
             
             if not shop_code or not product_name:
                 continue

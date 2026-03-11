@@ -46,8 +46,8 @@ def update_pokemon_card_images():
                     # B열: 상품코드 (인덱스 1)
                     shop_product_code = row[1].value
                     
-                    # U열: 이미지 URL (인덱스 20)
-                    image_url = row[20].value if len(row) > 20 else None
+                    # U열: 이미지 URL (인덱스 25)
+                    image_url = row[25].value if len(row) > 25 else None
                     
                     if not shop_product_code:
                         continue
@@ -146,7 +146,7 @@ def update_onepiece_card_images():
                     shop_product_code = row[1].value
                     
                     # U열: 이미지 URL
-                    image_url = row[20].value if len(row) > 20 else None
+                    image_url = row[25].value if len(row) > 25 else None
                     
                     if not shop_product_code:
                         continue

@@ -70,7 +70,8 @@ EXPANSION_INFO = {
     '2025009': {'code': 'M1L', 'name': '메가브레이브'},
     '2025010': {'code': 'M1S', 'name': '메가심포니아'},
     '2025014': {'code': 'M2', 'name': '인페르노X'},
-    '2025015': {'code': 'M2A', 'name': 'MEGA드림ex'}
+    '2025015': {'code': 'M2A', 'name': 'MEGA드림ex'},
+    '2026002': {'code': 'M3', 'name': '니힐제로'},
 }
 
 def generate_shop_product_code(expansion_code, card_number, rarity):
@@ -192,7 +193,7 @@ def crawl_and_save_cards(expansion_code):
 
 if __name__ == '__main__':
     # 크롤링할 확장팩 코드 입력
-    target_expansion = '2025015' 
+    target_expansion = '2026002' 
     
     print(f'크롤링 시작: {EXPANSION_INFO[target_expansion]["name"]}')
     crawl_and_save_cards(target_expansion)
@@ -257,6 +258,7 @@ if __name__ == '__main__':
     # '2025010',
     # '2025014',
     # '2025015',
+    # '2026002',
     # ]
 
     # for exp_code in expansion_list:
