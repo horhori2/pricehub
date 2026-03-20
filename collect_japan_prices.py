@@ -18,6 +18,7 @@ from pricehub.models import JapanCard, JapanCardPrice, JapanExpansion
 def get_expansion_url_code(expansion_code: str) -> str:
     """확장팩 코드를 URL 코드로 변환"""
     expansion_map = {
+        'M4': 'm04',
         'M3': 'm03',
         'M2a': 'm02a',
         'M2': 'm02',
