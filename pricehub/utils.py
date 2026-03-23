@@ -384,16 +384,22 @@ def generate_onepiece_search_query(card_name: str, rarity: str, expansion_name: 
     
     Args:
         card_name: 카드명
-        rarity: 레어도 (예: "SR", "P-SR", "SP-SR")
+        rarity: 레어도 (예: "SR", "P-SR", "SP-SR", "SP-SEC")
         expansion_name: 확장팩명
-        card_number: 카드번호 (예: "OP10-046", "OP10-046_P1")
+        card_number: 카드번호 (예: "OP10-046", "OP10-046_P1", "OP08-058_P2")
         is_manga: 망가(슈퍼 패러렐) 여부
     
     Returns:
         검색 쿼리 문자열
     """
-    # 기본 카드번호에서 _P 제거
-    base_card_number = re.sub(r"_[Pp]\d+", "", card_number, flags=re.IGNORECASE)
+    # ★ 기본 카드번호에서 _P1, _P2 등 제거 (개선)
+    # OP08-058_P2 → OP08-058
+    # OP10-046_p1 → OP10-046 (대소문자 구분 없이)
+    base_card_number = re.sub(r"_[Pp]\d+$", "", card_number)
+    
+    # 디버깅: 변환 결과 확인
+    if card_number != base_card_number:
+        print(f"  카드번호 변환: {card_number} → {base_card_number}")
     
     # 망가(슈퍼 패러렐) 처리
     if is_manga:
@@ -401,14 +407,15 @@ def generate_onepiece_search_query(card_name: str, rarity: str, expansion_name: 
         print(f"  슈퍼 패러렐(망가) 검색어: {search_query}")
         return search_query
     
-    # 스페셜 카드 처리 (SP-SP)
-    if rarity == 'SP-SP':
+    # SP 레어도 처리 (SP-로 시작하는 모든 레어도)
+    # SP-SEC, SP-SR, SP-SL, SP-L, SP-SP 등
+    if rarity and rarity.startswith('SP-'):
         search_query = f"SP {base_card_number}"
-        print(f"  스페셜 카드 검색어: {search_query}")
+        print(f"  SP 카드 검색어 ({rarity}): {search_query}")
         return search_query
     
-    # 패러렐 카드 처리
-    if rarity.startswith('P-'):
+    # 패러렐 카드 처리 (P-로 시작, 단 P-프로모 제외)
+    if rarity and rarity.startswith('P-') and not base_card_number.startswith('P-'):
         search_query = f"패러렐 {base_card_number}"
         print(f"  패러렐 카드 검색어: {search_query}")
         return search_query

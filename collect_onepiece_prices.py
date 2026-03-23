@@ -12,6 +12,27 @@ from pricehub.models import OnePieceCard, OnePieceCardPrice, OnePieceTargetStore
 from pricehub.utils import get_onepiece_all_prices
 
 
+def get_search_query(card_name: str, rarity: str, card_number: str, expansion_name: str, is_manga: bool = False) -> str:
+    """
+    원피스 카드 검색어 생성
+    
+    SP 레어도 처리:
+    - SP-로 시작하는 레어도: "SP 카드번호"
+    - 망가(슈퍼 패러렐): "망가 카드번호"
+    - 일반: "카드명 카드번호 확장팩명"
+    """
+    # 망가(슈퍼 패러렐) 처리
+    if is_manga:
+        return f"망가 {card_number}"
+    
+    # SP 레어도 처리 (SP-SEC, SP-SR, SP-SL, SP-L 등)
+    if rarity and rarity.startswith('SP-'):
+        return f"SP {card_number}"
+    
+    # 일반 카드
+    return f"{card_name} {card_number} {expansion_name}"
+
+
 def collect_prices_for_all_cards():
     """모든 원피스 카드의 가격 수집"""
     print("\n" + "=" * 80)
@@ -41,13 +62,19 @@ def collect_prices_for_all_cards():
             print(f"  확장팩: {card.expansion.name}")
             print(f"  레어도: {card.rarity}")
             
+            # ★ SP 패턴 확인
+            if card.rarity and card.rarity.startswith('SP-'):
+                print(f"  🔍 SP 카드 감지 - 검색어: SP {card.card_number}")
+            elif card.is_manga:
+                print(f"  🎨 망가 카드 감지 - 검색어: 망가 {card.card_number}")
+            
             # 가격 검색
             result = get_onepiece_all_prices(
                 card_name=card.name,
                 rarity=card.rarity,
                 expansion_name=card.expansion.name,
                 card_number=card.card_number,
-                is_manga=card.is_manga  # 추가
+                is_manga=card.is_manga
             )
             
             # 일반 최저가 저장
@@ -137,12 +164,19 @@ def collect_prices_for_expansion(expansion_code: str):
             print(f"  카드: {card.name} ({card.card_number})")
             print(f"  레어도: {card.rarity}")
             
+            # ★ SP 패턴 확인
+            if card.rarity and card.rarity.startswith('SP-'):
+                print(f"  🔍 SP 카드 감지 - 검색어: SP {card.card_number}")
+            elif card.is_manga:
+                print(f"  🎨 망가 카드 감지 - 검색어: 망가 {card.card_number}")
+            
             # 가격 검색
             result = get_onepiece_all_prices(
                 card_name=card.name,
                 rarity=card.rarity,
                 expansion_name=card.expansion.name,
-                card_number=card.card_number
+                card_number=card.card_number,
+                is_manga=card.is_manga
             )
             
             # 일반 최저가 저장
@@ -213,7 +247,17 @@ def test_single_card(card_id: int):
     print(f"  카드번호: {card.card_number}")
     print(f"  확장팩: {card.expansion.name}")
     print(f"  레어도: {card.rarity}")
+    print(f"  망가: {'예' if card.is_manga else '아니오'}")
     print(f"  상품코드: {card.shop_product_code}")
+    
+    # ★ 검색어 표시
+    if card.rarity and card.rarity.startswith('SP-'):
+        print(f"  🔍 검색어: SP {card.card_number}")
+    elif card.is_manga:
+        print(f"  🔍 검색어: 망가 {card.card_number}")
+    else:
+        print(f"  🔍 검색어: {card.name} {card.card_number} {card.expansion.name}")
+    
     print()
     
     # 가격 검색
@@ -221,7 +265,8 @@ def test_single_card(card_id: int):
         card_name=card.name,
         rarity=card.rarity,
         expansion_name=card.expansion.name,
-        card_number=card.card_number
+        card_number=card.card_number,
+        is_manga=card.is_manga
     )
     
     print()
@@ -308,7 +353,9 @@ if __name__ == '__main__':
         else:
             print("\n최근 등록된 카드:")
             for card in recent_cards:
-                print(f"  ID {card.id}: {card.name} ({card.card_number}) - {card.expansion.name}")
+                manga_tag = " [망가]" if card.is_manga else ""
+                sp_tag = " [SP]" if card.rarity and card.rarity.startswith('SP-') else ""
+                print(f"  ID {card.id}: {card.name} ({card.card_number}) - {card.expansion.name}{sp_tag}{manga_tag}")
             
             card_id = int(input("\n카드 ID를 입력하세요: ").strip())
             test_single_card(card_id)
