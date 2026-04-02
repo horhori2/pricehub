@@ -33,6 +33,7 @@ JAPAN_EXPANSIONS = [
     {'code': 'SV9', 'url_code': 'sv09'},
     
     # SV8 시리즈
+    {'code': 'SV8a', 'url_code': 'sv08a'},
     {'code': 'SV8', 'url_code': 'sv08'},
     
     # SV7 시리즈
@@ -49,6 +50,7 @@ JAPAN_EXPANSIONS = [
     {'code': 'SV5M', 'url_code': 'sv05m'},
     
     # SV4 시리즈
+    {'code': 'SV4a', 'url_code': 'sv04a'},
     {'code': 'SV4K', 'url_code': 'sv04k'},
     {'code': 'SV4M', 'url_code': 'sv04m'},
     
@@ -65,6 +67,39 @@ JAPAN_EXPANSIONS = [
     {'code': 'SV1a', 'url_code': 'sv01a'},
     {'code': 'SV1S', 'url_code': 'sv01s'},
     {'code': 'SV1V', 'url_code': 'sv01v'},
+
+    # S
+    {'code': 'S12a', 'url_code': 's12a'},
+    {'code': 'S12', 'url_code': 's12'},
+    {'code': 'S11a', 'url_code': 's11a'},
+    {'code': 'S11', 'url_code': 's11'},
+    {'code': 'S10b', 'url_code': 's10b'},
+    {'code': 'S10a', 'url_code': 's10a'},
+    {'code': 'S10D', 'url_code': 's10d'},
+    {'code': 'S10P', 'url_code': 's10p'},
+    # {'code': 'S9a', 'url_code': 's9a'},
+    # {'code': 'S8a', 'url_code': 's8a'},
+    # {'code': 'S8b', 'url_code': 's8b'},
+    # {'code': 'S8', 'url_code': 's8'},
+    # {'code': 'S7D', 'url_code': 's7d'},
+    # {'code': 'S7R', 'url_code': 's7r'},
+    # {'code': 'S6a', 'url_code': 's6a'},
+    # {'code': 'S6H', 'url_code': 's6h'},
+    # {'code': 'S6K', 'url_code': 's6k'},
+    # {'code': 'S5a', 'url_code': 's5a'},
+    # {'code': 'S5I', 'url_code': 's5i'},
+    # {'code': 'S5R', 'url_code': 's5r'},
+    # {'code': 'S4a', 'url_code': 's4a'},
+    # {'code': 'S4', 'url_code': 's4'},
+    # {'code': 'S3a', 'url_code': 's3a'},
+    # {'code': 'S3', 'url_code': 's3'},
+    # {'code': 'S2a', 'url_code': 's2a'},
+    # {'code': 'S2', 'url_code': 's2'},
+    # {'code': 'S1a', 'url_code': 's1a'},
+    # {'code': 'S1W', 'url_code': 's1w'},
+    # {'code': 'S1H', 'url_code': 's1h'},
+
+
 ]
 
 # ==================== 유틸리티 함수 ====================
