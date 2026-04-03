@@ -29,6 +29,7 @@ def get_expansion_url_code(expansion_code: str) -> str:
         'SV10': 'sv10',
         'SV9a': 'sv09a',
         'SV9': 'sv09',
+        'SV8a': 'sv08a',
         'SV8': 'sv08',
         'SV7a': 'sv07a',
         'SV7': 'sv07',
@@ -37,6 +38,7 @@ def get_expansion_url_code(expansion_code: str) -> str:
         'SV5a': 'sv05a',
         'SV5K': 'sv05k',
         'SV5M': 'sv05m',
+        'SV4a': 'sv04a',
         'SV4K': 'sv04k',
         'SV4M': 'sv04m',
         'SV3a': 'sv03a',
@@ -47,6 +49,14 @@ def get_expansion_url_code(expansion_code: str) -> str:
         'SV1a': 'sv01a',
         'SV1S': 'sv01s',
         'SV1V': 'sv01v',
+
+        'S12a': 's12a',
+        'S12': 's12',
+        'S11a': 's11a',
+        'S10b': 's10b',
+        'S10a': 's10a',
+        'S10D': 's10d',
+        'S10P': 's10p',
     }
     return expansion_map.get(expansion_code)
 
