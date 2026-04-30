@@ -1,9 +1,17 @@
 # pricehub/views.py
 from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse
 from django.db.models import (
     Prefetch, Count, OuterRef, Subquery, Q, 
-    Case, When, Value, IntegerField
+    Case, When, Value, IntegerField, Avg, Min, Max
 )
+from django.utils import timezone
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+from datetime import datetime, timedelta
+import json
+
 from .models import (
     # 포켓몬 한글판
     Expansion, Card, CardPrice, TargetStorePrice,
@@ -12,7 +20,7 @@ from .models import (
     # 포켓몬 일본판
     JapanExpansion, JapanCard, JapanCardPrice
 )
-from datetime import datetime, timedelta
+
 
 # ==================== 포켓몬 카드 뷰 ====================
 
@@ -70,8 +78,6 @@ def card_search(request):
 
 def card_list(request, expansion_code):
     """확장팩 내 카드 목록 페이지 (검색 및 정렬 기능 포함)"""
-    from django.db.models import Case, When, Value, IntegerField
-    
     expansion = get_object_or_404(Expansion, code=expansion_code)
     
     # 검색어 가져오기
@@ -134,28 +140,20 @@ def card_list(request, expansion_code):
     
     # 정렬 적용
     if sort_by == 'number':
-        # 카드번호순 (기본)
         cards = cards.order_by('card_number')
     elif sort_by == 'name':
-        # 카드명순 (가나다순)
         cards = cards.order_by('name', 'card_number')
     elif sort_by == 'rarity':
-        # 레어도순 (희귀한 순서)
         cards = cards.annotate(rarity_rank=rarity_order).order_by('rarity_rank', 'card_number')
     elif sort_by == 'general_high':
-        # 일반 최저가 높은순
         cards = cards.order_by('-latest_general_price', 'card_number')
     elif sort_by == 'general_low':
-        # 일반 최저가 낮은순
         cards = cards.order_by('latest_general_price', 'card_number')
     elif sort_by == 'tcg999_high':
-        # TCG999 가격 높은순
         cards = cards.order_by('-latest_tcg999_price', 'card_number')
     elif sort_by == 'tcg999_low':
-        # TCG999 가격 낮은순
         cards = cards.order_by('latest_tcg999_price', 'card_number')
     else:
-        # 기본값: 카드번호순
         cards = cards.order_by('card_number')
     
     context = {
@@ -167,12 +165,9 @@ def card_list(request, expansion_code):
     }
     return render(request, 'pricehub/card_list.html', context)
 
+
 def card_detail(request, card_id):
     """카드 상세 페이지 (가격 그래프)"""
-    import json
-    from datetime import timedelta
-    from django.utils import timezone
-    
     card = get_object_or_404(Card.objects.select_related('expansion'), id=card_id)
     
     # 기간 필터 (기본값: 30일)
@@ -250,12 +245,11 @@ def card_detail(request, card_id):
     }
     return render(request, 'pricehub/card_detail.html', context)
 
+
 # ==================== 원피스 카드 뷰 ====================
 
 def onepiece_expansion_list(request):
     """원피스 확장팩 목록 페이지"""
-    from .models import OnePieceExpansion
-    
     expansions = OnePieceExpansion.objects.annotate(
         card_count=Count('cards')
     ).order_by('-release_date', '-created_at')
@@ -268,8 +262,6 @@ def onepiece_expansion_list(request):
 
 def onepiece_card_search(request):
     """원피스 카드 검색 결과 페이지"""
-    from .models import OnePieceCard, OnePieceCardPrice, OnePieceTargetStorePrice
-    
     query = request.GET.get('q', '').strip()
     
     if not query:
@@ -310,8 +302,6 @@ def onepiece_card_search(request):
 
 def onepiece_card_list(request, expansion_code):
     """원피스 확장팩 내 카드 목록 페이지"""
-    from .models import OnePieceExpansion, OnePieceCard, OnePieceCardPrice, OnePieceTargetStorePrice
-    
     expansion = get_object_or_404(OnePieceExpansion, code=expansion_code)
     
     # 검색어 가져오기
@@ -402,11 +392,6 @@ def onepiece_card_list(request, expansion_code):
 
 def onepiece_card_detail(request, card_id):
     """원피스 카드 상세 페이지"""
-    from .models import OnePieceCard, OnePieceCardPrice, OnePieceTargetStorePrice
-    import json
-    from datetime import timedelta
-    from django.utils import timezone
-    
     card = get_object_or_404(OnePieceCard.objects.select_related('expansion'), id=card_id)
     
     # 기간 필터
@@ -483,6 +468,7 @@ def onepiece_card_detail(request, card_id):
     }
     return render(request, 'pricehub/onepiece_card_detail.html', context)
 
+
 # ==================== 포켓몬 일본판 뷰 ====================
 
 def japan_expansion_list(request):
@@ -524,13 +510,22 @@ def japan_card_search(request):
         Q(shop_product_code__icontains=query)
     ).select_related('expansion').order_by('expansion', 'card_number')
     
-    # 최신 가격 추가
-    latest_price_subquery = JapanCardPrice.objects.filter(
-        card=OuterRef('pk')
+    # 최신 가격 추가 (유유테이 S급)
+    latest_yuyu_subquery = JapanCardPrice.objects.filter(
+        card=OuterRef('pk'),
+        source='유유테이'
+    ).order_by('-collected_at').values('price')[:1]
+    
+    # 최신 가격 추가 (카드러쉬 S급)
+    latest_cardrush_subquery = JapanCardPrice.objects.filter(
+        card=OuterRef('pk'),
+        source='카드러쉬',
+        condition='S'
     ).order_by('-collected_at').values('price')[:1]
     
     cards = cards.annotate(
-        latest_price=Subquery(latest_price_subquery)
+        latest_yuyu_price=Subquery(latest_yuyu_subquery),
+        latest_cardrush_price=Subquery(latest_cardrush_subquery)
     )
     
     context = {
@@ -571,13 +566,30 @@ def japan_card_list(request, expansion_code):
     elif mirror_filter == 'normal':
         cards = cards.filter(is_mirror=False)
     
-    # 최신 가격 서브쿼리
-    latest_price_subquery = JapanCardPrice.objects.filter(
-        card=OuterRef('pk')
+    # 최신 가격 서브쿼리 (유유테이 S급)
+    latest_yuyu_subquery = JapanCardPrice.objects.filter(
+        card=OuterRef('pk'),
+        source='유유테이'
+    ).order_by('-collected_at').values('price')[:1]
+    
+    # 최신 가격 서브쿼리 (카드러쉬 S급)
+    latest_cardrush_s_subquery = JapanCardPrice.objects.filter(
+        card=OuterRef('pk'),
+        source='카드러쉬',
+        condition='S'
+    ).order_by('-collected_at').values('price')[:1]
+    
+    # 최신 가격 서브쿼리 (카드러쉬 A-급)
+    latest_cardrush_a_subquery = JapanCardPrice.objects.filter(
+        card=OuterRef('pk'),
+        source='카드러쉬',
+        condition='A-'
     ).order_by('-collected_at').values('price')[:1]
     
     cards = cards.annotate(
-        latest_price=Subquery(latest_price_subquery)
+        latest_yuyu_price=Subquery(latest_yuyu_subquery),
+        latest_cardrush_s_price=Subquery(latest_cardrush_s_subquery),
+        latest_cardrush_a_price=Subquery(latest_cardrush_a_subquery)
     )
     
     # 정렬
@@ -587,8 +599,10 @@ def japan_card_list(request, expansion_code):
         cards = cards.order_by('name')
     elif sort_by == 'rarity':
         cards = cards.order_by('rarity', 'card_number')
-    elif sort_by == 'price':
-        cards = cards.order_by('-latest_price', 'card_number')
+    elif sort_by == 'yuyu_price':
+        cards = cards.order_by('-latest_yuyu_price', 'card_number')
+    elif sort_by == 'cardrush_price':
+        cards = cards.order_by('-latest_cardrush_s_price', 'card_number')
     
     # 레어도 목록 (필터용)
     rarities = JapanCard.objects.filter(expansion=expansion).values_list('rarity', flat=True).distinct().order_by('rarity')
@@ -607,66 +621,159 @@ def japan_card_list(request, expansion_code):
 
 
 def japan_card_detail(request, card_id):
-    """일본판 카드 상세"""
+    """일본판 카드 상세 (상태별 가격 포함)"""
     card = get_object_or_404(
         JapanCard.objects.select_related('expansion'),
         id=card_id
     )
     
     # 기간 필터
-    period = request.GET.get('period', '1month')
+    period = request.GET.get('period', '30')
     
     # 기간 계산
-    now = datetime.now()
-    if period == '1week':
+    now = timezone.now()
+    if period == '7':
         start_date = now - timedelta(days=7)
         period_label = '1주일'
-    elif period == '3months':
+        date_format = '%m-%d'
+    elif period == '90':
         start_date = now - timedelta(days=90)
         period_label = '3개월'
+        date_format = '%m-%d'
     elif period == 'all':
         start_date = None
         period_label = '전체'
-    else:  # 1month
+        date_format = '%Y-%m-%d'
+    else:  # 30
         start_date = now - timedelta(days=30)
         period_label = '1개월'
+        date_format = '%m-%d'
     
-    # 가격 데이터
+    # 유유테이 가격 데이터 (항상 S급)
     if start_date:
-        prices = JapanCardPrice.objects.filter(
+        yuyu_prices = JapanCardPrice.objects.filter(
             card=card,
+            source='유유테이',
             collected_at__gte=start_date
         ).order_by('collected_at')
     else:
-        prices = JapanCardPrice.objects.filter(card=card).order_by('collected_at')
+        yuyu_prices = JapanCardPrice.objects.filter(
+            card=card,
+            source='유유테이'
+        ).order_by('collected_at')
+    
+    # 카드러쉬 가격 데이터 (모든 상태)
+    if start_date:
+        cardrush_prices = JapanCardPrice.objects.filter(
+            card=card,
+            source='카드러쉬',
+            collected_at__gte=start_date
+        ).order_by('collected_at')
+    else:
+        cardrush_prices = JapanCardPrice.objects.filter(
+            card=card,
+            source='카드러쉬'
+        ).order_by('collected_at')
+    
+    # 상태별로 그룹화
+    cardrush_by_condition = {}
+    for price in cardrush_prices:
+        condition = price.condition
+        if condition not in cardrush_by_condition:
+            cardrush_by_condition[condition] = []
+        cardrush_by_condition[condition].append(price)
+    
+    # 최신 가격
+    latest_yuyu = yuyu_prices.last() if yuyu_prices.exists() else None
+    
+    # 카드러쉬 상태별 최신 가격
+    latest_cardrush_by_condition = {}
+    for condition, prices in cardrush_by_condition.items():
+        if prices:
+            latest_cardrush_by_condition[condition] = prices[-1]
+    
+    # 최저가 계산 (S급 기준)
+    latest_cardrush_s = latest_cardrush_by_condition.get('S')
+    
+    lowest_price = None
+    lowest_source = None
+    
+    if latest_yuyu and latest_cardrush_s:
+        if latest_yuyu.price <= latest_cardrush_s.price:
+            lowest_price = float(latest_yuyu.price)
+            lowest_source = '유유테이'
+        else:
+            lowest_price = float(latest_cardrush_s.price)
+            lowest_source = '카드러쉬'
+    elif latest_yuyu:
+        lowest_price = float(latest_yuyu.price)
+        lowest_source = '유유테이'
+    elif latest_cardrush_s:
+        lowest_price = float(latest_cardrush_s.price)
+        lowest_source = '카드러쉬'
     
     # 통계
     price_stats = {
-        'current': None,
-        'min': None,
-        'max': None,
-        'avg': None,
-        'count': prices.count()
+        'yuyu': {
+            'current': float(latest_yuyu.price) if latest_yuyu else None,
+            'min': float(min([p.price for p in yuyu_prices])) if yuyu_prices.exists() else None,
+            'max': float(max([p.price for p in yuyu_prices])) if yuyu_prices.exists() else None,
+            'avg': float(sum([p.price for p in yuyu_prices]) / len(yuyu_prices)) if yuyu_prices.exists() else None,
+        },
+        'cardrush': {},
+        'lowest': {
+            'price': lowest_price,
+            'source': lowest_source
+        } if lowest_price else None
     }
     
-    if prices.exists():
-        latest_price = prices.last()
-        price_stats['current'] = latest_price.price
-        
-        price_values = [p.price for p in prices]
-        price_stats['min'] = min(price_values)
-        price_stats['max'] = max(price_values)
-        price_stats['avg'] = sum(price_values) / len(price_values)
+    # 카드러쉬 상태별 통계 (모든 상태 포함)
+    for condition, prices in cardrush_by_condition.items():
+        if prices:
+            price_stats['cardrush'][condition] = {
+                'current': float(prices[-1].price),
+                'min': float(min([p.price for p in prices])),
+                'max': float(max([p.price for p in prices])),
+                'avg': float(sum([p.price for p in prices]) / len(prices)),
+            }
     
     # 차트 데이터
     chart_data = {
-        'labels': [p.collected_at.strftime('%Y-%m-%d') for p in prices],
-        'prices': [float(p.price) for p in prices]
+        'yuyu': {
+            'labels': json.dumps([p.collected_at.strftime(date_format) for p in yuyu_prices]),
+            'prices': json.dumps([float(p.price) for p in yuyu_prices])
+        },
+        'cardrush': {}
+    }
+    
+    # 카드러쉬 상태별 차트 데이터 (모든 상태)
+    for condition, prices in cardrush_by_condition.items():
+        chart_data['cardrush'][condition] = {
+            'labels': json.dumps([p.collected_at.strftime(date_format) for p in prices]),
+            'prices': json.dumps([float(p.price) for p in prices])
+        }
+    
+    # 사용 가능한 상태 목록 (정렬: S, A-, B, C 순서)
+    condition_order = ['S', 'A-', 'B', 'C']
+    available_conditions = sorted(
+        cardrush_by_condition.keys(),
+        key=lambda x: condition_order.index(x) if x in condition_order else 99
+    )
+    
+    # 상태 라벨
+    condition_labels = {
+        'S': 'S급 (신품)',
+        'A-': 'A-급',
+        'B': 'B급',
+        'C': 'C급'
     }
     
     context = {
         'card': card,
-        'prices': prices,
+        'latest_yuyu': latest_yuyu,
+        'latest_cardrush_by_condition': latest_cardrush_by_condition,
+        'available_conditions': available_conditions,
+        'condition_labels': condition_labels,
         'price_stats': price_stats,
         'chart_data': chart_data,
         'period': period,
@@ -674,3 +781,158 @@ def japan_card_detail(request, card_id):
         'page_title': f'{card.name} - 카드 상세'
     }
     return render(request, 'pricehub/japan_card_detail.html', context)
+
+
+# ============================================================================
+# 포켓몬 일본판 API (REST API)
+# ============================================================================
+
+class JapanExpansionListAPIView(APIView):
+    """일본판 확장팩 목록 API"""
+    def get(self, request):
+        expansions = JapanExpansion.objects.all().order_by('-created_at')
+        data = [
+            {
+                'id': exp.id,
+                'code': exp.code,
+                'name': exp.name,
+                'card_count': JapanCard.objects.filter(expansion=exp).count()
+            }
+            for exp in expansions
+        ]
+        return Response(data)
+
+
+class JapanCardListAPIView(APIView):
+    """일본판 카드 목록 API (확장팩별)"""
+    def get(self, request, expansion_code):
+        try:
+            expansion = JapanExpansion.objects.get(code=expansion_code)
+        except JapanExpansion.DoesNotExist:
+            return Response({'error': '확장팩을 찾을 수 없습니다'}, status=404)
+        
+        cards = JapanCard.objects.filter(expansion=expansion).order_by('card_number')
+        
+        # 각 카드의 최신 가격 정보 포함
+        data = []
+        for card in cards:
+            # 유유테이 최신 가격 (S급)
+            latest_yuyu = JapanCardPrice.objects.filter(
+                card=card,
+                source='유유테이'
+            ).order_by('-collected_at').first()
+            
+            # 카드러쉬 최신 가격 (S급)
+            latest_cardrush = JapanCardPrice.objects.filter(
+                card=card,
+                source='카드러쉬',
+                condition='S'
+            ).order_by('-collected_at').first()
+            
+            data.append({
+                'id': card.id,
+                'name': card.name,
+                'card_number': card.card_number,
+                'rarity': card.rarity,
+                'latest_price': {
+                    'yuyu_tei': float(latest_yuyu.price) if latest_yuyu else None,
+                    'cardrush': float(latest_cardrush.price) if latest_cardrush else None
+                }
+            })
+        
+        return Response({
+            'expansion': {
+                'code': expansion.code,
+                'name': expansion.name
+            },
+            'cards': data
+        })
+
+
+class JapanCardDetailAPIView(APIView):
+    """일본판 카드 상세 정보 API (상태별 가격 포함)"""
+    def get(self, request, card_id):
+        try:
+            card = JapanCard.objects.select_related('expansion').get(id=card_id)
+        except JapanCard.DoesNotExist:
+            return Response({'error': '카드를 찾을 수 없습니다'}, status=404)
+        
+        # 최근 7일 가격 데이터
+        week_ago = timezone.now() - timedelta(days=7)
+        
+        # 유유테이 가격 (항상 S급)
+        yuyu_prices = JapanCardPrice.objects.filter(
+            card=card,
+            source='유유테이',
+            collected_at__gte=week_ago
+        ).order_by('-collected_at')
+        
+        # 카드러쉬 가격 (상태별)
+        cardrush_prices = JapanCardPrice.objects.filter(
+            card=card,
+            source='카드러쉬',
+            collected_at__gte=week_ago
+        ).order_by('condition', '-collected_at')
+        
+        # 상태별로 그룹화
+        cardrush_by_condition = {}
+        for price in cardrush_prices:
+            condition = price.condition
+            if condition not in cardrush_by_condition:
+                cardrush_by_condition[condition] = []
+            cardrush_by_condition[condition].append({
+                'price': float(price.price),
+                'collected_at': price.collected_at.isoformat()
+            })
+        
+        # 최저가 계산 (S급 기준)
+        latest_yuyu = yuyu_prices.first()
+        latest_cardrush_s = JapanCardPrice.objects.filter(
+            card=card,
+            source='카드러쉬',
+            condition='S'
+        ).order_by('-collected_at').first()
+        
+        lowest_price = None
+        lowest_source = None
+        
+        if latest_yuyu and latest_cardrush_s:
+            if latest_yuyu.price <= latest_cardrush_s.price:
+                lowest_price = float(latest_yuyu.price)
+                lowest_source = '유유테이'
+            else:
+                lowest_price = float(latest_cardrush_s.price)
+                lowest_source = '카드러쉬'
+        elif latest_yuyu:
+            lowest_price = float(latest_yuyu.price)
+            lowest_source = '유유테이'
+        elif latest_cardrush_s:
+            lowest_price = float(latest_cardrush_s.price)
+            lowest_source = '카드러쉬'
+        
+        response_data = {
+            'id': card.id,
+            'name': card.name,
+            'card_number': card.card_number,
+            'rarity': card.rarity,
+            'mirror_type': card.mirror_type,
+            'expansion': {
+                'code': card.expansion.code,
+                'name': card.expansion.name
+            },
+            'prices': {
+                'yuyu_tei': [
+                    {
+                        'price': float(p.price),
+                        'collected_at': p.collected_at.isoformat()
+                    } for p in yuyu_prices
+                ],
+                'cardrush': cardrush_by_condition,
+                'lowest': {
+                    'price': lowest_price,
+                    'source': lowest_source
+                } if lowest_price else None
+            }
+        }
+        
+        return Response(response_data)

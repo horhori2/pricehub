@@ -1,4 +1,5 @@
 {% extends 'pricehub/base.html' %}
+{% load japan_filters %}
 
 {% block title %}{{ card.name }} - 카드 상세{% endblock %}
 
@@ -64,61 +65,52 @@
     <div class="col-md-8">
         <h2>{{ card.name }}</h2>
         
-        <!-- 가격 통계 -->
+        <!-- 최저가 표시 -->
+        {% if price_stats.lowest %}
+        <div class="alert alert-success mb-4">
+            <h5 class="alert-heading">🔥 최저가 (S급 기준)</h5>
+            <p class="mb-0">
+                <strong>¥{{ price_stats.lowest.price|floatformat:0 }}</strong> 
+                <span class="badge bg-success">{{ price_stats.lowest.source }}</span>
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- 현재 가격 (출처별) -->
         <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h6 class="card-subtitle mb-2 text-muted">현재가</h6>
-                        <h4 class="card-title">
-                            {% if price_stats.current %}
-                            ¥{{ price_stats.current|floatformat:0 }}
-                            {% else %}
-                            -
-                            {% endif %}
-                        </h4>
+            <!-- 유유테이 -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        🏪 유유테이 (S급)
+                    </div>
+                    <div class="card-body text-center">
+                        {% if latest_yuyu %}
+                        <h3 class="text-info mb-0">¥{{ latest_yuyu.price|floatformat:0 }}</h3>
+                        <small class="text-muted">{{ latest_yuyu.collected_at|date:"Y-m-d" }}</small>
+                        {% else %}
+                        <p class="text-muted mb-0">가격 정보 없음</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h6 class="card-subtitle mb-2 text-muted">최저가</h6>
-                        <h4 class="card-title text-success">
-                            {% if price_stats.min %}
-                            ¥{{ price_stats.min|floatformat:0 }}
-                            {% else %}
-                            -
-                            {% endif %}
-                        </h4>
+
+            <!-- 카드러쉬 (기본 S급) -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        🎴 카드러쉬
                     </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h6 class="card-subtitle mb-2 text-muted">최고가</h6>
-                        <h4 class="card-title text-danger">
-                            {% if price_stats.max %}
-                            ¥{{ price_stats.max|floatformat:0 }}
-                            {% else %}
-                            -
-                            {% endif %}
-                        </h4>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-center">
-                    <div class="card-body">
-                        <h6 class="card-subtitle mb-2 text-muted">평균가</h6>
-                        <h4 class="card-title">
-                            {% if price_stats.avg %}
-                            ¥{{ price_stats.avg|floatformat:0 }}
-                            {% else %}
-                            -
-                            {% endif %}
-                        </h4>
+                    <div class="card-body text-center">
+                        {% if latest_cardrush_by_condition.S %}
+                        <h3 class="text-danger mb-1">¥{{ latest_cardrush_by_condition.S.price|floatformat:0 }}</h3>
+                        <small class="text-muted">{{ latest_cardrush_by_condition.S.collected_at|date:"Y-m-d" }}</small>
+                        <div class="mt-2">
+                            <span class="badge bg-danger">S급 (신품)</span>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">가격 정보 없음</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -126,54 +118,123 @@
 
         <!-- 기간 선택 -->
         <div class="btn-group mb-3" role="group">
-            <a href="?period=1week" class="btn btn-outline-primary {% if period == '1week' %}active{% endif %}">1주일</a>
-            <a href="?period=1month" class="btn btn-outline-primary {% if period == '1month' %}active{% endif %}">1개월</a>
-            <a href="?period=3months" class="btn btn-outline-primary {% if period == '3months' %}active{% endif %}">3개월</a>
+            <a href="?period=7" class="btn btn-outline-primary {% if period == '7' %}active{% endif %}">1주일</a>
+            <a href="?period=30" class="btn btn-outline-primary {% if period == '30' or not period %}active{% endif %}">1개월</a>
+            <a href="?period=90" class="btn btn-outline-primary {% if period == '90' %}active{% endif %}">3개월</a>
             <a href="?period=all" class="btn btn-outline-primary {% if period == 'all' %}active{% endif %}">전체</a>
         </div>
 
         <!-- 가격 차트 -->
-        <div class="card">
+        <div class="card mb-3">
             <div class="card-header">
-                가격 추이 ({{ period_label }})
+                📈 가격 추이 ({{ period_label }})
             </div>
             <div class="card-body">
-                <canvas id="priceChart"></canvas>
+                <canvas id="priceChart" style="max-height: 400px;"></canvas>
             </div>
         </div>
 
-        <!-- 가격 기록 테이블 -->
-        <div class="card mt-3">
-            <div class="card-header">
-                가격 기록 ({{ price_stats.count }}개)
+        <!-- 유유테이 통계 -->
+        <div class="card mb-3">
+            <div class="card-header bg-info text-white">
+                유유테이 통계
             </div>
             <div class="card-body">
-                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-                    <table class="table table-sm table-hover">
+                <div class="row text-center">
+                    <div class="col-3">
+                        <small class="text-muted">현재</small>
+                        <p class="mb-0"><strong>{% if price_stats.yuyu.current %}¥{{ price_stats.yuyu.current|floatformat:0 }}{% else %}-{% endif %}</strong></p>
+                    </div>
+                    <div class="col-3">
+                        <small class="text-muted">최저</small>
+                        <p class="mb-0 text-success"><strong>{% if price_stats.yuyu.min %}¥{{ price_stats.yuyu.min|floatformat:0 }}{% else %}-{% endif %}</strong></p>
+                    </div>
+                    <div class="col-3">
+                        <small class="text-muted">최고</small>
+                        <p class="mb-0 text-danger"><strong>{% if price_stats.yuyu.max %}¥{{ price_stats.yuyu.max|floatformat:0 }}{% else %}-{% endif %}</strong></p>
+                    </div>
+                    <div class="col-3">
+                        <small class="text-muted">평균</small>
+                        <p class="mb-0"><strong>{% if price_stats.yuyu.avg %}¥{{ price_stats.yuyu.avg|floatformat:0 }}{% else %}-{% endif %}</strong></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 카드러쉬 상태별 가격 테이블 -->
+        {% if available_conditions %}
+        <div class="card mb-3">
+            <div class="card-header bg-danger text-white">
+                카드러쉬 통계 (상태별)
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>수집일시</th>
-                                <th>가격</th>
-                                <th>출처</th>
+                                <th>상태</th>
+                                <th class="text-end">현재가</th>
+                                <th class="text-end">최저가</th>
+                                <th class="text-end">최고가</th>
+                                <th class="text-end">평균가</th>
+                                <th>수집시각</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for price in prices %}
+                            {% for condition in available_conditions %}
+                            {% with price_stats.cardrush|get_item:condition as condition_stats %}
+                            {% with latest_cardrush_by_condition|get_item:condition as latest_price %}
                             <tr>
-                                <td>{{ price.collected_at|date:"Y-m-d H:i" }}</td>
-                                <td>¥{{ price.price|floatformat:0 }}</td>
-                                <td>{{ price.source }}</td>
+                                <td>
+                                    <span class="badge {% if condition == 'S' %}bg-danger{% elif condition == 'A-' %}bg-warning text-dark{% elif condition == 'B' %}bg-info{% else %}bg-secondary{% endif %}">
+                                        {{ condition_labels|get_item:condition|default:condition }}급
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    {% if condition_stats %}
+                                    <strong>¥{{ condition_stats.current|floatformat:0 }}</strong>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-success">
+                                    {% if condition_stats %}
+                                    <strong>¥{{ condition_stats.min|floatformat:0 }}</strong>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-danger">
+                                    {% if condition_stats %}
+                                    <strong>¥{{ condition_stats.max|floatformat:0 }}</strong>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if condition_stats %}
+                                    ¥{{ condition_stats.avg|floatformat:0 }}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if latest_price %}
+                                    <small class="text-muted">{{ latest_price.collected_at|date:"Y-m-d" }}</small>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
                             </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="3" class="text-center">가격 기록이 없습니다.</td>
-                            </tr>
+                            {% endwith %}
+                            {% endwith %}
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
@@ -182,44 +243,143 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const ctx = document.getElementById('priceChart').getContext('2d');
-const chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-        labels: {{ chart_data.labels|safe }},
-        datasets: [{
-            label: '가격 (엔)',
-            data: {{ chart_data.prices|safe }},
-            borderColor: 'rgb(75, 192, 192)',
-            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-            tension: 0.1
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: {
-                display: true,
-                position: 'top'
+
+// 차트 데이터셋
+const datasets = [];
+
+// 색상 팔레트
+const colors = {
+    yuyu: { border: 'rgb(75, 192, 192)', bg: 'rgba(75, 192, 192, 0.2)' },
+    S: { border: 'rgb(255, 99, 132)', bg: 'rgba(255, 99, 132, 0.2)' },
+    'A-': { border: 'rgb(255, 205, 86)', bg: 'rgba(255, 205, 86, 0.2)' },
+    A_: { border: 'rgb(255, 205, 86)', bg: 'rgba(255, 205, 86, 0.2)' },
+    B: { border: 'rgb(54, 162, 235)', bg: 'rgba(54, 162, 235, 0.2)' },
+    C: { border: 'rgb(153, 102, 255)', bg: 'rgba(153, 102, 255, 0.2)' }
+};
+
+// 모든 라벨 수집
+let allLabels = [];
+
+// 유유테이 라벨 및 데이터
+{% if chart_data.yuyu.labels %}
+const yuyuLabels = {{ chart_data.yuyu.labels|safe }};
+const yuyuData = {{ chart_data.yuyu.prices|safe }};
+allLabels = allLabels.concat(yuyuLabels);
+
+datasets.push({
+    label: '유유테이 (S급)',
+    data: yuyuData,
+    borderColor: colors.yuyu.border,
+    backgroundColor: colors.yuyu.bg,
+    tension: 0.1,
+    borderWidth: 2
+});
+{% endif %}
+
+// 카드러쉬 상태별 데이터
+{% for condition in available_conditions %}
+{% with chart_data.cardrush|get_item:condition as condition_chart %}
+{% if condition_chart %}
+{% if condition == 'S' %}
+const cardrushSLabels = {{ condition_chart.labels|safe }};
+const cardrushSData = {{ condition_chart.prices|safe }};
+allLabels = allLabels.concat(cardrushSLabels);
+datasets.push({
+    label: '카드러쉬 (S급)',
+    data: cardrushSData,
+    borderColor: colors.S.border,
+    backgroundColor: colors.S.bg,
+    tension: 0.1,
+    borderWidth: 2
+});
+{% elif condition == 'A-' %}
+const cardrushA_Labels = {{ condition_chart.labels|safe }};
+const cardrushA_Data = {{ condition_chart.prices|safe }};
+allLabels = allLabels.concat(cardrushA_Labels);
+datasets.push({
+    label: '카드러쉬 (A-급)',
+    data: cardrushA_Data,
+    borderColor: colors['A-'].border,
+    backgroundColor: colors['A-'].bg,
+    tension: 0.1,
+    borderWidth: 2
+});
+{% elif condition == 'B' %}
+const cardrushBLabels = {{ condition_chart.labels|safe }};
+const cardrushBData = {{ condition_chart.prices|safe }};
+allLabels = allLabels.concat(cardrushBLabels);
+datasets.push({
+    label: '카드러쉬 (B급)',
+    data: cardrushBData,
+    borderColor: colors.B.border,
+    backgroundColor: colors.B.bg,
+    tension: 0.1,
+    borderWidth: 2
+});
+{% elif condition == 'C' %}
+const cardrushCLabels = {{ condition_chart.labels|safe }};
+const cardrushCData = {{ condition_chart.prices|safe }};
+allLabels = allLabels.concat(cardrushCLabels);
+datasets.push({
+    label: '카드러쉬 (C급)',
+    data: cardrushCData,
+    borderColor: colors.C.border,
+    backgroundColor: colors.C.bg,
+    tension: 0.1,
+    borderWidth: 2
+});
+{% endif %}
+{% endif %}
+{% endwith %}
+{% endfor %}
+
+// 중복 제거 및 정렬
+allLabels = [...new Set(allLabels)].sort();
+
+// 데이터셋이 없으면 차트 숨기기
+if (datasets.length === 0) {
+    document.getElementById('priceChart').parentElement.innerHTML = 
+        '<div class="alert alert-info">가격 데이터가 없습니다.</div>';
+} else {
+    // 차트 생성
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: allLabels.length > 0 ? allLabels : [''],
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
             },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        return '¥' + context.parsed.y.toFixed(0);
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ¥' + context.parsed.y.toLocaleString();
+                        }
                     }
                 }
-            }
-        },
-        scales: {
-            y: {
-                beginAtZero: false,
-                ticks: {
-                    callback: function(value) {
-                        return '¥' + value.toFixed(0);
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    ticks: {
+                        callback: function(value) {
+                            return '¥' + value.toLocaleString();
+                        }
                     }
                 }
             }
         }
-    }
-});
+    });
+}
 </script>
 {% endblock %}

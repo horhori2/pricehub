@@ -1,18 +1,31 @@
 {% extends 'pricehub/base.html' %}
+{% load japan_filters %}
 
 {% block title %}{{ expansion.name }} - 카드 목록{% endblock %}
 
 {% block content %}
-<h2>🗾 {{ expansion.name }}</h2>
-<p class="text-muted">{{ expansion.code }}</p>
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'pricehub:japan_expansion_list' %}">일본판 확장팩</a></li>
+        <li class="breadcrumb-item active">{{ expansion.name }}</li>
+    </ol>
+</nav>
+
+<h2>
+    <span class="badge bg-primary">{{ expansion.code }}</span>
+    {{ expansion.name }}
+</h2>
 
 <!-- 검색 및 필터 -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="get" class="row g-3">
+            <!-- 검색 -->
             <div class="col-md-3">
                 <input type="text" name="q" class="form-control" placeholder="카드명 또는 번호" value="{{ query }}">
             </div>
+            
+            <!-- 레어도 필터 -->
             <div class="col-md-2">
                 <select name="rarity" class="form-select">
                     <option value="">전체 레어도</option>
@@ -21,6 +34,8 @@
                     {% endfor %}
                 </select>
             </div>
+            
+            <!-- 미러 필터 -->
             <div class="col-md-2">
                 <select name="mirror" class="form-select">
                     <option value="">전체</option>
@@ -28,15 +43,19 @@
                     <option value="mirror" {% if mirror_filter == 'mirror' %}selected{% endif %}>미러</option>
                 </select>
             </div>
-            <div class="col-md-2">
+            
+            <!-- 정렬 -->
+            <div class="col-md-3">
                 <select name="sort" class="form-select">
                     <option value="card_number" {% if sort_by == 'card_number' %}selected{% endif %}>카드번호순</option>
                     <option value="name" {% if sort_by == 'name' %}selected{% endif %}>카드명순</option>
                     <option value="rarity" {% if sort_by == 'rarity' %}selected{% endif %}>레어도순</option>
-                    <option value="price" {% if sort_by == 'price' %}selected{% endif %}>가격순</option>
+                    <option value="yuyu_price" {% if sort_by == 'yuyu_price' %}selected{% endif %}>유유테이 가격순</option>
+                    <option value="cardrush_price" {% if sort_by == 'cardrush_price' %}selected{% endif %}>카드러쉬 가격순</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            
+            <div class="col-md-2">
                 <button type="submit" class="btn btn-primary w-100">검색</button>
             </div>
         </form>
@@ -45,62 +64,104 @@
 
 <!-- 카드 목록 테이블 -->
 <div class="table-responsive">
-    <table class="table table-hover">
-        <thead>
+    <table class="table table-hover align-middle">
+        <thead class="table-light">
             <tr>
-                <th>이미지</th>
-                <th>카드번호</th>
+                <th style="width: 80px;">이미지</th>
+                <th style="width: 80px;">카드번호</th>
                 <th>카드명</th>
-                <th>레어도</th>
-                <th>미러</th>
-                <th>최신가격</th>
-                <th>상세</th>
+                <th style="width: 80px;">레어도</th>
+                <th style="width: 80px;">미러</th>
+                <th style="width: 120px;">유유테이<br><small class="text-muted">(S급)</small></th>
+                <th style="width: 120px;">카드러쉬<br><small class="text-muted">(S급)</small></th>
+                <th style="width: 120px;">카드러쉬<br><small class="text-muted">(A-급)</small></th>
+                <th style="width: 100px;">상세</th>
             </tr>
         </thead>
         <tbody>
             {% for card in cards %}
             <tr>
+                <!-- 이미지 -->
                 <td>
                     {% if card.image_url %}
-                    <img src="{{ card.image_url }}" alt="{{ card.name }}" style="width: 60px; height: auto;">
+                    <img src="{{ card.image_url }}" class="img-thumbnail" style="max-width: 60px;" alt="{{ card.name }}">
                     {% else %}
-                    <div class="bg-secondary text-white text-center" style="width: 60px; height: 80px; line-height: 80px;">
-                        <small>No Image</small>
+                    <div class="bg-secondary text-white text-center" style="width: 60px; height: 80px; font-size: 10px; padding: 5px;">
+                        이미지<br>없음
                     </div>
                     {% endif %}
                 </td>
+                
+                <!-- 카드번호 -->
                 <td>{{ card.card_number }}</td>
+                
+                <!-- 카드명 -->
                 <td>
-                    {{ card.name }}
+                    <strong>{{ card.name }}</strong>
                     {% if card.mirror_type %}
                     <br><small class="text-muted">{{ card.mirror_type }}</small>
                     {% endif %}
                 </td>
-                <td><span class="badge bg-secondary">{{ card.rarity }}</span></td>
+                
+                <!-- 레어도 -->
+                <td>
+                    <span class="badge bg-secondary">{{ card.rarity }}</span>
+                </td>
+                
+                <!-- 미러 -->
                 <td>
                     {% if card.is_mirror %}
                     <span class="badge bg-info">미러</span>
+                    {% else %}
+                    일반
                     {% endif %}
                 </td>
-                <td>
-                    {% if card.latest_price %}
-                    ¥{{ card.latest_price|floatformat:0 }}
+                
+                <!-- 유유테이 가격 (S급) -->
+                <td class="text-end">
+                    {% if card.latest_yuyu_price %}
+                    <strong class="text-info">¥{{ card.latest_yuyu_price|floatformat:0 }}</strong>
                     {% else %}
                     <span class="text-muted">-</span>
                     {% endif %}
                 </td>
+                
+                <!-- 카드러쉬 가격 (S급) -->
+                <td class="text-end">
+                    {% if card.latest_cardrush_s_price %}
+                    <strong class="text-danger">¥{{ card.latest_cardrush_s_price|floatformat:0 }}</strong>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                
+                <!-- 카드러쉬 가격 (A-급) -->
+                <td class="text-end">
+                    {% if card.latest_cardrush_a_price %}
+                    <strong class="text-warning">¥{{ card.latest_cardrush_a_price|floatformat:0 }}</strong>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                
+                <!-- 상세 버튼 -->
                 <td>
                     <a href="{% url 'pricehub:japan_card_detail' card.id %}" class="btn btn-sm btn-primary">상세</a>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7" class="text-center">카드가 없습니다.</td>
+                <td colspan="9" class="text-center py-5">
+                    <p class="text-muted">카드가 없습니다.</p>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
 
-<p class="text-muted">총 {{ cards.count }}장</p>
+<!-- 총 카드 수 -->
+<p class="text-muted mt-3">
+    총 <strong>{{ cards|length }}</strong>개 카드
+</p>
 {% endblock %}
