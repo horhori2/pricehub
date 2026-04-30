@@ -369,20 +369,23 @@ class JapanCard(models.Model):
         return f"{self.name} ({self.card_number}) - {self.expansion.name}"
 
 class JapanCardPrice(models.Model):
-    """포켓몬 일본판 카드 일반 최저가"""
-    card = models.ForeignKey(JapanCard, on_delete=models.CASCADE, related_name='prices', verbose_name="카드")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="가격")
-    source = models.CharField(max_length=100, verbose_name="출처")
-    collected_at = models.DateTimeField(default=timezone.now, verbose_name="수집일시")
-    
+    card = models.ForeignKey(JapanCard, on_delete=models.CASCADE, related_name='prices')
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    source = models.CharField(max_length=50)  # 유유테이, 카드러쉬
+    condition = models.CharField(max_length=10, default='S', blank=True)  # S, A-, B, C 등
+    collected_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
     class Meta:
         db_table = 'japan_card_price'
-        verbose_name = '포켓몬 일본판 카드 가격'
-        verbose_name_plural = '포켓몬 일본판 카드 가격 목록'
         ordering = ['-collected_at']
-    
+        indexes = [
+            models.Index(fields=['card', 'source', 'condition', '-collected_at']),
+        ]
+
     def __str__(self):
-        return f"{self.card.name} - {self.price}원 ({self.collected_at.strftime('%Y-%m-%d')})"
+        condition_display = f"[{self.condition}]" if self.condition != 'S' else ""
+        return f"{self.card.name} - {self.price}엔 {condition_display} ({self.source})"
 
 
 class JapanTargetStorePrice(models.Model):

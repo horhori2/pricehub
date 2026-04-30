@@ -57,11 +57,18 @@ CARDRUSH_EXPANSIONS = {
 def extract_card_info(card_name_text):
     """
     카드명에서 정보 추출
-    예: ☆SALE☆ハリテヤマ【R】{025/063} → (ハリテヤマ, R, 025)
-    예: 〔状態A-〕ゲンガー【RR】{M3-049/080} → (ゲンガー, RR, 049)
+    예: ☆SALE☆ハリテヤマ【R】{025/063} → (ハリテヤマ, R, 025, S)
+    예: 〔状態A-〕ゲンガー【RR】{M3-049/080} → (ゲンガー, RR, 049, A-)
+    예: 〔状態B〕ミステリーガーデン【SR】{086/063} → (ミステリーガーデン, SR, 086, B)
     """
     # SALE 제거
     card_name_text = card_name_text.replace('☆SALE☆', '').strip()
+    
+    # 상태 추출 〔状態A-〕, 〔状態B〕, 〔状態C〕
+    condition = 'S'  # 기본값
+    condition_match = re.search(r'〔状態([A-Z][-]?)〕', card_name_text)
+    if condition_match:
+        condition = condition_match.group(1)
     
     # 레어도 추출 【R】, 【RR】, 【SR】 등
     rarity_match = re.search(r'【(.+?)】', card_name_text)
@@ -83,17 +90,15 @@ def extract_card_info(card_name_text):
     else:
         card_number = None
     
-    # 카드명 추출 (레어도와 카드번호 제거)
-    card_name = re.sub(r'【.+?】', '', card_name_text)
+    # 카드명 추출 (상태, 레어도, 카드번호 제거)
+    card_name = re.sub(r'〔状態.+?〕', '', card_name_text)
+    card_name = re.sub(r'【.+?】', '', card_name)
     card_name = re.sub(r'\{.+?\}', '', card_name).strip()
-    
-    # 〔状態A-〕, 〔状態B〕 등 상태 표시 제거
-    card_name = re.sub(r'〔状態.+?〕', '', card_name).strip()
     
     # (モンスターボールミラー) 등 미러 타입 제거
     card_name = re.sub(r'\(.+?ミラー\)', '', card_name).strip()
     
-    return card_name, rarity, card_number
+    return card_name, rarity, card_number, condition
 
 
 def parse_price(price_text):
@@ -109,17 +114,7 @@ def parse_stock(stock_text):
 
 
 def crawl_cardrush_page(url, expansion_code, max_pages=None):
-    """
-    카드러쉬 페이지 크롤링 (페이지네이션 지원)
-    
-    Args:
-        url: 확장팩 URL
-        expansion_code: 확장팩 코드
-        max_pages: 최대 페이지 수 (None이면 전체)
-    
-    Returns:
-        list: 카드 데이터 리스트
-    """
+    """카드러쉬 페이지 크롤링 (페이지네이션 지원)"""
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -161,7 +156,7 @@ def crawl_cardrush_page(url, expansion_code, max_pages=None):
                         continue
                     
                     card_name_full = goods_name.get_text(strip=True)
-                    card_name, rarity, card_number = extract_card_info(card_name_full)
+                    card_name, rarity, card_number, condition = extract_card_info(card_name_full)
                     
                     # 확장팩 코드 확인
                     model_number = item.find('span', class_='model_number_value')
@@ -185,6 +180,7 @@ def crawl_cardrush_page(url, expansion_code, max_pages=None):
                         'card_name': card_name,
                         'rarity': rarity,
                         'card_number': card_number,
+                        'condition': condition,
                         'price': price,
                         'stock': stock
                     })
@@ -250,17 +246,7 @@ def crawl_cardrush_page(url, expansion_code, max_pages=None):
 
 
 def save_cardrush_prices(cards, source='카드러쉬', verbose=True):
-    """
-    카드러쉬 가격 DB 저장
-    
-    Args:
-        cards: 크롤링한 카드 데이터
-        source: 가격 출처
-        verbose: 상세 로그 출력 여부
-    
-    Returns:
-        (saved_count, not_found_count)
-    """
+    """카드러쉬 가격 DB 저장 (상태별)"""
     collected_time = timezone.now()
     saved_count = 0
     not_found_count = 0
@@ -269,6 +255,7 @@ def save_cardrush_prices(cards, source='카드러쉬', verbose=True):
         try:
             card_number = card_data['card_number']
             expansion_code = card_data['expansion_code']
+            condition = card_data.get('condition', 'S')
             
             if not card_number:
                 not_found_count += 1
@@ -304,11 +291,12 @@ def save_cardrush_prices(cards, source='카드러쉬', verbose=True):
                 not_found_count += 1
                 continue
             
-            # 가격 저장
+            # 가격 저장 (상태 포함)
             JapanCardPrice.objects.create(
                 card=card,
                 price=card_data['price'],
                 source=source,
+                condition=condition,
                 collected_at=collected_time
             )
             

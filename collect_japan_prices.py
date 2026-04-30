@@ -274,6 +274,7 @@ def collect_prices_for_expansion_bulk(expansion_code: str):
                 card=card,
                 price=price_info['price'],
                 source='유유테이',
+                condition='S',  # 유유테이는 항상 S급
                 collected_at=timezone.now()
             )
             
