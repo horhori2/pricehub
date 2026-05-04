@@ -358,7 +358,9 @@ def collect_all_prices_bulk():
                 JapanCardPrice.objects.create(
                     card=card,
                     price=price_info['price'],
-                    source='유유테이'
+                    source='유유테이',
+                    condition='S',
+                    collected_at=timezone.now()
                 )
                 found += 1
             else:
@@ -434,7 +436,10 @@ def test_single_card(card_id: int):
             JapanCardPrice.objects.create(
                 card=card,
                 price=price_info['price'],
-                source='유유테이'
+                source='유유테이',
+                condition='S',
+                collected_at=timezone.now()
+
             )
             print("✅ 가격 저장 완료")
         else:
