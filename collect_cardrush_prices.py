@@ -57,10 +57,13 @@ CARDRUSH_EXPANSIONS = {
 def extract_card_info(card_name_text):
     """
     카드명에서 정보 추출
-    예: ☆SALE☆ハリテヤマ【R】{025/063} → (ハリテヤマ, R, 025, S)
-    예: 〔状態A-〕ゲンガー【RR】{M3-049/080} → (ゲンガー, RR, 049, A-)
-    예: 〔状態B〕ミステリーガーデン【SR】{086/063} → (ミステリーガーデン, SR, 086, B)
+    예: ☆SALE☆ハリテヤマ【R】{025/063} → (ハリテヤマ, R, 025, S, None)
+    예: 〔状態A-〕ゲンガー【RR】{M3-049/080} → (ゲンガー, RR, 049, A-, None)
+    예: リザードン【SAR】{200/165}(モンスターボールミラー) → (リザードン, SAR, 200, S, モンスターボール)
+    예: ピカチュウ【AR】{205/165}(マスターボールミラー) → (ピカチュウ, AR, 205, S, マスターボール)
     """
+    original_text = card_name_text
+    
     # SALE 제거
     card_name_text = card_name_text.replace('☆SALE☆', '').strip()
     
@@ -69,6 +72,19 @@ def extract_card_info(card_name_text):
     condition_match = re.search(r'〔状態([A-Z][-]?)〕', card_name_text)
     if condition_match:
         condition = condition_match.group(1)
+    
+    # 미러 타입 추출 (モンスターボールミラー, マスターボールミラー 등)
+    mirror_type = None
+    mirror_match = re.search(r'\((.+?ミラー)\)', card_name_text)
+    if mirror_match:
+        mirror_type_full = mirror_match.group(1)
+        if 'モンスターボール' in mirror_type_full:
+            mirror_type = 'モンスターボール'
+        elif 'マスターボール' in mirror_type_full:
+            mirror_type = 'マスターボール'
+        else:
+            # 일반 미러
+            mirror_type = 'ミラー'
     
     # 레어도 추출 【R】, 【RR】, 【SR】 등
     rarity_match = re.search(r'【(.+?)】', card_name_text)
@@ -90,15 +106,13 @@ def extract_card_info(card_name_text):
     else:
         card_number = None
     
-    # 카드명 추출 (상태, 레어도, 카드번호 제거)
+    # 카드명 추출 (상태, 레어도, 카드번호, 미러 타입 제거)
     card_name = re.sub(r'〔状態.+?〕', '', card_name_text)
     card_name = re.sub(r'【.+?】', '', card_name)
-    card_name = re.sub(r'\{.+?\}', '', card_name).strip()
-    
-    # (モンスターボールミラー) 등 미러 타입 제거
+    card_name = re.sub(r'\{.+?\}', '', card_name)
     card_name = re.sub(r'\(.+?ミラー\)', '', card_name).strip()
     
-    return card_name, rarity, card_number, condition
+    return card_name, rarity, card_number, condition, mirror_type
 
 
 def parse_price(price_text):
@@ -156,7 +170,7 @@ def crawl_cardrush_page(url, expansion_code, max_pages=None):
                         continue
                     
                     card_name_full = goods_name.get_text(strip=True)
-                    card_name, rarity, card_number, condition = extract_card_info(card_name_full)
+                    card_name, rarity, card_number, condition, mirror_type = extract_card_info(card_name_full)
                     
                     # 확장팩 코드 확인
                     model_number = item.find('span', class_='model_number_value')
@@ -181,6 +195,7 @@ def crawl_cardrush_page(url, expansion_code, max_pages=None):
                         'rarity': rarity,
                         'card_number': card_number,
                         'condition': condition,
+                        'mirror_type': mirror_type,
                         'price': price,
                         'stock': stock
                     })
@@ -246,7 +261,7 @@ def crawl_cardrush_page(url, expansion_code, max_pages=None):
 
 
 def save_cardrush_prices(cards, source='카드러쉬', verbose=True):
-    """카드러쉬 가격 DB 저장 (상태별)"""
+    """카드러쉬 가격 DB 저장 (상태별, 미러 타입별)"""
     collected_time = timezone.now()
     saved_count = 0
     not_found_count = 0
@@ -256,6 +271,7 @@ def save_cardrush_prices(cards, source='카드러쉬', verbose=True):
             card_number = card_data['card_number']
             expansion_code = card_data['expansion_code']
             condition = card_data.get('condition', 'S')
+            mirror_type = card_data.get('mirror_type')
             
             if not card_number:
                 not_found_count += 1
@@ -263,31 +279,80 @@ def save_cardrush_prices(cards, source='카드러쉬', verbose=True):
             
             card = None
             
-            # 1차: card_number + 확장팩으로 검색 (가장 정확)
-            try:
-                expansion = JapanExpansion.objects.get(code=expansion_code)
-                card = JapanCard.objects.filter(
-                    card_number=card_number,
-                    expansion=expansion
-                ).first()
-            except JapanExpansion.DoesNotExist:
-                pass
+            # 미러 타입이 있는 경우: shop_product_code로 정확히 매칭
+            if mirror_type:
+                try:
+                    expansion = JapanExpansion.objects.get(code=expansion_code)
+                    
+                    # 몬스터볼 미러 → V1
+                    if mirror_type == 'モンスターボール':
+                        card = JapanCard.objects.filter(
+                            card_number=card_number,
+                            expansion=expansion,
+                            shop_product_code__contains='-V1'
+                        ).first()
+                        
+                        if verbose and card:
+                            print(f"  🎯 몬스터볼 미러 매칭: {card_number} → {card.shop_product_code}")
+                    
+                    # 마스터볼 미러 → V2
+                    elif mirror_type == 'マスターボール':
+                        card = JapanCard.objects.filter(
+                            card_number=card_number,
+                            expansion=expansion,
+                            shop_product_code__contains='-V2'
+                        ).first()
+                        
+                        if verbose and card:
+                            print(f"  🎯 마스터볼 미러 매칭: {card_number} → {card.shop_product_code}")
+                    
+                    # 일반 미러 → V3 또는 is_mirror=True
+                    else:
+                        card = JapanCard.objects.filter(
+                            card_number=card_number,
+                            expansion=expansion
+                        ).filter(
+                            Q(shop_product_code__contains='-V3') | Q(is_mirror=True)
+                        ).first()
+                        
+                        if verbose and card:
+                            print(f"  🎯 일반 미러 매칭: {card_number} → {card.shop_product_code}")
+                    
+                except JapanExpansion.DoesNotExist:
+                    pass
             
-            # 2차: card_number만으로 검색
+            # 미러가 아니거나 매칭 실패 시: 일반 카드 검색
             if not card:
-                card = JapanCard.objects.filter(
-                    card_number=card_number
-                ).first()
-            
-            # 3차: shop_product_code에 card_number 포함된 것 검색
-            if not card:
-                card = JapanCard.objects.filter(
-                    shop_product_code__contains=f"-{card_number}-"
-                ).first()
+                # 1차: card_number + 확장팩으로 검색
+                try:
+                    expansion = JapanExpansion.objects.get(code=expansion_code)
+                    card = JapanCard.objects.filter(
+                        card_number=card_number,
+                        expansion=expansion,
+                        is_mirror=False  # 일반 카드만
+                    ).first()
+                except JapanExpansion.DoesNotExist:
+                    pass
+                
+                # 2차: card_number만으로 검색
+                if not card:
+                    card = JapanCard.objects.filter(
+                        card_number=card_number,
+                        is_mirror=False
+                    ).first()
+                
+                # 3차: shop_product_code에 card_number 포함된 것 검색
+                if not card:
+                    card = JapanCard.objects.filter(
+                        shop_product_code__contains=f"-{card_number}-"
+                    ).exclude(
+                        shop_product_code__contains='-V'  # V1, V2, V3 제외
+                    ).first()
             
             if not card:
                 if verbose:
-                    print(f"  ❌ 카드 없음: {card_number} ({card_data['card_name']})")
+                    mirror_info = f" [{mirror_type}]" if mirror_type else ""
+                    print(f"  ❌ 카드 없음: {card_number}{mirror_info} ({card_data['card_name']})")
                 not_found_count += 1
                 continue
             
@@ -332,7 +397,8 @@ def collect_expansion_prices(expansion_code, max_pages=None):
     try:
         expansion = JapanExpansion.objects.get(code=expansion_code)
         db_card_count = JapanCard.objects.filter(expansion=expansion).count()
-        print(f"📊 DB 카드 수: {db_card_count}개\n")
+        db_mirror_count = JapanCard.objects.filter(expansion=expansion, is_mirror=True).count()
+        print(f"📊 DB 카드 수: {db_card_count}개 (미러: {db_mirror_count}개)\n")
     except JapanExpansion.DoesNotExist:
         print(f"⚠️  DB에 확장팩이 없습니다\n")
     
@@ -344,6 +410,17 @@ def collect_expansion_prices(expansion_code, max_pages=None):
         print("❌ 가격 데이터를 수집하지 못했습니다.")
         return
     
+    # 미러 타입 통계
+    mirror_stats = {}
+    for card in cards:
+        mirror_type = card.get('mirror_type', '일반')
+        if mirror_type not in mirror_stats:
+            mirror_stats[mirror_type] = 0
+        mirror_stats[mirror_type] += 1
+    
+    print(f"\n📊 미러 타입 통계:")
+    for mirror_type, count in sorted(mirror_stats.items()):
+        print(f"  - {mirror_type if mirror_type else '일반'}: {count}개")
     print()
     
     # 저장
@@ -410,16 +487,16 @@ def collect_all_prices(max_pages=None):
 
 
 def test_crawl():
-    """테스트 크롤링 (3개 확장팩만, 첫 페이지만)"""
+    """테스트 크롤링 (SV8a 포함, 첫 페이지만)"""
     print("\n" + "=" * 80)
     print("🧪 카드러쉬 크롤링 테스트")
     print("=" * 80)
     print("⚠️  DB 저장 없이 크롤링만 테스트합니다\n")
     
     test_expansions = {
+        'SV8a': CARDRUSH_EXPANSIONS['SV8a'],  # 테라스탈페스타ex (미러 사양 테스트)
         'M1L': CARDRUSH_EXPANSIONS['M1L'],
         'SV11B': CARDRUSH_EXPANSIONS['SV11B'],
-        'SV2a': CARDRUSH_EXPANSIONS['SV2a'],
     }
     
     all_cards = []
@@ -436,10 +513,20 @@ def test_crawl():
             all_cards.extend(cards)
             print(f"  ✅ {len(cards)}개 카드 크롤링 성공")
             
-            # 샘플 3개 출력
-            print(f"\n  샘플 데이터:")
-            for i, card in enumerate(cards[:3], 1):
-                print(f"    {i}. {card['card_name']} ({card['card_number']}) - {card['price']}원")
+            # 미러 카드 샘플 출력
+            mirror_cards = [c for c in cards if c.get('mirror_type')]
+            if mirror_cards:
+                print(f"\n  🎯 미러 카드 샘플:")
+                for i, card in enumerate(mirror_cards[:5], 1):
+                    mirror_info = f"[{card['mirror_type']}]"
+                    print(f"    {i}. {card['card_name']} ({card['card_number']}) {mirror_info} - {card['price']}円")
+            
+            # 일반 샘플 3개 출력
+            normal_cards = [c for c in cards if not c.get('mirror_type')][:3]
+            if normal_cards:
+                print(f"\n  📦 일반 카드 샘플:")
+                for i, card in enumerate(normal_cards, 1):
+                    print(f"    {i}. {card['card_name']} ({card['card_number']}) - {card['price']}円")
         else:
             print(f"  ❌ 크롤링 실패")
         
@@ -451,6 +538,8 @@ def test_crawl():
     print("테스트 완료")
     print("=" * 80)
     print(f"총 수집된 카드: {len(all_cards)}개")
+    mirror_count = sum(1 for c in all_cards if c.get('mirror_type'))
+    print(f"미러 카드: {mirror_count}개")
     print()
 
 
@@ -460,7 +549,7 @@ if __name__ == '__main__':
     print("\n선택하세요:")
     print("  1. 모든 확장팩 가격 수집 (전체 페이지)")
     print("  2. 특정 확장팩 가격 수집")
-    print("  3. 테스트 (3개 확장팩, 첫 페이지만, DB 저장 안 함)")
+    print("  3. 테스트 (SV8a 포함, 첫 페이지만, DB 저장 안 함)")
     print("  4. 종료")
     
     choice = input("\n선택 (1/2/3/4): ").strip()
