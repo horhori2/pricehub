@@ -23,8 +23,4 @@ urlpatterns = [
     path('japan/expansion/<str:expansion_code>/', views.japan_card_list, name='japan_card_list'),
     path('japan/card/<int:card_id>/', views.japan_card_detail, name='japan_card_detail'),
     
-    # ==================== 포켓몬 일본판 REST API ====================
-    path('api/japan/expansions/', views.JapanExpansionListAPIView.as_view(), name='api_japan_expansion_list'),
-    path('api/japan/expansions/<str:expansion_code>/cards/', views.JapanCardListAPIView.as_view(), name='api_japan_card_list'),
-    path('api/japan/cards/<int:card_id>/', views.JapanCardDetailAPIView.as_view(), name='api_japan_card_detail'),
 ]
