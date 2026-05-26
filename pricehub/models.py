@@ -147,6 +147,7 @@ class CardPrice(models.Model):
         default='naver_shopping',
         verbose_name='출처'
     )
+    raw_data = models.JSONField(default=dict)
     collected_at = models.DateTimeField(
         auto_now_add=True,
         verbose_name='수집시간'

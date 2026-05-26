@@ -72,7 +72,7 @@ def search_naver_shopping(search_query: str) -> List[dict]:
         return []
 
 
-def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str]) -> Tuple[Optional[float], int, Optional[str]]:
+def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str]) -> Tuple[Optional[float], int, Optional[str], List[dict]]:
     """
     포켓몬카드 검색 결과 필터링
     
@@ -87,6 +87,7 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
     min_price = None
     valid_count = 0
     min_price_mall = None
+    valid_items = []
     
     # 제외할 판매처
     excluded_malls = ["화성스토어-TCG-", "카드 베이스", "네이버", "쿠팡"]
@@ -144,6 +145,7 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
         
         # 유효한 상품
         valid_count += 1
+        valid_items.append(item)
         print(f"    ✅ 유효한 상품!")
         
         # 최저가 업데이트
@@ -154,7 +156,7 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
     
     print(f"\n📊 필터링 결과: 유효 상품 {valid_count}개")
     
-    return min_price, valid_count, min_price_mall
+    return min_price, valid_count, min_price_mall, valid_items
 
 
 
@@ -330,15 +332,14 @@ def get_all_prices_for_card(card_name: str, rarity: str, expansion_name: str) ->
         {
             'general_price': (최저가, 유효상품수, 판매처),
             'tcg999_price': (TCG999가격, 판매처),
-            'search_query': 검색어
+            'search_query': 검색어,
+            'valid_items': api json 중 유효한 상품 전체 결과
         }
     """
-    # 검색어 생성
     search_query = generate_pokemon_search_query(card_name, rarity, expansion_name)
     
     print(f"🔍 [통합검색] 검색어: {search_query}")
     
-    # 네이버 쇼핑 검색 (한 번만!)
     items = search_naver_shopping(search_query)
     
     if not items:
@@ -346,18 +347,18 @@ def get_all_prices_for_card(card_name: str, rarity: str, expansion_name: str) ->
         return {
             'general_price': (None, 0, None),
             'tcg999_price': (None, None),
-            'search_query': search_query
+            'search_query': search_query,
+            'valid_items': [],
         }
     
     print(f"✅ 검색 결과: {len(items)}개")
     
     # 1. 일반 최저가 필터링
-    min_price, valid_count, min_price_mall = filter_pokemon_items(items, card_name, rarity)
+    min_price, valid_count, min_price_mall, valid_items = filter_pokemon_items(items, card_name, rarity)
     
     # 2. TCG999 필터링
     tcg999_price, tcg999_mall = filter_tcg999_items(items, card_name, rarity)
     
-    # 결과 출력
     if min_price:
         print(f"💰 일반 최저가: {int(min_price)}원 ({min_price_mall}) - 유효: {valid_count}개")
     else:
@@ -371,10 +372,9 @@ def get_all_prices_for_card(card_name: str, rarity: str, expansion_name: str) ->
     return {
         'general_price': (min_price, valid_count, min_price_mall),
         'tcg999_price': (tcg999_price, tcg999_mall),
-        'search_query': search_query
+        'search_query': search_query,
+        'valid_items': valid_items,
     }
-
-# pricehub/utils.py 끝에 추가
 
 # ==================== 원피스 카드 유틸리티 ====================
 

@@ -2,6 +2,7 @@
 import os
 import django
 import time
+import json
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
@@ -16,7 +17,6 @@ def collect_all_prices_integrated():
     print("💰 포켓몬카드 가격 통합 수집 시작")
     print("=" * 80 + "\n")
     
-    # 모든 카드 가져오기
     cards = Card.objects.select_related('expansion').all()
     total_cards = cards.count()
     
@@ -33,7 +33,6 @@ def collect_all_prices_integrated():
         print("-" * 60)
         
         try:
-            # 통합 검색 (API 1회 호출)
             result = get_all_prices_for_card(
                 card_name=card.name,
                 rarity=card.rarity,
@@ -44,6 +43,7 @@ def collect_all_prices_integrated():
             
             general_price, valid_count, general_mall = result['general_price']
             tcg999_price, tcg999_mall = result['tcg999_price']
+            valid_items = result['valid_items']
             
             saved_general = False
             saved_tcg999 = False
@@ -53,7 +53,8 @@ def collect_all_prices_integrated():
                 CardPrice.objects.create(
                     card=card,
                     price=int(general_price),
-                    source=general_mall
+                    source=general_mall,
+                    raw_data=valid_items,  # 유효 상품 전체 저장
                 )
                 print(f"✅ 일반 최저가 저장: {int(general_price)}원 ({general_mall})")
                 general_success += 1
@@ -66,7 +67,7 @@ def collect_all_prices_integrated():
                 TargetStorePrice.objects.create(
                     card=card,
                     price=int(tcg999_price),
-                    store_name=tcg999_mall
+                    store_name=tcg999_mall,
                 )
                 print(f"✅ TCG999 저장: {int(tcg999_price)}원")
                 tcg999_success += 1
@@ -74,15 +75,12 @@ def collect_all_prices_integrated():
             else:
                 print(f"⚠️ TCG999 없음")
             
-            # 둘 다 저장 성공
             if saved_general and saved_tcg999:
                 both_success += 1
             
-            # 둘 다 실패
             if not saved_general and not saved_tcg999:
                 fail_count += 1
             
-            # API 요청 제한 방지
             time.sleep(0.3)
             
         except Exception as e:
@@ -90,7 +88,6 @@ def collect_all_prices_integrated():
             fail_count += 1
             continue
     
-    # 결과 출력
     print("\n" + "=" * 80)
     print("📊 가격 수집 완료")
     print("=" * 80)
@@ -174,7 +171,8 @@ def test_single_card_integrated(card_id: int):
         
         general_price, valid_count, general_mall = result['general_price']
         tcg999_price, tcg999_mall = result['tcg999_price']
-        
+        valid_items = result['valid_items']  # ← 이름 통일
+
         print(f"\n📊 검색 결과")
         print(f"검색어: {result['search_query']}")
         
@@ -182,6 +180,8 @@ def test_single_card_integrated(card_id: int):
             print(f"\n💰 일반 최저가: {int(general_price)}원")
             print(f"🏪 판매처: {general_mall}")
             print(f"📊 유효 상품: {valid_count}개")
+            print(f"\n📦 valid_items 미리보기 ({len(valid_items)}개):")
+            print(json.dumps(valid_items, ensure_ascii=False, indent=2))
         else:
             print("\n⚠️ 일반 최저가 없음")
         
@@ -194,11 +194,20 @@ def test_single_card_integrated(card_id: int):
         save = input("\n가격을 저장하시겠습니까? (y/n): ")
         if save.lower() == 'y':
             if general_price and general_mall:
-                CardPrice.objects.create(card=card, price=int(general_price), source=general_mall)
+                CardPrice.objects.create(
+                    card=card,
+                    price=int(general_price),
+                    source=general_mall,
+                    raw_data=valid_items,  # 유효 상품 전체 저장
+                )
                 print("✅ 일반 최저가 저장")
             
             if tcg999_price and tcg999_mall:
-                TargetStorePrice.objects.create(card=card, price=int(tcg999_price), store_name=tcg999_mall)
+                TargetStorePrice.objects.create(
+                    card=card,
+                    price=int(tcg999_price),
+                    store_name=tcg999_mall,
+                )
                 print("✅ TCG999 저장")
             
             print("저장 완료!")
