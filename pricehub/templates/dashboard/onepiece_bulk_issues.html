@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>점검 필요 카드 · 원피스 한글판</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root { --bg: #0a0c12; --surface: #13161f; --surface2: #1a1e2a; --surface3: #20263a; --border: #252a3a; --border2: #2f3650; --accent: #5b8def; --accent2: #7c6bff; --success: #3dd68c; --warning: #f5a623; --danger: #f06060; --text: #dde2f0; --text-muted: #5a6080; --text-dim: #3a4060; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); }
+  header { background: rgba(19,22,31,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 13px; padding: 5px 12px; text-decoration: none; transition: all 0.15s; }
+  .back-btn:hover { border-color: var(--accent); color: var(--text); }
+  .breadcrumb { font-size: 13px; color: var(--text-muted); }
+  .breadcrumb a { color: var(--text-muted); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb span { margin: 0 5px; color: var(--text-dim); }
+  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 12px; padding: 5px 12px; text-decoration: none; }
+  main { max-width: 1100px; margin: 0 auto; padding: 32px 28px; }
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+  .page-title { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; }
+  .page-count { font-size: 14px; color: var(--warning); font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+  .filter-label { font-size: 13px; color: var(--text-muted); }
+  .filter-select { padding: 8px 12px; background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; color: var(--text); font-family: inherit; font-size: 13px; outline: none; }
+  .card-table { width: 100%; border-collapse: collapse; }
+  .card-table th { text-align: left; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface); font-family: 'JetBrains Mono', monospace; }
+  .card-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; background: var(--surface); }
+  .card-table tr:hover td { background: var(--surface2); cursor: pointer; }
+  .card-thumb { width: 40px; height: 40px; object-fit: contain; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); }
+  .rarity-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; background: rgba(91,141,239,0.1); color: var(--accent); border: 1px solid rgba(91,141,239,0.2); font-family: 'JetBrains Mono', monospace; }
+  .warning-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warning); margin-right: 6px; }
+  .set-btn { padding: 4px 12px; border-radius: 5px; font-size: 12px; font-weight: 700; border: 1px solid var(--accent2); color: var(--accent2); background: none; cursor: pointer; font-family: inherit; transition: all 0.15s; text-decoration: none; display: inline-block; }
+  .set-btn:hover { background: var(--accent2); color: #fff; }
+  .empty { text-align: center; padding: 80px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <a href="/dashboard/onepiece/kr/bulk-price/" class="back-btn">← 일괄 설정</a>
+    <div class="breadcrumb">
+      {% for crumb in breadcrumb %}
+        {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
+        {% if not forloop.last %}<span>/</span>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <a href="/dashboard/logout/" class="logout-btn">로그아웃</a>
+</header>
+<main>
+  <div class="page-header">
+    <div class="page-title">⚠️ 점검 필요 카드</div>
+    <div class="page-count">{{ total }}개</div>
+  </div>
+  <form method="get" class="filter-bar">
+    <span class="filter-label">확장팩</span>
+    <select class="filter-select" name="expansion" onchange="this.form.submit()">
+      <option value="">전체</option>
+      {% for exp in expansions %}
+      <option value="{{ exp.code }}" {% if exp.code == expansion_code %}selected{% endif %}>{{ exp.code }} — {{ exp.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% if cards %}
+  <table class="card-table">
+    <thead>
+      <tr><th style="width:48px"></th><th>카드</th><th>레어도</th><th>확장팩</th><th>시장가 수집</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for card in cards %}
+      <tr onclick="location.href='/dashboard/onepiece/kr/cards/{{ card.id }}/'">
+        <td>{% if card.image_url %}<img src="{{ card.image_url }}" class="card-thumb">{% endif %}</td>
+        <td>
+          <span class="warning-dot"></span>
+          <strong>{{ card.name }}</strong>
+          <span style="font-size:11px;color:var(--text-muted);margin-left:6px;font-family:'JetBrains Mono',monospace;">{{ card.card_number }}</span>
+        </td>
+        <td><span class="rarity-badge">{{ card.rarity }}</span></td>
+        <td style="font-size:12px;color:var(--text-muted);">{{ card.expansion.name }}</td>
+        <td>
+          {% with latest=card.prices.first %}
+          {% if latest %}
+          <span style="font-size:12px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">{{ latest.collected_at|date:"m.d" }} · {{ latest.price|floatformat:0 }}원</span>
+          {% else %}
+          <span style="font-size:12px;color:var(--text-dim);">미수집</span>
+          {% endif %}
+          {% endwith %}
+        </td>
+        <td><a href="/dashboard/onepiece/kr/cards/{{ card.id }}/" class="set-btn" onclick="event.stopPropagation()">판매가 설정</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <div style="font-size:40px;margin-bottom:12px;opacity:0.4;">✅</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">점검 필요 카드가 없습니다!</div>
+    <div style="font-size:13px;">모든 카드에 판매가가 설정되어 있습니다.</div>
+  </div>
+  {% endif %}
+</main>
+</body>
+</html>

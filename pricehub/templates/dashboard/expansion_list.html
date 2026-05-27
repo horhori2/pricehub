@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ title }} 확장팩 목록 · 가격 관리</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0c12; --surface: #13161f; --surface2: #1a1e2a; --surface3: #20263a;
+    --border: #252a3a; --border2: #2f3650;
+    --accent: #5b8def; --accent2: #7c6bff;
+    --success: #3dd68c; --warning: #f5a623; --text: #dde2f0; --text-muted: #5a6080; --text-dim: #3a4060;
+  }
+  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: rgba(19,22,31,0.95); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 28px; height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 13px; padding: 5px 12px; cursor: pointer; text-decoration: none; transition: all 0.15s; }
+  .back-btn:hover { border-color: var(--accent); color: var(--text); }
+  .breadcrumb { font-size: 13px; color: var(--text-muted); }
+  .breadcrumb a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
+  .breadcrumb a:hover { color: var(--accent); }
+  .breadcrumb span { margin: 0 5px; color: var(--text-dim); }
+  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 12px; padding: 5px 12px; cursor: pointer; text-decoration: none; transition: all 0.15s; }
+  .logout-btn:hover { color: #f06060; border-color: #f06060; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 36px 28px; }
+
+  .page-title { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 4px; }
+  .page-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; }
+
+  /* 통계 */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 36px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; }
+  .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
+  .stat-value { font-size: 28px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .stat-value.green { color: var(--success); }
+  .stat-value.yellow { color: var(--warning); }
+
+  /* 확장팩 그리드 */
+  .expansion-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+
+  .expansion-card {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 20px;
+    transition: all 0.15s; position: relative; overflow: hidden;
+  }
+  .expansion-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+
+  .exp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+  .exp-code { font-size: 11px; color: var(--accent2); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; }
+  .exp-name { font-size: 15px; font-weight: 700; }
+  .exp-date { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+  .exp-image { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); flex-shrink: 0; }
+
+  .exp-stats { display: flex; gap: 14px; margin-bottom: 10px; }
+  .exp-stat { font-size: 12px; }
+  .exp-stat span { color: var(--text-muted); }
+  .exp-stat strong { color: var(--text); font-family: 'JetBrains Mono', monospace; }
+
+  .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; }
+  .progress-fill.complete { background: var(--success); }
+  .progress-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+<header>
+  <div class="header-left">
+    <a href="/dashboard/" class="back-btn">← 홈</a>
+    <div class="breadcrumb">
+      {% for crumb in breadcrumb %}
+        {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
+        {% if not forloop.last %}<span>/</span>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <a href="/dashboard/logout/" class="logout-btn">로그아웃</a>
+</header>
+
+<main>
+  <div class="page-title">{{ title }} 확장팩</div>
+  <div class="page-sub">확장팩을 선택해 카드별 판매가를 설정하세요.</div>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">전체 확장팩</div>
+      <div class="stat-value">{{ expansions|length }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">전체 카드</div>
+      <div class="stat-value green">{{ total_cards }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">판매가 미설정</div>
+      <div class="stat-value yellow">{{ total_unpriced }}</div>
+    </div>
+  </div>
+
+  <!-- 통계 카드 아래에 교체 -->
+  <div style="display:flex; gap:12px; margin-bottom:32px;">
+    <a href="{{ bulk_price_url }}"
+      style="display:inline-flex;align-items:center;gap:8px;
+              padding:10px 22px;border-radius:10px;
+              background:linear-gradient(135deg,rgba(124,107,255,0.15),rgba(91,141,239,0.1));
+              border:1px solid var(--accent2);
+              color:var(--accent2);text-decoration:none;
+              font-size:14px;font-weight:700;
+              transition:all 0.15s;"
+      onmouseover="this.style.background='linear-gradient(135deg,rgba(124,107,255,0.25),rgba(91,141,239,0.2))';this.style.transform='translateY(-1px)'"
+      onmouseout="this.style.background='linear-gradient(135deg,rgba(124,107,255,0.15),rgba(91,141,239,0.1))';this.style.transform='none'">
+      ⚡ 일괄 판매가 설정
+    </a>
+  </div>
+
+
+  <div class="expansion-grid">
+    {% for expansion in expansions %}
+    <a href="{{ base_url }}/expansions/{{ expansion.code }}/cards/" class="expansion-card">
+      <div class="exp-header">
+        <div>
+          <div class="exp-code">{{ expansion.code }}</div>
+          <div class="exp-name">{{ expansion.name }}</div>
+          <div class="exp-date">{% if expansion.release_date %}{{ expansion.release_date|date:"Y.m.d" }}{% endif %}</div>
+        </div>
+        {% if expansion.image_url %}
+        <img src="{{ expansion.image_url }}" alt="{{ expansion.name }}" class="exp-image">
+        {% endif %}
+      </div>
+      <div class="exp-stats">
+        <div class="exp-stat"><span>전체 </span><strong>{{ expansion.card_count }}</strong></div>
+        <div class="exp-stat"><span>미설정 </span><strong>{{ expansion.unpriced_count }}</strong></div>
+      </div>
+      <div class="progress-bar">
+        {% if expansion.card_count > 0 %}
+        {% widthratio expansion.unpriced_count expansion.card_count 100 as up %}
+        <div class="progress-fill {% if expansion.unpriced_count == 0 %}complete{% endif %}"
+             style="width: calc(100% - {{ up }}%)"></div>
+        {% endif %}
+      </div>
+      <div class="progress-label">
+        <span>설정 완료</span>
+        <span>{% if expansion.card_count > 0 %}{% widthratio expansion.unpriced_count expansion.card_count 100 as up %}{{ 100|add:"-"|add:up }}%{% else %}0%{% endif %}</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</main>
+</body>
+</html>

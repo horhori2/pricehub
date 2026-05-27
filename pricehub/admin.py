@@ -1,11 +1,11 @@
 from django.contrib import admin
 from .models import (
     # 포켓몬 한글판
-    Expansion, Card, CardPrice, TargetStorePrice,
+    Expansion, Card, CardPrice,
     # 원피스
-    OnePieceExpansion, OnePieceCard, OnePieceCardPrice, OnePieceTargetStorePrice,
+    OnePieceExpansion, OnePieceCard, OnePieceCardPrice,
     # 포켓몬 일본판
-    JapanExpansion, JapanCard, JapanCardPrice, JapanTargetStorePrice,
+    JapanExpansion, JapanCard, JapanCardPrice
 )
 
 # ==================== 포켓몬 ====================
@@ -29,14 +29,6 @@ class CardAdmin(admin.ModelAdmin):
 class CardPriceAdmin(admin.ModelAdmin):
     list_display = ['card', 'price', 'source', 'collected_at']
     list_filter = ['source', 'collected_at']
-    search_fields = ['card__name']
-    ordering = ['-collected_at']
-
-
-@admin.register(TargetStorePrice)
-class TargetStorePriceAdmin(admin.ModelAdmin):
-    list_display = ['card', 'price', 'store_name', 'collected_at']
-    list_filter = ['store_name', 'collected_at']
     search_fields = ['card__name']
     ordering = ['-collected_at']
 
@@ -66,14 +58,7 @@ class OnePieceCardPriceAdmin(admin.ModelAdmin):
     ordering = ['-collected_at']
 
 
-@admin.register(OnePieceTargetStorePrice)
-class OnePieceTargetStorePriceAdmin(admin.ModelAdmin):
-    list_display = ['card', 'price', 'store_name', 'collected_at']
-    list_filter = ['store_name', 'collected_at']
-    search_fields = ['card__name']
-    ordering = ['-collected_at']
-
-    # ==================== 포켓몬 일본판 관리자 ====================
+# ==================== 포켓몬 일본판 ====================
 
 @admin.register(JapanExpansion)
 class JapanExpansionAdmin(admin.ModelAdmin):
@@ -94,13 +79,5 @@ class JapanCardAdmin(admin.ModelAdmin):
 class JapanCardPriceAdmin(admin.ModelAdmin):
     list_display = ['card', 'price', 'source', 'collected_at']
     list_filter = ['source', 'collected_at']
-    search_fields = ['card__name', 'card__card_number']
-    ordering = ['-collected_at']
-
-
-@admin.register(JapanTargetStorePrice)
-class JapanTargetStorePriceAdmin(admin.ModelAdmin):
-    list_display = ['card', 'price', 'store_name', 'collected_at']
-    list_filter = ['store_name', 'collected_at']
     search_fields = ['card__name', 'card__card_number']
     ordering = ['-collected_at']

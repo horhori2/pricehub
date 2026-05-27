@@ -1,8 +1,8 @@
 # pricehub/models.py
+import secrets 
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
-
 
 class Expansion(models.Model):
     """확장팩 모델"""
@@ -113,6 +113,12 @@ class Card(models.Model):
         auto_now=True, 
         verbose_name='수정일시'
     )
+    selling_price = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name='판매가',
+        help_text='관리자가 설정한 최종 판매가'
+    )
 
     class Meta:
         db_table = 'card'
@@ -165,43 +171,6 @@ class CardPrice(models.Model):
 
     def __str__(self):
         return f"{self.card.name} - {self.price}원 ({self.collected_at.strftime('%Y-%m-%d %H:%M')})"
-    
-class TargetStorePrice(models.Model):
-    """특정 판매처(타겟 스토어) 가격 추적 모델"""
-    
-    card = models.ForeignKey(
-        Card,
-        on_delete=models.CASCADE,
-        related_name='target_prices',
-        verbose_name='카드'
-    )
-    price = models.PositiveIntegerField(
-        validators=[MinValueValidator(0)],
-        verbose_name='판매가'
-    )
-    store_name = models.CharField(
-        max_length=100,
-        default='TCG999',
-        verbose_name='타겟 판매처'
-    )
-    collected_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name='수집시간'
-    )
-    
-    class Meta:
-        db_table = 'target_store_price'
-        verbose_name = '타겟 스토어 가격'
-        verbose_name_plural = '타겟 스토어 가격 히스토리'
-        ordering = ['-collected_at']
-        indexes = [
-            models.Index(fields=['card', '-collected_at']),
-            models.Index(fields=['store_name', '-collected_at']),
-            models.Index(fields=['collected_at']),
-        ]
-    
-    def __str__(self):
-        return f"{self.card.name} - {self.price}원 [{self.store_name}] ({self.collected_at.strftime('%Y-%m-%d %H:%M')})"
     
 
 # ==================== 원피스 카드 모델 ====================
@@ -259,7 +228,11 @@ class OnePieceCard(models.Model):
     is_manga = models.BooleanField(default=False, verbose_name="망가(슈퍼패러렐)") # 추가
     image_url = models.URLField(max_length=500, blank=True, verbose_name="이미지 URL")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
-    
+    selling_price = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name='판매가',
+        help_text='관리자가 설정한 최종 판매가'
+    )
     class Meta:
         db_table = 'onepiece_card'
         verbose_name = '원피스 카드'
@@ -274,6 +247,7 @@ class OnePieceCardPrice(models.Model):
     card = models.ForeignKey(OnePieceCard, on_delete=models.CASCADE, related_name='prices', verbose_name="카드")
     price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="가격")
     source = models.CharField(max_length=100, verbose_name="판매처")
+    raw_data = models.JSONField(default=dict, verbose_name='네이버 API 원본 JSON')
     collected_at = models.DateTimeField(auto_now_add=True, verbose_name="수집일시")
     
     class Meta:
@@ -285,26 +259,6 @@ class OnePieceCardPrice(models.Model):
     def __str__(self):
         return f"{self.card.name} - {self.price}원 ({self.collected_at.strftime('%Y-%m-%d')})"
 
-
-class OnePieceTargetStorePrice(models.Model):
-    """원피스 카드 카드킹덤 가격"""
-    card = models.ForeignKey(OnePieceCard, on_delete=models.CASCADE, related_name='cardkingdom_prices', verbose_name="카드")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="가격")
-    store_name = models.CharField(max_length=100, verbose_name="판매처")
-    collected_at = models.DateTimeField(auto_now_add=True, verbose_name="수집일시")
-    
-    class Meta:
-        db_table = 'onepiece_target_store_price'
-        verbose_name = '원피스 카드킹덤 가격'
-        verbose_name_plural = '원피스 카드킹덤 가격 목록'
-        ordering = ['-collected_at']
-    
-    def __str__(self):
-        return f"{self.card.name} - {self.price}원 ({self.store_name})"
-
-
-# 기존 포켓몬 한글판 모델은 그대로 유지
-# Expansion, Card, CardPrice, TargetStorePrice
 
 # ==================== 포켓몬 일본판 모델 ====================
 
@@ -359,6 +313,12 @@ class JapanCard(models.Model):
     mirror_type = models.CharField(max_length=50, blank=True, verbose_name="미러 타입")  # 추가
     image_url = models.URLField(max_length=500, blank=True, verbose_name="이미지 URL")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
+
+    selling_price = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name='판매가',
+        help_text='관리자가 설정한 최종 판매가'
+    )
     
     class Meta:
         db_table = 'japan_card'
@@ -388,19 +348,41 @@ class JapanCardPrice(models.Model):
         condition_display = f"[{self.condition}]" if self.condition != 'S' else ""
         return f"{self.card.name} - {self.price}엔 {condition_display} ({self.source})"
 
+    
 
-class JapanTargetStorePrice(models.Model):
-    """포켓몬 일본판 카드 TCG999 가격"""
-    card = models.ForeignKey(JapanCard, on_delete=models.CASCADE, related_name='tcg999_prices', verbose_name="카드")
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="가격")
-    store_name = models.CharField(max_length=100, verbose_name="판매처")
-    collected_at = models.DateTimeField(auto_now_add=True, verbose_name="수집일시")
-    
+# ==================== API KEY 발급 - 외부 프로그램 접근 허용 ====================
+class APIKey(models.Model):
+    """
+    외부 클라이언트용 API Key.
+
+    발급:
+        python manage.py shell
+        >>> from pricehub.models import APIKey
+        >>> APIKey.objects.create_key(name='카드관리프로그램')
+    """
+    name = models.CharField(max_length=100, verbose_name='클라이언트명', help_text='예: 카드관리프로그램')
+    key = models.CharField(max_length=64, unique=True, verbose_name='API Key')
+    is_active = models.BooleanField(default=True, verbose_name='활성 여부')
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True, verbose_name='마지막 사용')
+
+    objects = models.Manager()
+
     class Meta:
-        db_table = 'japan_target_store_price'
-        verbose_name = '포켓몬 일본판 TCG999 가격'
-        verbose_name_plural = '포켓몬 일본판 TCG999 가격 목록'
-        ordering = ['-collected_at']
-    
+        db_table = 'api_key'
+        verbose_name = 'API Key'
+        verbose_name_plural = 'API Key 목록'
+
     def __str__(self):
-        return f"{self.card.name} - {self.price}원 ({self.store_name})"
+        return f"{self.name} ({'활성' if self.is_active else '비활성'})"
+
+    @classmethod
+    def create_key(cls, name: str) -> tuple:
+        """
+        새 API Key 발급.
+        Returns: (APIKey instance, raw_key)
+        raw_key는 이 시점에만 확인 가능 — DB에는 저장되지 않음.
+        """
+        raw_key = secrets.token_urlsafe(32)
+        instance = cls.objects.create(name=name, key=raw_key)
+        return instance, raw_key
