@@ -68,14 +68,14 @@ def home(request):
                     'key': 'kr',
                     'url': '/dashboard/pokemon/kr/expansions/',
                     'total': Card.objects.count(),
-                    'unpriced': Card.objects.filter(selling_price__isnull=True).count(),
+                    'unpriced': Card.objects.filter(selling_price=0).count(),
                 },
                 {
                     'label': '일본판',
                     'key': 'jp',
                     'url': '/dashboard/pokemon/jp/expansions/',
                     'total': JapanCard.objects.count(),
-                    'unpriced': JapanCard.objects.filter(selling_price__isnull=True).count(),
+                    'unpriced': JapanCard.objects.filter(selling_price=0).count(),
                 },
             ],
         },
@@ -89,7 +89,7 @@ def home(request):
                     'key': 'kr',
                     'url': '/dashboard/onepiece/kr/expansions/',
                     'total': OnePieceCard.objects.count(),
-                    'unpriced': OnePieceCard.objects.filter(selling_price__isnull=True).count(),
+                    'unpriced': OnePieceCard.objects.filter(selling_price=0).count(),
                 },
             ],
         },
@@ -113,7 +113,7 @@ def pokemon_kr_expansion_list(request):
     expansions = list(Expansion.objects.order_by('-release_date', '-created_at'))
     for e in expansions:
         e.card_count = e.cards.count()
-        e.unpriced_count = e.cards.filter(selling_price__isnull=True).count()
+        e.unpriced_count = e.cards.filter(selling_price=0).count()
     total_cards = sum(e.card_count for e in expansions)
     total_unpriced = sum(e.unpriced_count for e in expansions)
     return render(request, 'dashboard/expansion_list.html', {
@@ -141,9 +141,9 @@ def pokemon_kr_card_list(request, code):
     )
     filter_type = request.GET.get('filter', 'all')
     if filter_type == 'unpriced':
-        cards = cards.filter(selling_price__isnull=True)
+        cards = cards.filter(selling_price=0)
     elif filter_type == 'priced':
-        cards = cards.filter(selling_price__isnull=False)
+        cards = cards.filter(selling_price__gt=0)
     return render(request, 'dashboard/card_list.html', {
         'expansion': expansion,
         'cards': cards,
@@ -180,7 +180,17 @@ def pokemon_kr_card_detail(request, pk):
 @staff_required
 @require_POST
 def pokemon_kr_set_price(request, pk):
-    return _set_price(Card, pk, request)
+    card = get_object_or_404(Card, pk=pk)
+    try:
+        data = json.loads(request.body)
+        price = int(data.get('selling_price', 0))
+        if price <= 0:
+            return JsonResponse({'error': '올바른 가격을 입력해주세요.'}, status=400)
+        card.selling_price = price
+        card.save(update_fields=['selling_price'])
+        return JsonResponse({'success': True, 'selling_price': price})
+    except (json.JSONDecodeError, ValueError):
+        return JsonResponse({'error': '잘못된 요청입니다.'}, status=400)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -192,7 +202,7 @@ def pokemon_jp_expansion_list(request):
     expansions = list(JapanExpansion.objects.order_by('-release_date', '-created_at'))
     for e in expansions:
         e.card_count = e.cards.count()
-        e.unpriced_count = e.cards.filter(selling_price__isnull=True).count()
+        e.unpriced_count = e.cards.filter(selling_price=0).count()
     total_cards = sum(e.card_count for e in expansions)
     total_unpriced = sum(e.unpriced_count for e in expansions)
     return render(request, 'dashboard/expansion_list.html', {
@@ -219,9 +229,9 @@ def pokemon_jp_card_list(request, code):
     )
     filter_type = request.GET.get('filter', 'all')
     if filter_type == 'unpriced':
-        cards = cards.filter(selling_price__isnull=True)
+        cards = cards.filter(selling_price=0)
     elif filter_type == 'priced':
-        cards = cards.filter(selling_price__isnull=False)
+        cards = cards.filter(selling_price__gt=0)
     return render(request, 'dashboard/card_list.html', {
         'expansion': expansion,
         'cards': cards,
@@ -277,7 +287,7 @@ def onepiece_kr_expansion_list(request):
     expansions = list(OnePieceExpansion.objects.order_by('-release_date', '-created_at'))
     for e in expansions:
         e.card_count = e.cards.count()
-        e.unpriced_count = e.cards.filter(selling_price__isnull=True).count()
+        e.unpriced_count = e.cards.filter(selling_price=0).count()
     total_cards = sum(e.card_count for e in expansions)
     total_unpriced = sum(e.unpriced_count for e in expansions)
     return render(request, 'dashboard/expansion_list.html', {
@@ -305,9 +315,9 @@ def onepiece_kr_card_list(request, code):
     )
     filter_type = request.GET.get('filter', 'all')
     if filter_type == 'unpriced':
-        cards = cards.filter(selling_price__isnull=True)
+        cards = cards.filter(selling_price=0)
     elif filter_type == 'priced':
-        cards = cards.filter(selling_price__isnull=False)
+        cards = cards.filter(selling_price__gt=0)
     return render(request, 'dashboard/card_list.html', {
         'expansion': expansion,
         'cards': cards,
@@ -418,7 +428,7 @@ def pokemon_kr_bulk_price(request):
 
     mall_names = _collect_mall_names(expansion_code=expansion_code or None)
     expansions = list(Expansion.objects.order_by('-release_date'))
-    needs_review = Card.objects.filter(selling_price__isnull=True).count()
+    needs_review = Card.objects.filter(selling_price=0).count()
 
     # 레어도 목록 (해당 확장팩 or 전체)
     rarity_qs = Card.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
@@ -469,7 +479,8 @@ def pokemon_kr_bulk_run(request):
     expansion_code = data.get('expansion_code', '').strip()
     skip_priced = data.get('skip_priced', False)
     rarities = data.get('rarities', [])
-    min_price_floor = int(data.get('min_price', 0) or 0)  # ← 희망 최저가
+    min_price_floor = int(data.get('min_price', 0) or 0)
+    fallback_mode = data.get('fallback_mode', '')  # 'avg', 'max', ''
 
     if not priorities:
         return JsonResponse({'error': '우선순위를 1개 이상 설정해주세요.'}, status=400)
@@ -502,7 +513,7 @@ def pokemon_kr_bulk_run(request):
     needs_review = []
 
     for card in cards_list:
-        if skip_priced and card.selling_price is not None:
+        if skip_priced and card.selling_price != 0:
             skipped.append(card.id)
             continue
 
@@ -510,6 +521,7 @@ def pokemon_kr_bulk_run(request):
         if isinstance(raw, dict):
             raw = [raw]
 
+        # ── 우선순위 매칭 ──
         matched_price = None
         for mall_name in priorities:
             for item in raw:
@@ -525,13 +537,34 @@ def pokemon_kr_bulk_run(request):
                 break
 
         if matched_price:
-            # 희망 최저가보다 낮으면 희망 최저가로 올림
             if min_price_floor > 0 and matched_price < min_price_floor:
                 matched_price = min_price_floor
             card.selling_price = matched_price
             to_update.append(card)
+
         else:
-            needs_review.append(card.id)
+            # ── 미매칭 카드: fallback 처리 ──
+            fallback_price = None
+            if fallback_mode in ('avg', 'max'):
+                prices = []
+                for item in raw:
+                    try:
+                        p = int(float(item.get('lprice', 0)))
+                        if p > 0:
+                            prices.append(p)
+                    except (ValueError, TypeError):
+                        pass
+                if prices:
+                    raw_price = (sum(prices) / len(prices)) if fallback_mode == 'avg' else max(prices)
+                    fallback_price = round(raw_price / 100) * 100  # 100원 단위 반올림
+
+            if fallback_price:
+                if min_price_floor > 0 and fallback_price < min_price_floor:
+                    fallback_price = min_price_floor
+                card.selling_price = fallback_price
+                to_update.append(card)
+            else:
+                needs_review.append(card.id)
 
     if to_update:
         Card.objects.bulk_update(to_update, ['selling_price'])
@@ -553,20 +586,29 @@ def pokemon_kr_bulk_run(request):
 
 @staff_required
 def pokemon_kr_bulk_issues(request):
-    """
-    selling_price가 null인 카드 목록.
-    확장팩 필터 지원.
-    """
     expansion_code = request.GET.get('expansion', '')
+    selected_rarities = request.GET.getlist('rarities')
 
-    cards_qs = Card.objects.filter(selling_price__isnull=True).select_related('expansion')
+    cards_qs = Card.objects.filter(selling_price=0).select_related('expansion')
     if expansion_code:
         cards_qs = cards_qs.filter(expansion__code=expansion_code)
-    if rarities:
-        cards_qs = cards_qs.filter(rarity__in=rarities)   # ← 추가
     cards_qs = cards_qs.order_by('expansion__code', 'card_number')
 
-    # 확장팩 목록 (필터용)
+    # 전체 카드에서 레어도 추출 (bulk_price와 동일)
+    rarity_qs = Card.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
+    if expansion_code:
+        rarity_qs = rarity_qs.filter(expansion__code=expansion_code)
+    all_rarities = list(rarity_qs)
+
+    # raw_data
+    seen = {}
+    for cp in CardPrice.objects.filter(card__in=cards_qs)\
+                                .exclude(raw_data={}).exclude(raw_data=[])\
+                                .order_by('-collected_at')\
+                                .values('card_id', 'raw_data'):
+        if cp['card_id'] not in seen:
+            seen[cp['card_id']] = cp['raw_data']
+
     expansions = Expansion.objects.order_by('-release_date')
 
     return render(request, 'dashboard/bulk_issues.html', {
@@ -574,11 +616,15 @@ def pokemon_kr_bulk_issues(request):
         'expansions': expansions,
         'expansion_code': expansion_code,
         'total': cards_qs.count(),
+        'card_raw_json': json.dumps(seen, ensure_ascii=False),
+        'all_rarities': all_rarities,
+        'selected_rarities': selected_rarities,
+        'selected_rarities_json': json.dumps(selected_rarities),
         'breadcrumb': [
             ('홈', '/dashboard/'),
             ('포켓몬 한글판', '/dashboard/pokemon/kr/expansions/'),
             ('일괄 판매가 설정', '/dashboard/pokemon/kr/bulk-price/'),
-            ('점검 필요', None),
+            ('2차 판매가 설정', None),
         ],
     })
 
@@ -859,7 +905,7 @@ def onepiece_kr_bulk_price(request):
 
     mall_names = _onepiece_collect_mall_names(expansion_code=expansion_code or None)
     expansions = list(OnePieceExpansion.objects.order_by('-release_date', '-created_at'))
-    needs_review = OnePieceCard.objects.filter(selling_price__isnull=True).count()
+    needs_review = OnePieceCard.objects.filter(selling_price=0).count()
 
     raw_list = _onepiece_load_raw_data(expansion_code=expansion_code or None)
     shop_stats, overall_avg = _onepiece_calc_shop_stats(raw_list)
@@ -928,7 +974,7 @@ def onepiece_kr_bulk_run(request):
     needs_review = []
 
     for card in cards_list:
-        if skip_priced and card.selling_price is not None:
+        if skip_priced and card.selling_price != 0:
             skipped.append(card.id)
             continue
 
@@ -977,10 +1023,26 @@ def onepiece_kr_bulk_run(request):
 @staff_required
 def onepiece_kr_bulk_issues(request):
     expansion_code = request.GET.get('expansion', '')
-    cards_qs = OnePieceCard.objects.filter(selling_price__isnull=True).select_related('expansion')
+    selected_rarities = request.GET.getlist('rarities')
+
+    cards_qs = OnePieceCard.objects.filter(selling_price=0).select_related('expansion')  # ← null→0
     if expansion_code:
         cards_qs = cards_qs.filter(expansion__code=expansion_code)
     cards_qs = cards_qs.order_by('expansion__code', 'card_number')
+
+    # 전체 레어도 목록
+    rarity_qs = OnePieceCard.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
+    if expansion_code:
+        rarity_qs = rarity_qs.filter(expansion__code=expansion_code)
+
+    # raw_data
+    seen = {}
+    for cp in OnePieceCardPrice.objects.filter(card__in=cards_qs)\
+                                        .exclude(raw_data={}).exclude(raw_data=[])\
+                                        .order_by('-collected_at')\
+                                        .values('card_id', 'raw_data'):
+        if cp['card_id'] not in seen:
+            seen[cp['card_id']] = cp['raw_data']
 
     expansions = OnePieceExpansion.objects.order_by('-release_date')
 
@@ -989,10 +1051,14 @@ def onepiece_kr_bulk_issues(request):
         'expansions': expansions,
         'expansion_code': expansion_code,
         'total': cards_qs.count(),
+        'card_raw_json': json.dumps(seen, ensure_ascii=False),
+        'all_rarities': list(rarity_qs),
+        'selected_rarities': selected_rarities,
+        'selected_rarities_json': json.dumps(selected_rarities),
         'breadcrumb': [
             ('홈', '/dashboard/'),
             ('원피스 한글판', '/dashboard/onepiece/kr/expansions/'),
             ('일괄 판매가 설정', '/dashboard/onepiece/kr/bulk-price/'),
-            ('점검 필요', None),
+            ('2차 판매가 설정', None),
         ],
     })

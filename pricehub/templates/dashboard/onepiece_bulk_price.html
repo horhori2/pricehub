@@ -137,18 +137,16 @@
     </div>
     <div class="scope-box">
       <span class="scope-label">범위:</span>
-      <select class="scope-select"
-              onchange="location.href='/dashboard/onepiece/kr/bulk-price/?expansion='+this.value">
+      <select class="scope-select" onchange="location.href='/dashboard/onepiece/kr/bulk-price/?expansion='+this.value">
         <option value="" {% if not expansion_code %}selected{% endif %}>전체 확장팩</option>
         {% for exp in expansions %}
-        <option value="{{ exp.code }}" {% if expansion_code == exp.code %}selected{% endif %}>
-          {{ exp.code }} — {{ exp.name }}
-        </option>
+        <option value="{{ exp.code }}" {% if expansion_code == exp.code %}selected{% endif %}>{{ exp.code }} — {{ exp.name }}</option>
         {% endfor %}
       </select>
     </div>
   </div>
 
+  <!-- needs_review: selling_price=0 기준 -->
   {% if needs_review > 0 %}
   <div class="review-banner">
     <div class="review-banner-left">
@@ -160,7 +158,6 @@
   {% endif %}
 
   <div class="main-grid">
-    <!-- 좌: 경쟁 샵 랭킹 -->
     <div>
       {% if shop_stats %}
       <div class="summary-row">
@@ -184,11 +181,7 @@
           <button class="filter-btn" onclick="filterShops('exp',this)">비쌈</button>
         </div>
         <table class="rank-table">
-          <thead>
-            <tr>
-              <th style="width:30px">#</th><th>샵</th><th>상품 수</th><th>평균가</th><th>비교</th>
-            </tr>
-          </thead>
+          <thead><tr><th style="width:30px">#</th><th>샵</th><th>상품 수</th><th>평균가</th><th>비교</th></tr></thead>
           <tbody id="rankBody"></tbody>
         </table>
       </div>
@@ -200,7 +193,6 @@
       {% endif %}
     </div>
 
-    <!-- 우: 우선순위 설정 -->
     <div class="right-panel">
       <div class="priority-section">
         <div class="panel-title" style="margin-bottom:14px;"><span class="panel-dot"></span>판매처 우선순위</div>
@@ -209,10 +201,7 @@
           <div class="priority-item">
             <div class="priority-num p{{ num }}">{{ num }}</div>
             <div class="autocomplete-wrap">
-              <input type="text" class="priority-input" id="p{{ num }}"
-                     placeholder="{{ num }}순위..." autocomplete="off"
-                     oninput="showAC({{ num }}, this.value)"
-                     onblur="hideAC({{ num }})">
+              <input type="text" class="priority-input" id="p{{ num }}" placeholder="{{ num }}순위..." autocomplete="off" oninput="showAC({{ num }}, this.value)" onblur="hideAC({{ num }})">
               <div class="autocomplete-list" id="ac{{ num }}"></div>
             </div>
             <button class="p-clear" onclick="clearP({{ num }})" title="삭제">×</button>
@@ -223,9 +212,7 @@
         <select class="option-select" id="expansionSelect">
           <option value="" {% if not expansion_code %}selected{% endif %}>전체 확장팩</option>
           {% for exp in expansions %}
-          <option value="{{ exp.code }}" {% if expansion_code == exp.code %}selected{% endif %}>
-            {{ exp.code }} — {{ exp.name }}
-          </option>
+          <option value="{{ exp.code }}" {% if expansion_code == exp.code %}selected{% endif %}>{{ exp.code }} — {{ exp.name }}</option>
           {% endfor %}
         </select>
         <label class="checkbox-wrap">
@@ -258,78 +245,63 @@ const TOP = SHOPS.slice(0, 15);
 const chartBase = {
   responsive: true, maintainAspectRatio: false,
   plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1e2a', borderColor: '#2f3650', borderWidth: 1, titleColor: '#dde2f0', bodyColor: '#9aa0c0' } },
-  scales: {
-    x: { ticks: { color: '#5a6080', font: { size: 10 }, maxRotation: 35 }, grid: { color: 'rgba(37,42,58,0.8)' } },
-    y: { ticks: { color: '#5a6080', font: { size: 10, family: 'JetBrains Mono' } }, grid: { color: 'rgba(37,42,58,0.8)' } }
-  }
+  scales: { x: { ticks: { color: '#5a6080', font: { size: 10 }, maxRotation: 35 }, grid: { color: 'rgba(37,42,58,0.8)' } }, y: { ticks: { color: '#5a6080', font: { size: 10, family: 'JetBrains Mono' } }, grid: { color: 'rgba(37,42,58,0.8)' } } }
 };
 if (TOP.length && document.getElementById('countChart')) {
-  new Chart(document.getElementById('countChart'), { type: 'bar', data: { labels: TOP.map(s => s.name), datasets: [{ data: TOP.map(s => s.count), backgroundColor: TOP.map((_, i) => i === 0 ? 'rgba(245,166,35,0.75)' : i < 3 ? 'rgba(124,107,255,0.65)' : 'rgba(91,141,239,0.45)'), borderColor: TOP.map((_, i) => i === 0 ? '#f5a623' : i < 3 ? '#7c6bff' : '#5b8def'), borderWidth: 1, borderRadius: 5 }] }, options: { ...chartBase, plugins: { ...chartBase.plugins, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  상품 ${c.parsed.y}개` } } }, scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v + '개' } } } } });
+  new Chart(document.getElementById('countChart'), { type: 'bar', data: { labels: TOP.map(s => s.name), datasets: [{ data: TOP.map(s => s.count), backgroundColor: TOP.map((_, i) => i===0?'rgba(245,166,35,0.75)':i<3?'rgba(124,107,255,0.65)':'rgba(91,141,239,0.45)'), borderColor: TOP.map((_, i) => i===0?'#f5a623':i<3?'#7c6bff':'#5b8def'), borderWidth: 1, borderRadius: 5 }] }, options: { ...chartBase, plugins: { ...chartBase.plugins, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  상품 ${c.parsed.y}개` } } }, scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v+'개' } } } } });
 }
 if (TOP.length && document.getElementById('avgChart')) {
-  new Chart(document.getElementById('avgChart'), { type: 'bar', data: { labels: TOP.map(s => s.name), datasets: [ { label: '샵 평균가', data: TOP.map(s => s.avg), backgroundColor: TOP.map(s => s.cheaper ? 'rgba(61,214,140,0.6)' : 'rgba(240,96,96,0.6)'), borderColor: TOP.map(s => s.cheaper ? '#3dd68c' : '#f06060'), borderWidth: 1, borderRadius: 5 }, { label: '전체 평균', data: TOP.map(() => OVERALL_AVG), type: 'line', borderColor: 'rgba(245,166,35,0.7)', borderWidth: 2, borderDash: [5,4], pointRadius: 0, fill: false } ] }, options: { ...chartBase, plugins: { ...chartBase.plugins, legend: { display: true, labels: { color: '#5a6080', font: { size: 10 } } }, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  ${c.dataset.label}: ${c.parsed.y.toLocaleString()}원` } } }, scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v.toLocaleString() + '원' } } } } });
+  new Chart(document.getElementById('avgChart'), { type: 'bar', data: { labels: TOP.map(s => s.name), datasets: [ { label: '샵 평균가', data: TOP.map(s => s.avg), backgroundColor: TOP.map(s => s.cheaper?'rgba(61,214,140,0.6)':'rgba(240,96,96,0.6)'), borderColor: TOP.map(s => s.cheaper?'#3dd68c':'#f06060'), borderWidth: 1, borderRadius: 5 }, { label: '전체 평균', data: TOP.map(() => OVERALL_AVG), type: 'line', borderColor: 'rgba(245,166,35,0.7)', borderWidth: 2, borderDash: [5,4], pointRadius: 0, fill: false } ] }, options: { ...chartBase, plugins: { ...chartBase.plugins, legend: { display: true, labels: { color: '#5a6080', font: { size: 10 } } }, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  ${c.dataset.label}: ${c.parsed.y.toLocaleString()}원` } } }, scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v.toLocaleString()+'원' } } } } });
 }
 let currentFilter = 'all';
 function filterShops(f, btn) { currentFilter = f; document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderRank(); }
 function renderRank() {
   let shops = SHOPS;
-  if (currentFilter === 'cheap') shops = shops.filter(s => s.cheaper);
-  if (currentFilter === 'exp')   shops = shops.filter(s => !s.cheaper);
+  if (currentFilter==='cheap') shops=shops.filter(s=>s.cheaper);
+  if (currentFilter==='exp') shops=shops.filter(s=>!s.cheaper);
   document.getElementById('rankBody').innerHTML = shops.map(s => {
-    const rank = SHOPS.indexOf(s) + 1;
-    const rc = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : 'rn';
-    const bw = Math.round((s.count / MAX_COUNT) * 60);
-    const dc = s.diff < 0 ? 'diff-cheap' : s.diff > 0 ? 'diff-exp' : 'diff-same';
-    const dl = s.diff < 0 ? '▼' : s.diff > 0 ? '▲' : '=';
-    return `<tr class="clickable" onclick="addToPriority('${s.name.replace(/'/g, "\\'")}')"><td><span class="rank-badge ${rc}">${rank}</span></td><td style="font-weight:600;">${s.name}</td><td><div class="count-bar-wrap"><div class="count-bar" style="width:${bw}px"></div><span class="count-val">${s.count}</span></div></td><td style="font-family:'JetBrains Mono',monospace;font-size:12px;">${s.avg.toLocaleString()}원</td><td><span class="diff-badge ${dc}">${dl} ${Math.abs(s.diff_pct)}%</span></td></tr>`;
+    const rank=SHOPS.indexOf(s)+1, rc=rank===1?'r1':rank===2?'r2':rank===3?'r3':'rn';
+    const bw=Math.round((s.count/MAX_COUNT)*60), dc=s.diff<0?'diff-cheap':s.diff>0?'diff-exp':'diff-same', dl=s.diff<0?'▼':s.diff>0?'▲':'=';
+    return `<tr class="clickable" onclick="addToPriority('${s.name.replace(/'/g,"\\'")}')"><td><span class="rank-badge ${rc}">${rank}</span></td><td style="font-weight:600;">${s.name}</td><td><div class="count-bar-wrap"><div class="count-bar" style="width:${bw}px"></div><span class="count-val">${s.count}</span></div></td><td style="font-family:'JetBrains Mono',monospace;font-size:12px;">${s.avg.toLocaleString()}원</td><td><span class="diff-badge ${dc}">${dl} ${Math.abs(s.diff_pct)}%</span></td></tr>`;
   }).join('');
 }
 if (SHOPS.length) renderRank();
 function addToPriority(name) {
-  for (let i = 1; i <= 5; i++) { if (document.getElementById(`p${i}`).value.trim() === name) { highlightInput(i); return; } }
-  for (let i = 1; i <= 5; i++) { if (!document.getElementById(`p${i}`).value.trim()) { document.getElementById(`p${i}`).value = name; highlightInput(i); return; } }
-  document.getElementById('p5').value = name; highlightInput(5);
+  for (let i=1;i<=5;i++) { if (document.getElementById(`p${i}`).value.trim()===name) { highlightInput(i); return; } }
+  for (let i=1;i<=5;i++) { if (!document.getElementById(`p${i}`).value.trim()) { document.getElementById(`p${i}`).value=name; highlightInput(i); return; } }
+  document.getElementById('p5').value=name; highlightInput(5);
 }
-function highlightInput(idx) {
-  const input = document.getElementById(`p${idx}`);
-  input.style.borderColor = 'var(--accent2)'; input.style.background = 'rgba(124,107,255,0.06)';
-  setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 800);
-}
-function clearP(idx) { document.getElementById(`p${idx}`).value = ''; }
+function highlightInput(idx) { const input=document.getElementById(`p${idx}`); input.style.borderColor='var(--accent2)'; input.style.background='rgba(124,107,255,0.06)'; setTimeout(()=>{input.style.borderColor='';input.style.background='';},800); }
+function clearP(idx) { document.getElementById(`p${idx}`).value=''; }
 function showAC(idx, val) {
-  const list = document.getElementById(`ac${idx}`);
-  const q = val.trim();
-  const matches = q ? allMalls.filter(m => m.name.includes(q)).slice(0, 8) : allMalls.slice(0, 8);
-  if (!matches.length) { list.style.display = 'none'; return; }
-  list.innerHTML = matches.map(m => `<div class="autocomplete-item" onmousedown="pickAC(${idx},'${m.name.replace(/'/g, "\\'")}')"><span>${m.name}</span><span class="autocomplete-count">${m.count}</span></div>`).join('');
-  list.style.display = 'block';
+  const list=document.getElementById(`ac${idx}`), q=val.trim();
+  const matches=q?allMalls.filter(m=>m.name.includes(q)).slice(0,8):allMalls.slice(0,8);
+  if (!matches.length) { list.style.display='none'; return; }
+  list.innerHTML=matches.map(m=>`<div class="autocomplete-item" onmousedown="pickAC(${idx},'${m.name.replace(/'/g,"\\'")}')"><span>${m.name}</span><span class="autocomplete-count">${m.count}</span></div>`).join('');
+  list.style.display='block';
 }
-function hideAC(idx) { setTimeout(() => { const el = document.getElementById(`ac${idx}`); if (el) el.style.display = 'none'; }, 150); }
-function pickAC(idx, name) { document.getElementById(`p${idx}`).value = name; document.getElementById(`ac${idx}`).style.display = 'none'; }
-function getPriorities() { return [1,2,3,4,5].map(i => document.getElementById(`p${i}`).value.trim()).filter(Boolean); }
+function hideAC(idx) { setTimeout(()=>{ const el=document.getElementById(`ac${idx}`); if(el) el.style.display='none'; },150); }
+function pickAC(idx, name) { document.getElementById(`p${idx}`).value=name; document.getElementById(`ac${idx}`).style.display='none'; }
+function getPriorities() { return [1,2,3,4,5].map(i=>document.getElementById(`p${i}`).value.trim()).filter(Boolean); }
 async function runBulk() {
-  const priorities = getPriorities();
+  const priorities=getPriorities();
   if (!priorities.length) { alert('판매처 우선순위를 1개 이상 입력해주세요.'); return; }
-  const btn = document.getElementById('runBtn');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>적용 중...';
+  const btn=document.getElementById('runBtn');
+  btn.disabled=true; btn.innerHTML='<span class="spinner-sm"></span>적용 중...';
   try {
-    const res = await fetch('/dashboard/onepiece/kr/bulk-price/run/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-      body: JSON.stringify({ priorities, expansion_code: document.getElementById('expansionSelect').value, skip_priced: document.getElementById('skipPriced').checked }),
-    });
-    const data = await res.json();
-    if (!data.success) { alert(data.error || '오류 발생'); return; }
-    document.getElementById('rSet').textContent = data.set_count.toLocaleString();
-    document.getElementById('rReview').textContent = data.needs_review_count.toLocaleString();
-    document.getElementById('rSkip').textContent = data.skipped_count.toLocaleString();
-    if (data.needs_review_count === 0) document.getElementById('btnIssues').style.display = 'none';
+    const res=await fetch('/dashboard/onepiece/kr/bulk-price/run/', { method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':CSRF}, body:JSON.stringify({priorities, expansion_code:document.getElementById('expansionSelect').value, skip_priced:document.getElementById('skipPriced').checked}) });
+    const data=await res.json();
+    if (!data.success) { alert(data.error||'오류 발생'); return; }
+    document.getElementById('rSet').textContent=data.set_count.toLocaleString();
+    document.getElementById('rReview').textContent=data.needs_review_count.toLocaleString();
+    document.getElementById('rSkip').textContent=data.skipped_count.toLocaleString();
+    if (data.needs_review_count===0) document.getElementById('btnIssues').style.display='none';
     document.getElementById('resultBox').classList.add('show');
-  } catch(e) { alert('오류: ' + e.message); }
-  finally { btn.disabled = false; btn.textContent = '⚡ 일괄 판매가 설정 실행'; }
+  } catch(e) { alert('오류: '+e.message); }
+  finally { btn.disabled=false; btn.textContent='⚡ 일괄 판매가 설정 실행'; }
 }
-function resetResult() { document.getElementById('resultBox').classList.remove('show'); document.getElementById('btnIssues').style.display = ''; }
-document.querySelectorAll('.priority-input').forEach((input, i) => { input.addEventListener('focus', () => showAC(i+1, input.value)); });
+function resetResult() { document.getElementById('resultBox').classList.remove('show'); document.getElementById('btnIssues').style.display=''; }
+document.querySelectorAll('.priority-input').forEach((input,i)=>{ input.addEventListener('focus',()=>showAC(i+1,input.value)); });
 </script>
 </body>
 </html>

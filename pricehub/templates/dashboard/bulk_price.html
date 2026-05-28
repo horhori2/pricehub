@@ -327,6 +327,30 @@
                 onblur="this.style.borderColor='var(--border2)'">
         </div>
 
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">미매칭 카드 처리</div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="setFallback('avg')" id="btnFallbackAvg"
+                    style="flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:700;
+                          border:1px solid var(--border2);background:none;color:var(--text-muted);
+                          cursor:pointer;font-family:inherit;transition:all 0.15s;">
+              평균가
+            </button>
+            <button onclick="setFallback('max')" id="btnFallbackMax"
+                    style="flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:700;
+                          border:1px solid var(--border2);background:none;color:var(--text-muted);
+                          cursor:pointer;font-family:inherit;transition:all 0.15s;">
+              최고가
+            </button>
+            <button onclick="setFallback('')" id="btnFallbackNone"
+                    style="flex:1;padding:7px;border-radius:7px;font-size:12px;font-weight:700;
+                          border:1px solid var(--accent2);background:rgba(124,107,255,0.1);color:var(--accent2);
+                          cursor:pointer;font-family:inherit;transition:all 0.15s;">
+              점검
+            </button>
+          </div>
+        </div>
+
         <select class="option-select" id="expansionSelect">
           <option value="" {% if not expansion_code %}selected{% endif %}>전체 확장팩</option>
           {% for exp in expansions %}
@@ -503,6 +527,7 @@ async function runBulk() {
         skip_priced: document.getElementById('skipPriced').checked,
         rarities: [...selectedRarities],   // ← 레어도 필터 전달
         min_price: parseInt(document.getElementById('minPrice').value) || 0,
+        fallback_mode: fallbackMode,
       }),
     });
     const data = await res.json();
@@ -528,6 +553,24 @@ function resetResult() {
 document.querySelectorAll('.priority-input').forEach((input, i) => {
   input.addEventListener('focus', () => showAC(i+1, input.value));
 });
+
+let fallbackMode = '';  // '' = 점검 필요, 'avg' = 평균가, 'max' = 최고가
+
+function setFallback(mode) {
+  fallbackMode = mode;
+  const styles = {
+    avg:  { active: 'btnFallbackAvg',  label: '평균가 (미매칭)' },
+    max:  { active: 'btnFallbackMax',  label: '최고가 (미매칭)' },
+    '':   { active: 'btnFallbackNone', label: '' },
+  };
+  ['btnFallbackAvg', 'btnFallbackMax', 'btnFallbackNone'].forEach(id => {
+    const btn = document.getElementById(id);
+    const isActive = id === styles[mode].active;
+    btn.style.borderColor = isActive ? 'var(--accent2)' : 'var(--border2)';
+    btn.style.background  = isActive ? 'rgba(124,107,255,0.1)' : 'none';
+    btn.style.color       = isActive ? 'var(--accent2)' : 'var(--text-muted)';
+  });
+}
 </script>
 </body>
 </html>

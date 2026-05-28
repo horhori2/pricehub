@@ -114,11 +114,11 @@ class Card(models.Model):
         verbose_name='수정일시'
     )
     selling_price = models.PositiveIntegerField(
-        null=True,
-        blank=True,
+        default=0,
         verbose_name='판매가',
-        help_text='관리자가 설정한 최종 판매가'
+        help_text='관리자가 설정한 최종 판매가 (0=미설정)'
     )
+
 
     class Meta:
         db_table = 'card'
@@ -229,9 +229,9 @@ class OnePieceCard(models.Model):
     image_url = models.URLField(max_length=500, blank=True, verbose_name="이미지 URL")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
     selling_price = models.PositiveIntegerField(
-        null=True, blank=True,
+        default=0,
         verbose_name='판매가',
-        help_text='관리자가 설정한 최종 판매가'
+        help_text='관리자가 설정한 최종 판매가 (0=미설정)'
     )
     class Meta:
         db_table = 'onepiece_card'
