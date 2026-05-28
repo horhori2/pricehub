@@ -27,7 +27,7 @@
   .logout-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 12px; padding: 5px 12px; text-decoration: none; }
 
   /* ── 레이아웃 ── */
-  .layout { display: grid; grid-template-columns: 1fr 300px; min-height: calc(100vh - 56px); }
+  .layout { display: grid; grid-template-columns: 1fr 420px; min-height: calc(100vh - 56px); }
   .main-area { padding: 24px 28px; overflow: hidden; }
 
   /* ── 상단 필터/액션 바 ── */
@@ -212,11 +212,11 @@
                    style="accent-color:var(--accent2);cursor:pointer;">
           </th>
           <th style="width:42px;"></th>
-          <th>카드</th>
-          <th>레어도</th>
-          <th>확장팩</th>
-          <th>시장가</th>
-          <th>판매가</th>
+          <th style="width:200px;">카드</th>
+          <th style="width:80px;">레어도</th>
+          <th style="width:120px;">확장팩</th>
+          <th style="width:220px;">시장가</th>
+          <th style="width:120px;">판매가</th>
         </tr>
       </thead>
       <tbody id="cardTableBody">
@@ -444,10 +444,20 @@ function showSidePanel(cardId) {
     list.innerHTML = sorted.map((item, idx) => {
       const price = parseInt(item.lprice);
       const mall  = item.mallName || '알 수 없음';
-      return `<div class="side-store-row${idx===0?' cheapest':''}" onclick="fillPrice(${cardId},${price})">` +
-        `<span class="side-store-name">${mall}</span>` +
-        `<span class="side-store-price${idx===0?' cheapest':''}">${price.toLocaleString()}원</span>` +
-        `</div>`;
+      const img   = item.image || '';
+      const title = (item.title || '').replace(/<[^>]+>/g, '');  // ← HTML 태그 제거
+      return `<div class="side-store-row${idx===0?' cheapest':''}" onclick="fillPrice(${cardId},${price})">
+        <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+          ${img
+            ? `<img src="${img}" alt="" style="width:56px;height:56px;object-fit:contain;border-radius:6px;background:var(--surface2);border:1px solid var(--border);flex-shrink:0;">`
+            : `<div style="width:56px;height:56px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);flex-shrink:0;"></div>`}
+          <div style="min-width:0;">
+            <div class="side-store-name">${mall}</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${title}">${title}</div>
+            <div class="side-store-price${idx===0?' cheapest':''}" style="margin-top:3px;">${price.toLocaleString()}원</div>
+          </div>
+        </div>
+      </div>`;
     }).join('');
     empty.style.display = 'none'; list.style.display = 'block';
   }
