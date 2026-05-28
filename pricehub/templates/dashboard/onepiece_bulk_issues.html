@@ -184,6 +184,7 @@
             data-number="{{ card.card_number }}"
             data-rarity="{{ card.rarity }}"
             data-expansion="{{ card.expansion.code }}"
+            data-image="{{ card.image_url }}"
             onclick="showSidePanel({{ card.id }})">
           <td onclick="event.stopPropagation()">
             <input type="checkbox" class="row-check" data-id="{{ card.id }}" style="accent-color:var(--accent2);cursor:pointer;width:14px;height:14px;">
@@ -225,7 +226,11 @@
   </div>
 
   <div class="side-panel">
-    <div class="side-header">
+    <div class="side-header" id="sideHeader">
+      <img id="sideCardImage" src="" alt=""
+          style="display:none;width:100%;max-height:200px;object-fit:contain;
+                  border-radius:10px;background:var(--surface2);
+                  border:1px solid var(--border);margin-bottom:12px;">
       <div class="side-title">판매처 목록 (클릭하면 가격 반영)</div>
       <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
       <div class="side-card-info" id="sideCardInfo"></div>
@@ -337,6 +342,13 @@ function showSidePanel(cardId) {
   activeCardId = cardId;
   const row = document.getElementById(`row-${cardId}`);
   row.classList.add('active-row');
+
+  // 이미지
+  const img = document.getElementById('sideCardImage');
+  const imageUrl = row.dataset.image;
+  if (imageUrl) { img.src = imageUrl; img.style.display = 'block'; }
+  else { img.style.display = 'none'; }
+
   document.getElementById('sideCardName').textContent = row.dataset.name;
   document.getElementById('sideCardName').style.color = 'var(--text)';
   document.getElementById('sideCardInfo').textContent = `${row.dataset.number} · ${row.dataset.rarity}`;
