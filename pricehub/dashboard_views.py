@@ -594,14 +594,23 @@ def _collect_mall_names(expansion_code=None, limit=500):
     qs = CardPrice.objects.exclude(raw_data={}).exclude(raw_data=[])
     if expansion_code:
         qs = qs.filter(card__expansion__code=expansion_code)
+
+    # 카드별 최신 1건 id만 먼저 추출
+    seen_cards = {}
+    for cp in qs.order_by('-collected_at').values('card_id', 'id'):
+        if cp['card_id'] not in seen_cards:
+            seen_cards[cp['card_id']] = cp['id']
+        if len(seen_cards) >= limit:
+            break
+
     name_count = {}
-    for cp in qs.order_by('-collected_at')[:limit]:
-        raw = cp.raw_data
+    for raw in CardPrice.objects.filter(id__in=seen_cards.values()).values_list('raw_data', flat=True):
         if isinstance(raw, list):
             for item in raw:
                 name = item.get('mallName', '').strip()
                 if name:
                     name_count[name] = name_count.get(name, 0) + 1
+
     return sorted(name_count.items(), key=lambda x: -x[1])
 
 def _calc_shop_stats(raw_data_list):
@@ -673,15 +682,19 @@ def _load_raw_data(expansion_code=None, rarities=None):
     if expansion_code:
         qs = qs.filter(card__expansion__code=expansion_code)
     if rarities:
-        qs = qs.filter(card__rarity__in=rarities)   # ← 추가
+        qs = qs.filter(card__rarity__in=rarities)
 
-    seen_cards = set()
-    result = []
-    for cp in qs.order_by('-collected_at').values('card_id', 'raw_data'):
+    # 1단계: raw_data 없이 card_id + id만 추려냄 (메모리 절약)
+    seen_cards = {}
+    for cp in qs.order_by('-collected_at').values('card_id', 'id'):
         if cp['card_id'] not in seen_cards:
-            seen_cards.add(cp['card_id'])
-            result.append(cp['raw_data'])
-    return result
+            seen_cards[cp['card_id']] = cp['id']
+
+    # 2단계: 필요한 id만 raw_data 조회
+    return list(
+        CardPrice.objects.filter(id__in=seen_cards.values())
+                         .values_list('raw_data', flat=True)
+    )
 
 
 # ────────────────────────────────────────────────────────────────
@@ -748,29 +761,42 @@ def _onepiece_collect_mall_names(expansion_code=None, limit=500):
     qs = OnePieceCardPrice.objects.exclude(raw_data={}).exclude(raw_data=[])
     if expansion_code:
         qs = qs.filter(card__expansion__code=expansion_code)
+
+    # 카드별 최신 1건 id만 먼저 추출
+    seen_cards = {}
+    for cp in qs.order_by('-collected_at').values('card_id', 'id'):
+        if cp['card_id'] not in seen_cards:
+            seen_cards[cp['card_id']] = cp['id']
+        if len(seen_cards) >= limit:
+            break
+
     name_count = {}
-    for cp in qs.order_by('-collected_at')[:limit]:
-        raw = cp.raw_data
+    for raw in OnePieceCardPrice.objects.filter(id__in=seen_cards.values()).values_list('raw_data', flat=True):
         if isinstance(raw, list):
             for item in raw:
                 name = item.get('mallName', '').strip()
                 if name:
                     name_count[name] = name_count.get(name, 0) + 1
+
     return sorted(name_count.items(), key=lambda x: -x[1])
 
 
-def _onepiece_load_raw_data(expansion_code=None):
-    """카드별 최신 raw_data 수집 — MySQL 호환 방식"""
+def _onepiece_load_raw_data(expansion_code=None, rarities=None):
     qs = OnePieceCardPrice.objects.exclude(raw_data={}).exclude(raw_data=[])
     if expansion_code:
         qs = qs.filter(card__expansion__code=expansion_code)
-    seen_cards = set()
-    result = []
-    for cp in qs.order_by('-collected_at').values('card_id', 'raw_data'):
+    if rarities:
+        qs = qs.filter(card__rarity__in=rarities)
+
+    seen_cards = {}
+    for cp in qs.order_by('-collected_at').values('card_id', 'id'):
         if cp['card_id'] not in seen_cards:
-            seen_cards.add(cp['card_id'])
-            result.append(cp['raw_data'])
-    return result
+            seen_cards[cp['card_id']] = cp['id']
+
+    return list(
+        OnePieceCardPrice.objects.filter(id__in=seen_cards.values())
+                                 .values_list('raw_data', flat=True)
+    )
 
 
 def _onepiece_calc_shop_stats(raw_data_list):
