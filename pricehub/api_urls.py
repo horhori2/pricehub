@@ -10,6 +10,7 @@ urlpatterns = [
     path('expansions/<str:code>/cards/', api_views.ExpansionCardListView.as_view(), name='expansion-card-list'),
     path('cards/search/', api_views.CardSearchView.as_view(), name='card-search'),
     path('cards/<int:pk>/', api_views.CardDetailView.as_view(), name='card-detail'),
+    path('cards/by-product-code/<str:shop_product_code>/', api_views.card_by_product_code, name='card-by-product-code'),  # ← 수정
     path('prices/latest/', api_views.LatestNaverPriceListView.as_view(), name='price-naver-latest'),
     path('prices/summary/', api_views.price_collection_summary, name='price-summary'),
 ]

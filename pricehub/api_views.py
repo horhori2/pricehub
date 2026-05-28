@@ -231,3 +231,40 @@ def price_collection_summary(request):
     return Response({
         'naver': naver,
     })
+
+
+# ── 7. 네이버스토어 엑셀 판매자 상품코드로 카드 조회 ─────────────────────────────────────────
+# GET /api/pokemon/kr/cards/by-product-code/<shop_product_code>/
+
+@api_view(['GET'])
+@authentication_classes([APIKeyAuthentication])
+@permission_classes([HasAPIKey])
+def card_by_product_code(request, shop_product_code):
+
+    try:
+        card = Card.objects.select_related('expansion').get(
+            shop_product_code=shop_product_code
+        )
+    except Card.DoesNotExist:
+        return Response(
+            {'error': f"상품코드 '{shop_product_code}'에 해당하는 카드가 없습니다."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except Card.MultipleObjectsReturned:
+        # 중복 코드 존재 시 첫 번째 반환
+        card = Card.objects.select_related('expansion').filter(
+            shop_product_code=shop_product_code
+        ).first()
+
+    return Response({
+        'id': card.id,
+        'card_number': card.card_number,
+        'name': card.name,
+        'rarity': card.rarity,
+        'selling_price': card.selling_price,
+        'shop_product_code': card.shop_product_code,
+        'expansion': {
+            'code': card.expansion.code,
+            'name': card.expansion.name,
+        }
+    })

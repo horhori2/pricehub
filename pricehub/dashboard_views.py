@@ -407,17 +407,29 @@ def _set_price(model_class, pk, request):
 
 @staff_required
 def pokemon_kr_bulk_price(request):
-    mall_names = _collect_mall_names()
-    expansions = list(Expansion.objects.order_by('-release_date'))
-    needs_review = Card.objects.filter(selling_price__isnull=True).count()
-
-    # 확장팩 필터 (GET 파라미터)
     expansion_code = request.GET.get('expansion', '')
+    # ← 레어도 필터 추가 (쉼표 구분 복수 선택)
+    # rarity_filter = request.GET.get('rarities', '')
+    selected_rarities = request.GET.getlist('rarities')
+
     selected_expansion = None
     if expansion_code:
         selected_expansion = Expansion.objects.filter(code=expansion_code).first()
 
-    raw_list = _load_raw_data(expansion_code=expansion_code or None)
+    mall_names = _collect_mall_names(expansion_code=expansion_code or None)
+    expansions = list(Expansion.objects.order_by('-release_date'))
+    needs_review = Card.objects.filter(selling_price__isnull=True).count()
+
+    # 레어도 목록 (해당 확장팩 or 전체)
+    rarity_qs = Card.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
+    if expansion_code:
+        rarity_qs = rarity_qs.filter(expansion__code=expansion_code)
+    all_rarities = list(rarity_qs)
+
+    raw_list = _load_raw_data(
+        expansion_code=expansion_code or None,
+        rarities=selected_rarities or None,        # ← 추가
+    )
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
 
     return render(request, 'dashboard/bulk_price.html', {
@@ -430,6 +442,9 @@ def pokemon_kr_bulk_price(request):
         'overall_avg': overall_avg,
         'selected_expansion': selected_expansion,
         'expansion_code': expansion_code,
+        'all_rarities': all_rarities,              # ← 추가
+        'selected_rarities': selected_rarities,    # ← 추가
+        'selected_rarities_json': json.dumps(selected_rarities),  # ← 추가
         'breadcrumb': [
             ('홈', '/dashboard/'),
             ('포켓몬 한글판', '/dashboard/pokemon/kr/expansions/'),
@@ -445,27 +460,6 @@ def pokemon_kr_bulk_price(request):
 @staff_required
 @require_POST
 def pokemon_kr_bulk_run(request):
-    """
-    우선순위대로 mallName 매칭 → 즉시 selling_price 저장.
-    매칭 없으면 selling_price 변경하지 않음 (점검 필요 상태 유지).
-
-    Request:
-    {
-        "priorities": ["TCG999", "카드냥", "트레이너스"],
-        "expansion_code": "SV10",   // 빈 문자열이면 전체
-        "skip_priced": false        // true면 이미 판매가 있는 카드 건드리지 않음
-    }
-
-    Response:
-    {
-        "success": true,
-        "total": 165,
-        "set_count": 140,       // 판매가 설정됨
-        "skipped_count": 10,    // skip_priced 옵션으로 스킵
-        "needs_review_count": 15, // 매칭 없음 → 점검 필요
-        "needs_review_ids": [101, 205, ...],  // 점검 필요 카드 ID 목록
-    }
-    """
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
@@ -474,16 +468,18 @@ def pokemon_kr_bulk_run(request):
     priorities = [p.strip() for p in data.get('priorities', []) if p.strip()]
     expansion_code = data.get('expansion_code', '').strip()
     skip_priced = data.get('skip_priced', False)
+    rarities = data.get('rarities', [])
+    min_price_floor = int(data.get('min_price', 0) or 0)  # ← 희망 최저가
 
     if not priorities:
         return JsonResponse({'error': '우선순위를 1개 이상 설정해주세요.'}, status=400)
 
-    # 카드 쿼리
     cards_qs = Card.objects.select_related('expansion').order_by('expansion__code', 'card_number')
     if expansion_code:
         cards_qs = cards_qs.filter(expansion__code=expansion_code)
+    if rarities:
+        cards_qs = cards_qs.filter(rarity__in=rarities)
 
-    # 카드별 최신 raw_data 한 번에 로드
     from django.db.models import Subquery, OuterRef
     latest_price_id_qs = (
         CardPrice.objects
@@ -501,18 +497,15 @@ def pokemon_kr_bulk_run(request):
         for cp in CardPrice.objects.filter(id__in=price_ids)
     }
 
-    # 매칭 처리
-    to_update = []       # (card, new_price)
-    skipped = []         # skip_priced 옵션으로 스킵
-    needs_review = []    # 매칭 없음
+    to_update = []
+    skipped = []
+    needs_review = []
 
     for card in cards_list:
-        # skip_priced 옵션
         if skip_priced and card.selling_price is not None:
             skipped.append(card.id)
             continue
 
-        # raw_data에서 우선순위 매칭
         raw = price_map.get(card.latest_price_id, [])
         if isinstance(raw, dict):
             raw = [raw]
@@ -532,12 +525,14 @@ def pokemon_kr_bulk_run(request):
                 break
 
         if matched_price:
+            # 희망 최저가보다 낮으면 희망 최저가로 올림
+            if min_price_floor > 0 and matched_price < min_price_floor:
+                matched_price = min_price_floor
             card.selling_price = matched_price
             to_update.append(card)
         else:
             needs_review.append(card.id)
 
-    # 벌크 업데이트
     if to_update:
         Card.objects.bulk_update(to_update, ['selling_price'])
 
@@ -547,7 +542,7 @@ def pokemon_kr_bulk_run(request):
         'set_count': len(to_update),
         'skipped_count': len(skipped),
         'needs_review_count': len(needs_review),
-        'needs_review_ids': needs_review[:100],  # 최대 100개만 반환
+        'needs_review_ids': needs_review[:100],
     })
 
 
@@ -567,6 +562,8 @@ def pokemon_kr_bulk_issues(request):
     cards_qs = Card.objects.filter(selling_price__isnull=True).select_related('expansion')
     if expansion_code:
         cards_qs = cards_qs.filter(expansion__code=expansion_code)
+    if rarities:
+        cards_qs = cards_qs.filter(rarity__in=rarities)   # ← 추가
     cards_qs = cards_qs.order_by('expansion__code', 'card_number')
 
     # 확장팩 목록 (필터용)
@@ -593,11 +590,12 @@ def pokemon_kr_bulk_issues(request):
 # 내부 헬퍼
 # ────────────────────────────────────────────────────────────────
 
-def _collect_mall_names(limit=500):
-    """최근 수집된 raw_data에서 mallName 빈도 집계"""
+def _collect_mall_names(expansion_code=None, limit=500):
+    qs = CardPrice.objects.exclude(raw_data={}).exclude(raw_data=[])
+    if expansion_code:
+        qs = qs.filter(card__expansion__code=expansion_code)
     name_count = {}
-    latest_prices = CardPrice.objects.exclude(raw_data={}).exclude(raw_data=[]).order_by('-collected_at')[:limit]
-    for cp in latest_prices:
+    for cp in qs.order_by('-collected_at')[:limit]:
         raw = cp.raw_data
         if isinstance(raw, list):
             for item in raw:
@@ -670,14 +668,13 @@ def _calc_shop_stats(raw_data_list):
     return result, overall_avg
 
 
-def _load_raw_data(expansion_code=None):
-    """최신 CardPrice.raw_data 수집 — MySQL 호환 방식"""
+def _load_raw_data(expansion_code=None, rarities=None):
     qs = CardPrice.objects.exclude(raw_data={}).exclude(raw_data=[])
     if expansion_code:
         qs = qs.filter(card__expansion__code=expansion_code)
+    if rarities:
+        qs = qs.filter(card__rarity__in=rarities)   # ← 추가
 
-    # MySQL에서 LIMIT IN 서브쿼리 미지원 → Python에서 카드별 최신 1건 필터링
-    # collected_at 내림차순으로 가져온 뒤 카드별 첫 번째만 취함
     seen_cards = set()
     result = []
     for cp in qs.order_by('-collected_at').values('card_id', 'raw_data'):
