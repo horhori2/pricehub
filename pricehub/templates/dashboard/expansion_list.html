@@ -11,62 +11,123 @@
     --bg: #0a0c12; --surface: #13161f; --surface2: #1a1e2a; --surface3: #20263a;
     --border: #252a3a; --border2: #2f3650;
     --accent: #5b8def; --accent2: #7c6bff;
-    --success: #3dd68c; --warning: #f5a623; --text: #dde2f0; --text-muted: #5a6080; --text-dim: #3a4060;
+    --success: #3dd68c; --warning: #f5a623; --danger: #f06060;
+    --text: #dde2f0; --text-muted: #5a6080; --text-dim: #3a4060;
   }
   body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  header {
-    background: rgba(19,22,31,0.95); backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border);
-    padding: 0 28px; height: 56px;
-    display: flex; align-items: center; justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
-  }
+  header { background: rgba(19,22,31,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
   .header-left { display: flex; align-items: center; gap: 14px; }
-  .back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 13px; padding: 5px 12px; cursor: pointer; text-decoration: none; transition: all 0.15s; }
+  .back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 13px; padding: 5px 12px; text-decoration: none; transition: all 0.15s; }
   .back-btn:hover { border-color: var(--accent); color: var(--text); }
   .breadcrumb { font-size: 13px; color: var(--text-muted); }
-  .breadcrumb a { color: var(--text-muted); text-decoration: none; transition: color 0.15s; }
+  .breadcrumb a { color: var(--text-muted); text-decoration: none; }
   .breadcrumb a:hover { color: var(--accent); }
   .breadcrumb span { margin: 0 5px; color: var(--text-dim); }
-  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 12px; padding: 5px 12px; cursor: pointer; text-decoration: none; transition: all 0.15s; }
-  .logout-btn:hover { color: #f06060; border-color: #f06060; }
+  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 12px; padding: 5px 12px; text-decoration: none; }
+  .logout-btn:hover { color: var(--danger); border-color: var(--danger); }
 
   main { max-width: 1100px; margin: 0 auto; padding: 36px 28px; }
 
   .page-title { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 4px; }
-  .page-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 32px; }
+  .page-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
 
   /* 통계 */
-  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 36px; }
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; }
   .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
   .stat-value { font-size: 28px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
   .stat-value.green { color: var(--success); }
   .stat-value.yellow { color: var(--warning); }
 
+  /* 액션 바 */
+  .action-bar { display: flex; gap: 12px; margin-bottom: 28px; align-items: center; flex-wrap: wrap; }
+
+  /* 검색 박스 */
+  .search-box {
+    display: flex; align-items: center; gap: 0;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 10px; overflow: hidden; flex: 1; max-width: 400px;
+    transition: border-color 0.15s;
+  }
+  .search-box:focus-within { border-color: var(--accent2); }
+  .search-input {
+    flex: 1; padding: 9px 14px; background: none; border: none;
+    color: var(--text); font-family: inherit; font-size: 14px; outline: none;
+  }
+  .search-input::placeholder { color: var(--text-dim); }
+  .search-btn {
+    padding: 9px 16px; background: var(--accent2); border: none;
+    color: #fff; font-family: inherit; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: background 0.15s; white-space: nowrap;
+  }
+  .search-btn:hover { background: #6b5aee; }
+  .search-clear {
+    padding: 9px 12px; background: none; border: none; border-left: 1px solid var(--border);
+    color: var(--text-muted); cursor: pointer; font-size: 16px; transition: color 0.15s;
+    display: none;
+  }
+  .search-clear:hover { color: var(--danger); }
+
+  /* 일괄 버튼 */
+  .bulk-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 20px; border-radius: 10px;
+    background: linear-gradient(135deg,rgba(124,107,255,0.15),rgba(91,141,239,0.1));
+    border: 1px solid var(--accent2); color: var(--accent2);
+    text-decoration: none; font-size: 13px; font-weight: 700;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .bulk-btn:hover { background: linear-gradient(135deg,rgba(124,107,255,0.25),rgba(91,141,239,0.2)); transform: translateY(-1px); }
+
+  /* 검색 결과 */
+  .search-results {
+    display: none; background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 14px; margin-bottom: 24px; overflow: hidden;
+  }
+  .search-results.show { display: block; }
+  .search-results-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .search-results-title { font-size: 13px; font-weight: 700; color: var(--text-muted); }
+  .search-results-count { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--accent2); }
+
+  .search-result-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    transition: background 0.1s; text-decoration: none; color: inherit;
+  }
+  .search-result-item:last-child { border-bottom: none; }
+  .search-result-item:hover { background: var(--surface2); }
+  .result-thumb { width: 40px; height: 40px; object-fit: contain; border-radius: 5px; background: var(--surface2); border: 1px solid var(--border); flex-shrink: 0; }
+  .result-info { flex: 1; min-width: 0; }
+  .result-name { font-size: 14px; font-weight: 700; margin-bottom: 2px; }
+  .result-meta { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+  .result-rarity { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; background: rgba(91,141,239,0.1); color: var(--accent); border: 1px solid rgba(91,141,239,0.2); margin-right: 6px; }
+  .result-price { text-align: right; flex-shrink: 0; }
+  .result-selling-price { font-size: 14px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--success); }
+  .result-selling-price.unset { color: var(--warning); font-size: 12px; }
+  .result-market-price { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
+
+  .search-empty { padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
+  .search-loading { padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
+  .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border2); border-top-color: var(--accent2); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   /* 확장팩 그리드 */
   .expansion-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-
-  .expansion-card {
-    display: block; text-decoration: none; color: inherit;
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 18px 20px;
-    transition: all 0.15s; position: relative; overflow: hidden;
-  }
+  .expansion-card { display: block; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; transition: all 0.15s; }
   .expansion-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
-
   .exp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
   .exp-code { font-size: 11px; color: var(--accent2); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; }
   .exp-name { font-size: 15px; font-weight: 700; }
   .exp-date { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
   .exp-image { width: 52px; height: 52px; object-fit: contain; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); flex-shrink: 0; }
-
   .exp-stats { display: flex; gap: 14px; margin-bottom: 10px; }
   .exp-stat { font-size: 12px; }
   .exp-stat span { color: var(--text-muted); }
   .exp-stat strong { color: var(--text); font-family: 'JetBrains Mono', monospace; }
-
   .progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; }
   .progress-fill.complete { background: var(--success); }
@@ -100,29 +161,41 @@
       <div class="stat-label">전체 카드</div>
       <div class="stat-value green">{{ total_cards }}</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">판매가 미설정</div>
+    <a href="{{ bulk_issues_url }}" class="stat-card"
+      style="text-decoration:none;display:block;transition:all 0.15s;"
+      onmouseover="this.style.borderColor='var(--warning)'"
+      onmouseout="this.style.borderColor='var(--border)'">
+      <div class="stat-label">판매가 미설정 →</div>
       <div class="stat-value yellow">{{ total_unpriced }}</div>
-    </div>
-  </div>
-
-  <!-- 통계 카드 아래에 교체 -->
-  <div style="display:flex; gap:12px; margin-bottom:32px;">
-    <a href="{{ bulk_price_url }}"
-      style="display:inline-flex;align-items:center;gap:8px;
-              padding:10px 22px;border-radius:10px;
-              background:linear-gradient(135deg,rgba(124,107,255,0.15),rgba(91,141,239,0.1));
-              border:1px solid var(--accent2);
-              color:var(--accent2);text-decoration:none;
-              font-size:14px;font-weight:700;
-              transition:all 0.15s;"
-      onmouseover="this.style.background='linear-gradient(135deg,rgba(124,107,255,0.25),rgba(91,141,239,0.2))';this.style.transform='translateY(-1px)'"
-      onmouseout="this.style.background='linear-gradient(135deg,rgba(124,107,255,0.15),rgba(91,141,239,0.1))';this.style.transform='none'">
-      ⚡ 일괄 판매가 설정
     </a>
   </div>
 
+  <!-- 액션 바 -->
+  <div class="action-bar" style="justify-content:space-between;">
+    <!-- 왼쪽: 검색 -->
+    <div class="search-box">
+      <input type="text" class="search-input" id="cardSearchInput"
+            placeholder="카드명 검색... (예: 리자몽)"
+            oninput="onSearchInput(this.value)"
+            onkeydown="if(event.key==='Enter') searchCards()">
+      <button class="search-clear" id="searchClear" onclick="clearSearch()">×</button>
+      <button class="search-btn" onclick="searchCards()">🔍 검색</button>
+    </div>
 
+    <!-- 오른쪽: 일괄 버튼 -->
+    <a href="{{ bulk_price_url }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
+  </div>
+  
+  <!-- 검색 결과 -->
+  <div class="search-results" id="searchResults">
+    <div class="search-results-header">
+      <span class="search-results-title" id="searchResultsTitle">검색 결과</span>
+      <span class="search-results-count" id="searchResultsCount"></span>
+    </div>
+    <div id="searchResultsBody"></div>
+  </div>
+
+  <!-- 확장팩 그리드 -->
   <div class="expansion-grid">
     {% for expansion in expansions %}
     <a href="{{ base_url }}/expansions/{{ expansion.code }}/cards/" class="expansion-card">
@@ -155,5 +228,84 @@
     {% endfor %}
   </div>
 </main>
+
+<script>
+const CARD_SEARCH_URL = '{{ card_search_url }}';
+const CARD_DETAIL_BASE_URL = '{{ card_detail_base_url }}';  
+let searchTimer = null;
+
+function onSearchInput(val) {
+  document.getElementById('searchClear').style.display = val ? 'block' : 'none';
+  clearTimeout(searchTimer);
+  if (!val.trim()) { clearSearch(); return; }
+  searchTimer = setTimeout(() => searchCards(), 400);
+}
+
+function clearSearch() {
+  document.getElementById('cardSearchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  document.getElementById('searchResults').classList.remove('show');
+}
+
+async function searchCards() {
+  const q = document.getElementById('cardSearchInput').value.trim();
+  if (!q) return;
+
+  const results = document.getElementById('searchResults');
+  const body    = document.getElementById('searchResultsBody');
+  const title   = document.getElementById('searchResultsTitle');
+  const count   = document.getElementById('searchResultsCount');
+
+  results.classList.add('show');
+  title.textContent = `"${q}" 검색 결과`;
+  body.innerHTML = '<div class="search-loading"><span class="spinner"></span>검색 중...</div>';
+  count.textContent = '';
+
+  try {
+    const res  = await fetch(`${CARD_SEARCH_URL}?name=${encodeURIComponent(q)}&page_size=30`);
+    const data = await res.json();
+    const cards = data.results || data;
+
+    if (!cards.length) {
+      body.innerHTML = `<div class="search-empty">검색 결과가 없습니다.</div>`;
+      count.textContent = '0개';
+      return;
+    }
+
+    count.textContent = `${cards.length}개`;
+    body.innerHTML = cards.map(card => {
+      const sellingPrice = card.selling_price && card.selling_price > 0
+        ? `<div class="result-selling-price">${parseInt(card.selling_price).toLocaleString()}원</div>`
+        : `<div class="result-selling-price unset">미설정</div>`;
+
+      const latestPrice = card.latest_price
+        ? `<div class="result-market-price">시장가 ${parseInt(card.latest_price).toLocaleString()}원</div>`
+        : '';
+
+      const detailUrl = `${CARD_DETAIL_BASE_URL}${card.id}/`;
+
+      return `<a href="${detailUrl}" class="search-result-item">
+        ${card.image_url
+          ? `<img src="${card.image_url}" class="result-thumb" loading="lazy">`
+          : `<div class="result-thumb" style="display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>`}
+        <div class="result-info">
+          <div class="result-name">${card.name}</div>
+          <div class="result-meta">
+            <span class="result-rarity">${card.rarity}</span>
+            ${card.expansion?.name || card.expansion_name || ''} · No.${card.card_number}
+          </div>
+        </div>
+        <div class="result-price">
+          ${sellingPrice}
+          ${latestPrice}
+        </div>
+      </a>`;
+    }).join('');
+
+  } catch(e) {
+    body.innerHTML = `<div class="search-empty">검색 중 오류가 발생했습니다.</div>`;
+  }
+}
+</script>
 </body>
 </html>

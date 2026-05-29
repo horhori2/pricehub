@@ -21,6 +21,7 @@ urlpatterns = [
           dashboard_views.pokemon_kr_card_detail, name='pokemon-kr-card-detail'),
      path('pokemon/kr/cards/<int:pk>/set-price/',
           dashboard_views.pokemon_kr_set_price, name='pokemon-kr-set-price'),
+     path('pokemon/kr/cards/search/', dashboard_views.pokemon_kr_card_search, name='pokemon-kr-card-search'),
 
      # ── 포켓몬 일본판 ──────────────────────────────────────
      path('pokemon/jp/expansions/',
@@ -41,6 +42,7 @@ urlpatterns = [
           dashboard_views.onepiece_kr_card_detail, name='onepiece-kr-card-detail'),
      path('onepiece/kr/cards/<int:pk>/set-price/',
           dashboard_views.onepiece_kr_set_price, name='onepiece-kr-set-price'),
+     path('onepiece/kr/cards/search/', dashboard_views.onepiece_kr_card_search, name='onepiece-kr-card-search'),
 
      # ── 일괄 가격 설정 ──────────────────────────────────────
      path('pokemon/kr/bulk-price/',         dashboard_views.pokemon_kr_bulk_price,   name='pokemon-kr-bulk-price'),

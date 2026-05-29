@@ -124,6 +124,9 @@ def pokemon_kr_expansion_list(request):
         'base_url': '/dashboard/pokemon/kr',
         'title': '포켓몬 한글판',
         'bulk_price_url': '/dashboard/pokemon/kr/bulk-price/',
+        'card_search_url': '/dashboard/pokemon/kr/cards/search/',
+        'card_detail_base_url': '/dashboard/pokemon/kr/cards/',
+        'bulk_issues_url': '/dashboard/pokemon/kr/bulk-price/issues/',
     })
 
 
@@ -191,6 +194,35 @@ def pokemon_kr_set_price(request, pk):
         return JsonResponse({'success': True, 'selling_price': price})
     except (json.JSONDecodeError, ValueError):
         return JsonResponse({'error': '잘못된 요청입니다.'}, status=400)
+    
+@staff_required
+def pokemon_kr_card_search(request):
+    q = request.GET.get('name', '').strip()
+    page_size = min(int(request.GET.get('page_size', 30)), 50)
+
+    if not q:
+        return JsonResponse({'results': []})
+
+    cards = Card.objects.filter(name__icontains=q).select_related('expansion').order_by('expansion__release_date', 'card_number')[:page_size]
+
+    results = []
+    for card in cards:
+        latest = card.prices.first()
+        results.append({
+            'id': card.id,
+            'name': card.name,
+            'rarity': card.rarity,
+            'card_number': card.card_number,
+            'image_url': card.image_url,
+            'selling_price': card.selling_price if card.selling_price != 0 else None,
+            'latest_price': float(latest.price) if latest else None,
+            'expansion': {
+                'code': card.expansion.code,
+                'name': card.expansion.name,
+            }
+        })
+
+    return JsonResponse({'results': results})
 
 
 # ════════════════════════════════════════════════════════════════
@@ -212,6 +244,8 @@ def pokemon_jp_expansion_list(request):
         'breadcrumb': [('홈', '/dashboard/'), ('포켓몬 일본판', None)],
         'base_url': '/dashboard/pokemon/jp',
         'title': '포켓몬 일본판',
+        'card_search_url': '/dashboard/pokemon/jp/cards/search/',
+        'card_detail_base_url': '/dashboard/pokemon/jp/cards/',
     })
 
 
@@ -298,6 +332,9 @@ def onepiece_kr_expansion_list(request):
         'base_url': '/dashboard/onepiece/kr',
         'title': '원피스 한글판',
         'bulk_price_url': '/dashboard/onepiece/kr/bulk-price/',
+        'card_search_url': '/dashboard/onepiece/kr/cards/search/',
+        'card_detail_base_url': '/dashboard/onepiece/kr/cards/',
+        'bulk_issues_url': '/dashboard/onepiece/kr/bulk-price/issues/',
     })
 
 
@@ -1062,3 +1099,32 @@ def onepiece_kr_bulk_issues(request):
             ('2차 판매가 설정', None),
         ],
     })
+
+@staff_required
+def onepiece_kr_card_search(request):
+    q = request.GET.get('name', '').strip()
+    page_size = min(int(request.GET.get('page_size', 30)), 50)
+
+    if not q:
+        return JsonResponse({'results': []})
+
+    cards = OnePieceCard.objects.filter(name__icontains=q).select_related('expansion').order_by('expansion__release_date', 'card_number')[:page_size]
+
+    results = []
+    for card in cards:
+        latest = card.prices.first()
+        results.append({
+            'id': card.id,
+            'name': card.name,
+            'rarity': card.rarity,
+            'card_number': card.card_number,
+            'image_url': card.image_url,
+            'selling_price': card.selling_price if card.selling_price != 0 else None,
+            'latest_price': float(latest.price) if latest else None,
+            'expansion': {
+                'code': card.expansion.code,
+                'name': card.expansion.name,
+            }
+        })
+
+    return JsonResponse({'results': results})

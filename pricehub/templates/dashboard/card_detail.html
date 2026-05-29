@@ -391,7 +391,7 @@ async function savePrice() {
   const price = parseInt(input.value) || 0;
 
   try {
-    const res = await fetch(`/dashboard/cards/${CARD_ID}/set-price/`, {
+    const res = await fetch(`/dashboard/pokemon/kr/cards/${CARD_ID}/set-price/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
