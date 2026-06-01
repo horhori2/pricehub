@@ -22,6 +22,9 @@ urlpatterns = [
      path('pokemon/kr/cards/<int:pk>/set-price/',
           dashboard_views.pokemon_kr_set_price, name='pokemon-kr-set-price'),
      path('pokemon/kr/cards/search/', dashboard_views.pokemon_kr_card_search, name='pokemon-kr-card-search'),
+     path('pokemon/kr/expansions/<str:expansion_code>/reset-prices/',
+     dashboard_views.pokemon_kr_reset_prices,
+     name='pokemon-kr-reset-prices'),
 
      # ── 포켓몬 일본판 ──────────────────────────────────────
      path('pokemon/jp/expansions/',

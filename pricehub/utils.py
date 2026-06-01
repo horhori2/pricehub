@@ -15,6 +15,18 @@ EXCLUDED_RARITIES = ['RR', 'RRR', 'R', 'U', 'C']
 # 모든 특수 레어도 목록 (필터링용)
 SPECIAL_RARITIES = ['UR', 'MUR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러', '이로치', '미러']
 
+# 미러 레어도 그룹 정의
+MIRROR_RARITIES = {'미러', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러'}
+
+# 각 미러 레어도에서 상품명에 포함되어야 하는 키워드
+MIRROR_KEYWORDS = {
+    '미러':        None,       # 키워드 없어도 OK (일반 미러)
+    '몬스터볼':    '몬스터볼',
+    '마스터볼':    '마스터볼',
+    '볼 미러':     '볼',
+    '타입 미러':   ['타입', '에너지'],
+    '로켓단 미러': '로켓단 미러',
+}
 
 # ==================== 공통 ====================
 
@@ -50,6 +62,18 @@ def generate_pokemon_search_query(card_name: str, rarity: str, expansion_name: s
     return search_query.strip()
 
 
+MIRROR_RARITIES = {'미러', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러'}
+
+MIRROR_KEYWORDS = {
+    '미러':        None,
+    '몬스터볼':    '몬스터볼',
+    '마스터볼':    '마스터볼',
+    '볼 미러':     '볼',
+    '타입 미러':   '타입',
+    '로켓단 미러': '로켓단 미러',
+}
+
+
 def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str]) -> Tuple[Optional[float], int, Optional[str], List[dict]]:
     """포켓몬카드 검색 결과 필터링"""
     min_price = None
@@ -59,6 +83,9 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
 
     excluded_malls = ["화성스토어-TCG-", "카드 베이스", "네이버", "쿠팡"]
     excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
+
+    is_mirror_rarity = rarity in MIRROR_RARITIES
+    is_c_rarity = rarity == 'C'
 
     print(f"\n📋 필터링 상세 로그 (총 {len(items)}개):")
 
@@ -72,14 +99,17 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
         clean_title = re.sub(r'<[^>]+>', '', title)
         print(f"    제목: {clean_title}")
 
+        # ── 제외 판매처 ──
         if mall_name in excluded_malls:
             print(f"    ❌ 제외 판매처")
             continue
 
+        # ── 일본판 제외 ──
         if any(keyword in title for keyword in excluded_keywords):
             print(f"    ❌ 일본판 키워드 포함")
             continue
 
+        # ── 카드명 일치 ──
         card_name_no_space = re.sub(r'\s+', '', card_name)
         title_no_space = re.sub(r'\s+', '', clean_title)
 
@@ -91,15 +121,43 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
 
         print(f"    ✅ 카드명 일치")
 
-        if rarity and rarity not in EXCLUDED_RARITIES:
-            if rarity == 'MUR':
+        # ── 레어도 필터링 ──
+
+        # 1) C 레어도: EXCLUDED_RARITIES 무관하게 미러 키워드 항상 체크
+        if is_c_rarity:
+            mirror_title_keywords = ['미러', '몬스터볼', '마스터볼']
+            if any(kw in clean_title for kw in mirror_title_keywords):
+                print(f"    ❌ C 레어도인데 미러 키워드 포함")
+                continue
+
+        elif rarity and rarity not in EXCLUDED_RARITIES:
+
+            # 2) 미러 계열 레어도
+            if is_mirror_rarity:
+                required_kw = MIRROR_KEYWORDS.get(rarity)
+                if required_kw:
+                    if isinstance(required_kw, list):
+                        if not any(kw in clean_title for kw in required_kw):
+                            print(f"    ❌ 미러 레어도 '{rarity}' 키워드 {required_kw} 불일치")
+                            continue
+                    else:
+                        if required_kw not in clean_title:
+                            print(f"    ❌ 미러 레어도 '{rarity}' 키워드 '{required_kw}' 불일치")
+                            continue
+                print(f"    ✅ 미러 레어도 '{rarity}' 일치")
+
+            # 3) MUR
+            elif rarity == 'MUR':
                 if 'MUR' not in clean_title.upper():
                     print(f"    ❌ MUR 레어도 불일치")
                     continue
                 print(f"    ✅ MUR 레어도 일치")
-            elif rarity not in clean_title:
-                print(f"    ❌ 레어도 '{rarity}' 불일치")
-                continue
+
+            # 4) 일반 레어도
+            else:
+                if rarity not in clean_title:
+                    print(f"    ❌ 레어도 '{rarity}' 불일치")
+                    continue
 
         valid_count += 1
         valid_items.append(item)
@@ -194,7 +252,7 @@ def filter_onepiece_items(items: List[dict], card_number: str, rarity: str, is_m
     min_price_mall = None
     valid_items = []
 
-    excluded_malls = ["화성스토어-TCG-", "카드 베이스", "네이버", "쿠팡"]
+    excluded_malls = ["네이버", "쿠팡"]
     excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
 
     base_card_number = re.sub(r"_[Pp]\d+", "", card_number, flags=re.IGNORECASE)

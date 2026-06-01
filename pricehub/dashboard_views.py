@@ -24,6 +24,9 @@ from .models import (
 )
 
 
+OUR_SHOPS = ['화성스토어-TCG-', '카드 베이스']
+
+
 # ── 권한 ──────────────────────────────────────────────────────
 def is_staff(user):
     return user.is_active and user.is_staff
@@ -224,6 +227,12 @@ def pokemon_kr_card_search(request):
 
     return JsonResponse({'results': results})
 
+@staff_required
+@require_POST
+def pokemon_kr_reset_prices(request, expansion_code):
+    count = Card.objects.filter(expansion__code=expansion_code).update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
 
 # ════════════════════════════════════════════════════════════════
 # 포켓몬 일본판
@@ -412,7 +421,21 @@ def _parse_market_items(latest_price_obj):
         item['clean_title'] = re.sub(r'<[^>]+>', '', item.get('title', ''))
         item['price_int'] = int(float(item.get('lprice', 0)))
 
-    market_items.sort(key=lambda x: x['price_int'])
+    # 우리 샵: OUR_SHOPS 순서 고정, 나머지: 최저가 순
+    our_items = []
+    for shop in OUR_SHOPS:
+        for item in market_items:
+            if item.get('mallName') == shop:
+                our_items.append(item)
+                break  # 같은 샵 중복 방지
+
+    other_items = sorted(
+        [i for i in market_items if i.get('mallName') not in OUR_SHOPS],
+        key=lambda x: x['price_int']
+    )
+
+    market_items = our_items + other_items
+
     prices = [item['price_int'] for item in market_items if item['price_int'] > 0]
     stats = _calc_stats(prices)
     return market_items, stats
