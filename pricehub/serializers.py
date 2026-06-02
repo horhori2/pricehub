@@ -6,6 +6,7 @@ selling_price 필드 추가.
 """
 from rest_framework import serializers
 from .models import Expansion, Card, CardPrice
+from .models import OnePieceExpansion, OnePieceCard
 
 
 # ── CardPrice ────────────────────────────────────────────────
@@ -105,3 +106,18 @@ class ExpansionDetailSerializer(serializers.ModelSerializer):
         if stats['avg_price']:
             stats['avg_price'] = round(stats['avg_price'])
         return stats
+
+class OnePieceExpansionListSerializer(serializers.ModelSerializer):
+    card_count = serializers.IntegerField(read_only=True)
+    class Meta:
+        model = OnePieceExpansion
+        fields = ['code', 'name', 'release_date', 'card_count']
+
+class OnePieceCardListSerializer(serializers.ModelSerializer):
+    expansion = serializers.SerializerMethodField()
+    class Meta:
+        model = OnePieceCard
+        fields = ['id', 'card_number', 'name', 'rarity', 'selling_price',
+                  'shop_product_code', 'image_url', 'expansion']
+    def get_expansion(self, obj):
+        return {'code': obj.expansion.code, 'name': obj.expansion.name}

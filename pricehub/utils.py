@@ -153,10 +153,26 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
                     continue
                 print(f"    ✅ MUR 레어도 일치")
 
-            # 4) 일반 레어도
+            # 4) 일반 레어도 — 단어 경계 매칭
             else:
-                if rarity not in clean_title:
-                    print(f"    ❌ 레어도 '{rarity}' 불일치")
+                # 레어도가 정확히 매칭되어야 함 (RR이 RRR에 포함되는 문제 방지)
+                import re as _re
+                # 레어도 앞뒤가 알파벳/숫자가 아닌 경우만 매칭
+                pattern = r'(?<![A-Za-z0-9])' + _re.escape(rarity) + r'(?![A-Za-z0-9])'
+                if not _re.search(pattern, clean_title):
+                    print(f"    ❌ 레어도 '{rarity}' 불일치 (정확 매칭)")
+                    continue
+
+                # 상위 레어도 키워드가 포함되어 있으면 제외
+                # 예: RR 카드인데 SAR, SR, CSR, HR 등이 상품명에 있으면 제외
+                HIGHER_RARITIES = {
+                    'R':   ['RR', 'RRR', 'SR', 'SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR', 'AR', 'CHR', 'BWR'],
+                    'RR':  ['RRR', 'SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR'],
+                    'RRR': ['SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR'],
+                }
+                higher = HIGHER_RARITIES.get(rarity, [])
+                if any(_re.search(r'(?<![A-Za-z0-9])' + _re.escape(h) + r'(?![A-Za-z0-9])', clean_title) for h in higher):
+                    print(f"    ❌ 레어도 '{rarity}' 인데 상위 레어도 키워드 포함")
                     continue
 
         valid_count += 1

@@ -13,11 +13,9 @@
     --accent: #5b8def; --accent2: #7c6bff;
     --success: #3dd68c; --warning: #f5a623; --danger: #f06060;
     --text: #dde2f0; --text-muted: #5a6080; --text-dim: #3a4060;
-    --get: #3dd68c; --post: #f5a623; --del: #f06060;
+    --get: #3dd68c; --post: #f5a623;
   }
   body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
-
-  /* ── 레이아웃 ── */
   .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
 
   /* ── 사이드바 ── */
@@ -30,29 +28,25 @@
   .sidebar-link:hover { background: var(--surface2); color: var(--text); }
   .sidebar-link.active { background: rgba(124,107,255,0.1); color: var(--accent2); border-right: 2px solid var(--accent2); }
   .method-tag { font-size: 9px; font-weight: 800; font-family: 'JetBrains Mono', monospace; padding: 1px 5px; border-radius: 3px; flex-shrink: 0; }
-  .tag-get  { background: rgba(61,214,140,0.15); color: var(--get); }
+  .tag-get { background: rgba(61,214,140,0.15); color: var(--get); }
   .tag-post { background: rgba(245,166,35,0.15); color: var(--post); }
 
   /* ── 메인 ── */
   .main { padding: 40px 48px; max-width: 900px; }
-
-  /* ── 섹션 ── */
   .doc-section { margin-bottom: 60px; scroll-margin-top: 24px; }
   .section-title { font-size: 22px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 6px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
   .section-desc { font-size: 14px; color: var(--text-muted); line-height: 1.7; margin-bottom: 24px; }
 
-  /* ── 엔드포인트 카드 ── */
+  /* ── 엔드포인트 ── */
   .endpoint { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
   .endpoint-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer; user-select: none; transition: background 0.1s; }
   .endpoint-header:hover { background: var(--surface2); }
   .method-badge { font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; padding: 3px 8px; border-radius: 5px; flex-shrink: 0; min-width: 46px; text-align: center; }
-  .badge-get  { background: rgba(61,214,140,0.12); color: var(--get); border: 1px solid rgba(61,214,140,0.25); }
+  .badge-get { background: rgba(61,214,140,0.12); color: var(--get); border: 1px solid rgba(61,214,140,0.25); }
   .badge-post { background: rgba(245,166,35,0.12); color: var(--post); border: 1px solid rgba(245,166,35,0.25); }
   .endpoint-url { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; flex: 1; }
-  .endpoint-summary { font-size: 12px; color: var(--text-muted); margin-left: auto; }
   .endpoint-arrow { font-size: 12px; color: var(--text-dim); transition: transform 0.2s; }
   .endpoint.open .endpoint-arrow { transform: rotate(90deg); }
-
   .endpoint-body { display: none; padding: 0 18px 18px; border-top: 1px solid var(--border); }
   .endpoint.open .endpoint-body { display: block; }
 
@@ -68,23 +62,13 @@
 
   .code-block { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin: 10px 0; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; overflow-x: auto; white-space: pre; }
   .code-label { font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 14px; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; }
-
   .auth-note { background: rgba(91,141,239,0.06); border: 1px solid rgba(91,141,239,0.2); border-radius: 8px; padding: 12px 14px; margin: 14px 0; font-size: 13px; color: var(--accent); }
   .note { background: rgba(245,166,35,0.06); border: 1px solid rgba(245,166,35,0.2); border-radius: 8px; padding: 12px 14px; margin: 14px 0; font-size: 13px; color: var(--warning); }
-
-  /* ── 인증 섹션 ── */
   .auth-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
   .auth-box h3 { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
-
-  /* ── 복사 버튼 ── */
-  .copy-btn { float: right; font-size: 11px; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border2); background: none; color: var(--text-muted); cursor: pointer; font-family: inherit; transition: all 0.15s; }
-  .copy-btn:hover { border-color: var(--accent2); color: var(--accent2); }
-
-  .badge-auth { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; background: rgba(91,141,239,0.1); color: var(--accent); border: 1px solid rgba(91,141,239,0.2); }
 </style>
 </head>
 <body>
-
 <div class="layout">
 
   <!-- ── 사이드바 ── -->
@@ -95,34 +79,26 @@
     </div>
 
     <div class="sidebar-section">시작하기</div>
-    <a class="sidebar-link" onclick="scrollTo('intro')">개요</a>
-    <a class="sidebar-link" onclick="scrollTo('auth')">인증</a>
+    <a class="sidebar-link" onclick="go('intro')">개요</a>
+    <a class="sidebar-link" onclick="go('auth')">인증</a>
 
     <div class="sidebar-section">포켓몬 한글판</div>
-    <a class="sidebar-link" onclick="scrollTo('pokemon-by-code')">
-      <span class="method-tag tag-get">GET</span> 상품코드로 조회
-    </a>
-    <a class="sidebar-link" onclick="scrollTo('pokemon-search')">
-      <span class="method-tag tag-get">GET</span> 카드 검색
-    </a>
-    <a class="sidebar-link" onclick="scrollTo('pokemon-card-detail')">
-      <span class="method-tag tag-get">GET</span> 카드 상세
-    </a>
-    <a class="sidebar-link" onclick="scrollTo('pokemon-expansions')">
-      <span class="method-tag tag-get">GET</span> 확장팩 목록
-    </a>
-    <a class="sidebar-link" onclick="scrollTo('pokemon-expansion-cards')">
-      <span class="method-tag tag-get">GET</span> 확장팩 카드 목록
-    </a>
-    <a class="sidebar-link" onclick="scrollTo('pokemon-prices-latest')">
-      <span class="method-tag tag-get">GET</span> 최신 시장가
-    </a>
-    <a class="sidebar-link" onclick="scrollTo('pokemon-prices-summary')">
-      <span class="method-tag tag-get">GET</span> 수집 현황
-    </a>
+    <a class="sidebar-link" onclick="go('pokemon-by-code')"><span class="method-tag tag-get">GET</span> 상품코드로 조회</a>
+    <a class="sidebar-link" onclick="go('pokemon-search')"><span class="method-tag tag-get">GET</span> 카드 검색</a>
+    <a class="sidebar-link" onclick="go('pokemon-card-detail')"><span class="method-tag tag-get">GET</span> 카드 상세</a>
+    <a class="sidebar-link" onclick="go('pokemon-expansions')"><span class="method-tag tag-get">GET</span> 확장팩 목록</a>
+    <a class="sidebar-link" onclick="go('pokemon-expansion-cards')"><span class="method-tag tag-get">GET</span> 확장팩 카드 목록</a>
+    <a class="sidebar-link" onclick="go('pokemon-prices-latest')"><span class="method-tag tag-get">GET</span> 최신 시장가</a>
+    <a class="sidebar-link" onclick="go('pokemon-prices-summary')"><span class="method-tag tag-get">GET</span> 수집 현황</a>
+
+    <div class="sidebar-section">원피스 한글판</div>
+    <a class="sidebar-link" onclick="go('onepiece-by-code')"><span class="method-tag tag-get">GET</span> 상품코드로 조회</a>
+    <a class="sidebar-link" onclick="go('onepiece-search')"><span class="method-tag tag-get">GET</span> 카드 검색</a>
+    <a class="sidebar-link" onclick="go('onepiece-expansions')"><span class="method-tag tag-get">GET</span> 확장팩 목록</a>
+    <a class="sidebar-link" onclick="go('onepiece-expansion-cards')"><span class="method-tag tag-get">GET</span> 확장팩 카드 목록</a>
 
     <div class="sidebar-section">엑셀 연동 도구</div>
-    <a class="sidebar-link" onclick="scrollTo('excel-tool')">📊 엑셀 자동 업데이트</a>
+    <a class="sidebar-link" onclick="go('excel-tool')">📊 엑셀 자동 업데이트</a>
   </nav>
 
   <!-- ── 메인 ── -->
@@ -131,16 +107,12 @@
     <!-- 개요 -->
     <div class="doc-section" id="intro">
       <div class="section-title">개요</div>
-      <div class="section-desc">
-        PriceHub API는 포켓몬 카드 & 원피스 카드의 판매가(selling_price)와 시장가 데이터를 제공합니다.<br>
-        외부 프로그램(엑셀 도구, 재고 관리 시스템 등)에서 판매가를 조회하거나 카드 정보를 검색할 때 사용하세요.
-      </div>
-
+      <div class="section-desc">PriceHub API는 포켓몬 카드 & 원피스 카드의 판매가(selling_price)와 시장가 데이터를 제공합니다.<br>외부 프로그램(엑셀 도구, 재고 관리 시스템 등)에서 판매가를 조회하거나 카드 정보를 검색할 때 사용하세요.</div>
       <div class="auth-box">
         <h3>Base URL</h3>
-        <div class="code-block">http://your-server/api/pokemon/kr/</div>
+        <div class="code-block">http://your-server/api/pokemon/kr/    # 포켓몬 한글판
+http://your-server/api/onepiece/kr/   # 원피스 한글판</div>
       </div>
-
       <div class="auth-box">
         <h3>응답 형식</h3>
         <div class="section-desc" style="margin:0;">모든 응답은 <strong>JSON</strong> 형식입니다. 목록 API는 페이지네이션을 포함합니다.</div>
@@ -157,17 +129,14 @@
     <div class="doc-section" id="auth">
       <div class="section-title">인증</div>
       <div class="section-desc">모든 API 요청에는 <strong>Api-Key 인증</strong>이 필요합니다. API 키는 관리자에게 문의하세요.</div>
-
       <div class="auth-box">
         <h3>요청 헤더</h3>
         <div class="code-block">Authorization: Api-Key YOUR_API_KEY
 Accept: application/json</div>
       </div>
-
       <div class="auth-box">
         <h3>Python 예시</h3>
-        <div class="code-block">import urllib.request
-import json
+        <div class="code-block">import urllib.request, json
 
 API_KEY = "your-api-key"
 BASE_URL = "http://your-server/api/pokemon/kr"
@@ -180,45 +149,34 @@ with urllib.request.urlopen(req) as resp:
     data = json.loads(resp.read().decode())
     print(data['selling_price'])</div>
       </div>
-
       <div class="note">⚠️ API 키는 외부에 노출되지 않도록 주의하세요. 환경변수나 별도 설정 파일로 관리하는 것을 권장합니다.</div>
     </div>
 
-    <!-- 포켓몬 한글판 -->
+    <!-- ══════════════════════════════════════
+         포켓몬 한글판
+    ══════════════════════════════════════ -->
 
-    <!-- 상품코드로 조회 -->
     <div class="doc-section" id="pokemon-by-code">
       <div class="section-title">포켓몬 한글판 — 상품코드로 카드 조회</div>
-      <div class="section-desc">
-        네이버 스토어 판매자 상품코드로 카드를 조회합니다. <strong>엑셀 가격 업데이트 도구에서 사용하는 핵심 API입니다.</strong>
-      </div>
-
-      <div class="endpoint open" id="ep-by-code">
-        <div class="endpoint-header" onclick="toggleEndpoint('ep-by-code')">
+      <div class="section-desc">네이버 스토어 판매자 상품코드로 카드를 조회합니다. <strong>엑셀 가격 업데이트 도구에서 사용하는 핵심 API입니다.</strong></div>
+      <div class="endpoint open" id="ep-pokemon-by-code">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-pokemon-by-code')">
           <span class="method-badge badge-get">GET</span>
           <span class="endpoint-url">/api/pokemon/kr/cards/by-product-code/{shop_product_code}/</span>
           <span class="endpoint-arrow">▶</span>
         </div>
         <div class="endpoint-body">
           <div class="auth-note">🔑 Api-Key 인증 필요</div>
-
           <div class="code-label">Path Parameters</div>
           <table class="param-table">
             <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
             <tbody>
-              <tr>
-                <td><span class="param-name">shop_product_code</span></td>
-                <td><span class="param-type">string</span></td>
-                <td><span class="param-req req-yes">필수</span></td>
-                <td>네이버 판매자 상품코드 (예: <code>PKM-M2A-001-K</code>)</td>
-              </tr>
+              <tr><td><span class="param-name">shop_product_code</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-yes">필수</span></td><td>네이버 판매자 상품코드 (예: PKM-M2A-001-K)</td></tr>
             </tbody>
           </table>
-
           <div class="code-label">요청 예시</div>
           <div class="code-block">GET /api/pokemon/kr/cards/by-product-code/PKM-M2A-001-K/
 Authorization: Api-Key YOUR_API_KEY</div>
-
           <div class="code-label">응답 예시 (200 OK)</div>
           <div class="code-block">{
   "id": 7655,
@@ -227,12 +185,8 @@ Authorization: Api-Key YOUR_API_KEY</div>
   "rarity": "C",
   "selling_price": 200,
   "shop_product_code": "PKM-M2A-001-K",
-  "expansion": {
-    "code": "M2A",
-    "name": "MEGA드림ex"
-  }
+  "expansion": { "code": "M2A", "name": "MEGA드림ex" }
 }</div>
-
           <div class="code-label">응답 필드</div>
           <table class="param-table">
             <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
@@ -246,9 +200,8 @@ Authorization: Api-Key YOUR_API_KEY</div>
               <tr><td><span class="param-name">expansion</span></td><td><span class="param-type">object</span></td><td>확장팩 정보 (code, name)</td></tr>
             </tbody>
           </table>
-
           <div class="code-label">오류 응답</div>
-          <div class="code-block"># 404 — 상품코드에 해당하는 카드 없음
+          <div class="code-block"># 404 — 카드 없음
 { "error": "상품코드 'PKM-XXX' 에 해당하는 카드가 없습니다." }
 
 # 401 — 인증 실패
@@ -257,20 +210,17 @@ Authorization: Api-Key YOUR_API_KEY</div>
       </div>
     </div>
 
-    <!-- 카드 검색 -->
     <div class="doc-section" id="pokemon-search">
       <div class="section-title">포켓몬 한글판 — 카드 검색</div>
       <div class="section-desc">카드명, 확장팩, 레어도 등으로 카드를 검색합니다.</div>
-
-      <div class="endpoint" id="ep-search">
-        <div class="endpoint-header" onclick="toggleEndpoint('ep-search')">
+      <div class="endpoint" id="ep-pokemon-search">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-pokemon-search')">
           <span class="method-badge badge-get">GET</span>
           <span class="endpoint-url">/api/pokemon/kr/cards/search/</span>
           <span class="endpoint-arrow">▶</span>
         </div>
         <div class="endpoint-body">
           <div class="auth-note">🔑 Api-Key 인증 필요</div>
-
           <div class="code-label">Query Parameters</div>
           <table class="param-table">
             <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
@@ -283,47 +233,24 @@ Authorization: Api-Key YOUR_API_KEY</div>
               <tr><td><span class="param-name">page_size</span></td><td><span class="param-type">integer</span></td><td><span class="param-req req-no">선택</span></td><td>페이지당 결과 수 (기본 20)</td></tr>
             </tbody>
           </table>
-
           <div class="code-label">요청 예시</div>
           <div class="code-block">GET /api/pokemon/kr/cards/search/?name=피카츄&expansion=SV8
 Authorization: Api-Key YOUR_API_KEY</div>
-
-          <div class="code-label">응답 예시 (200 OK)</div>
-          <div class="code-block">{
-  "count": 5,
-  "next": null,
-  "previous": null,
-  "results": [
-    {
-      "id": 5340,
-      "card_number": "033",
-      "name": "피카츄 ex",
-      "rarity": "RR",
-      "selling_price": 2500,
-      "shop_product_code": "PKM-SV8-033-K",
-      "expansion": { "code": "SV8", "name": "초전브레이커" }
-    },
-    ...
-  ]
-}</div>
         </div>
       </div>
     </div>
 
-    <!-- 카드 상세 -->
     <div class="doc-section" id="pokemon-card-detail">
       <div class="section-title">포켓몬 한글판 — 카드 상세</div>
       <div class="section-desc">카드 ID로 상세 정보와 가격 이력을 조회합니다.</div>
-
-      <div class="endpoint" id="ep-card-detail">
-        <div class="endpoint-header" onclick="toggleEndpoint('ep-card-detail')">
+      <div class="endpoint" id="ep-pokemon-card-detail">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-pokemon-card-detail')">
           <span class="method-badge badge-get">GET</span>
           <span class="endpoint-url">/api/pokemon/kr/cards/{id}/</span>
           <span class="endpoint-arrow">▶</span>
         </div>
         <div class="endpoint-body">
           <div class="auth-note">🔑 Api-Key 인증 필요</div>
-
           <div class="code-label">Query Parameters</div>
           <table class="param-table">
             <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
@@ -331,7 +258,6 @@ Authorization: Api-Key YOUR_API_KEY</div>
               <tr><td><span class="param-name">price_limit</span></td><td><span class="param-type">integer</span></td><td><span class="param-req req-no">선택</span></td><td>가격 이력 최대 개수 (기본 30)</td></tr>
             </tbody>
           </table>
-
           <div class="code-label">요청 예시</div>
           <div class="code-block">GET /api/pokemon/kr/cards/7655/
 Authorization: Api-Key YOUR_API_KEY</div>
@@ -339,19 +265,16 @@ Authorization: Api-Key YOUR_API_KEY</div>
       </div>
     </div>
 
-    <!-- 확장팩 목록 -->
     <div class="doc-section" id="pokemon-expansions">
       <div class="section-title">포켓몬 한글판 — 확장팩 목록</div>
-
-      <div class="endpoint" id="ep-expansions">
-        <div class="endpoint-header" onclick="toggleEndpoint('ep-expansions')">
+      <div class="endpoint" id="ep-pokemon-expansions">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-pokemon-expansions')">
           <span class="method-badge badge-get">GET</span>
           <span class="endpoint-url">/api/pokemon/kr/expansions/</span>
           <span class="endpoint-arrow">▶</span>
         </div>
         <div class="endpoint-body">
           <div class="auth-note">🔑 Api-Key 인증 필요</div>
-
           <div class="code-label">Query Parameters</div>
           <table class="param-table">
             <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
@@ -360,17 +283,11 @@ Authorization: Api-Key YOUR_API_KEY</div>
               <tr><td><span class="param-name">ordering</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>정렬 (release_date, code, name / 기본: -release_date)</td></tr>
             </tbody>
           </table>
-
           <div class="code-label">응답 예시</div>
           <div class="code-block">{
   "count": 30,
   "results": [
-    {
-      "code": "M2A",
-      "name": "MEGA드림ex",
-      "release_date": "2026-01-01",
-      "card_count": 250
-    },
+    { "code": "M2A", "name": "MEGA드림ex", "release_date": "2026-01-01", "card_count": 250 },
     ...
   ]
 }</div>
@@ -378,19 +295,16 @@ Authorization: Api-Key YOUR_API_KEY</div>
       </div>
     </div>
 
-    <!-- 확장팩 카드 목록 -->
     <div class="doc-section" id="pokemon-expansion-cards">
       <div class="section-title">포켓몬 한글판 — 확장팩별 카드 목록</div>
-
-      <div class="endpoint" id="ep-expansion-cards">
-        <div class="endpoint-header" onclick="toggleEndpoint('ep-expansion-cards')">
+      <div class="endpoint" id="ep-pokemon-expansion-cards">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-pokemon-expansion-cards')">
           <span class="method-badge badge-get">GET</span>
           <span class="endpoint-url">/api/pokemon/kr/expansions/{code}/cards/</span>
           <span class="endpoint-arrow">▶</span>
         </div>
         <div class="endpoint-body">
           <div class="auth-note">🔑 Api-Key 인증 필요</div>
-
           <div class="code-label">Query Parameters</div>
           <table class="param-table">
             <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
@@ -400,7 +314,6 @@ Authorization: Api-Key YOUR_API_KEY</div>
               <tr><td><span class="param-name">ordering</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>정렬 (card_number, name, rarity)</td></tr>
             </tbody>
           </table>
-
           <div class="code-label">요청 예시</div>
           <div class="code-block">GET /api/pokemon/kr/expansions/M2A/cards/?rarity=SAR
 Authorization: Api-Key YOUR_API_KEY</div>
@@ -408,19 +321,16 @@ Authorization: Api-Key YOUR_API_KEY</div>
       </div>
     </div>
 
-    <!-- 최신 시장가 -->
     <div class="doc-section" id="pokemon-prices-latest">
       <div class="section-title">포켓몬 한글판 — 최신 시장가</div>
-
-      <div class="endpoint" id="ep-prices-latest">
-        <div class="endpoint-header" onclick="toggleEndpoint('ep-prices-latest')">
+      <div class="endpoint" id="ep-pokemon-prices-latest">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-pokemon-prices-latest')">
           <span class="method-badge badge-get">GET</span>
           <span class="endpoint-url">/api/pokemon/kr/prices/latest/</span>
           <span class="endpoint-arrow">▶</span>
         </div>
         <div class="endpoint-body">
           <div class="auth-note">🔑 Api-Key 인증 필요</div>
-
           <div class="code-label">Query Parameters</div>
           <table class="param-table">
             <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
@@ -433,19 +343,16 @@ Authorization: Api-Key YOUR_API_KEY</div>
       </div>
     </div>
 
-    <!-- 수집 현황 -->
     <div class="doc-section" id="pokemon-prices-summary">
       <div class="section-title">포켓몬 한글판 — 수집 현황</div>
-
-      <div class="endpoint" id="ep-prices-summary">
-        <div class="endpoint-header" onclick="toggleEndpoint('ep-prices-summary')">
+      <div class="endpoint" id="ep-pokemon-prices-summary">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-pokemon-prices-summary')">
           <span class="method-badge badge-get">GET</span>
           <span class="endpoint-url">/api/pokemon/kr/prices/summary/</span>
           <span class="endpoint-arrow">▶</span>
         </div>
         <div class="endpoint-body">
           <div class="auth-note">🔑 Api-Key 인증 필요</div>
-
           <div class="code-label">Query Parameters</div>
           <table class="param-table">
             <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
@@ -453,7 +360,6 @@ Authorization: Api-Key YOUR_API_KEY</div>
               <tr><td><span class="param-name">hours</span></td><td><span class="param-type">integer</span></td><td><span class="param-req req-no">선택</span></td><td>집계 기간 (기본 24시간)</td></tr>
             </tbody>
           </table>
-
           <div class="code-label">응답 예시</div>
           <div class="code-block">{
   "naver": {
@@ -465,13 +371,171 @@ Authorization: Api-Key YOUR_API_KEY</div>
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════
+         원피스 한글판
+    ══════════════════════════════════════ -->
+
+    <div class="doc-section" id="onepiece-by-code">
+      <div class="section-title">원피스 한글판 — 상품코드로 카드 조회</div>
+      <div class="section-desc">네이버 스토어 판매자 상품코드로 원피스 카드를 조회합니다.</div>
+      <div class="endpoint open" id="ep-onepiece-by-code">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-onepiece-by-code')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/onepiece/kr/cards/by-product-code/{shop_product_code}/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Path Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">shop_product_code</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-yes">필수</span></td><td>네이버 판매자 상품코드 (예: OP-EB01-001-K)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/onepiece/kr/cards/by-product-code/OP-EB01-001-K/
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "id": 1234,
+  "card_number": "EB01-001",
+  "name": "몽키 D. 루피",
+  "rarity": "SEC",
+  "selling_price": 15000,
+  "shop_product_code": "OP-EB01-001-K",
+  "expansion": { "code": "EB01", "name": "EXTRA BOOSTER 메모리얼 컬렉션" }
+}</div>
+          <div class="code-label">응답 필드</div>
+          <table class="param-table">
+            <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">id</span></td><td><span class="param-type">integer</span></td><td>카드 고유 ID</td></tr>
+              <tr><td><span class="param-name">card_number</span></td><td><span class="param-type">string</span></td><td>카드 번호</td></tr>
+              <tr><td><span class="param-name">name</span></td><td><span class="param-type">string</span></td><td>카드명</td></tr>
+              <tr><td><span class="param-name">rarity</span></td><td><span class="param-type">string</span></td><td>레어도 (C, UC, R, SR, L, SEC, SL 등)</td></tr>
+              <tr><td><span class="param-name">selling_price</span></td><td><span class="param-type">integer | null</span></td><td>설정된 판매가 (미설정 시 null)</td></tr>
+              <tr><td><span class="param-name">shop_product_code</span></td><td><span class="param-type">string</span></td><td>네이버 판매자 상품코드</td></tr>
+              <tr><td><span class="param-name">expansion</span></td><td><span class="param-type">object</span></td><td>확장팩 정보 (code, name)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">오류 응답</div>
+          <div class="code-block"># 404 — 카드 없음
+{ "error": "상품코드 'OP-XXX' 에 해당하는 카드가 없습니다." }
+
+# 401 — 인증 실패
+{ "detail": "Authentication credentials were not provided." }</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="onepiece-search">
+      <div class="section-title">원피스 한글판 — 카드 검색</div>
+      <div class="section-desc">카드명, 확장팩, 레어도 등으로 원피스 카드를 검색합니다.</div>
+      <div class="endpoint" id="ep-onepiece-search">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-onepiece-search')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/onepiece/kr/cards/search/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">search</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>카드명·번호·확장팩명 통합 검색</td></tr>
+              <tr><td><span class="param-name">name</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>카드명 부분 검색</td></tr>
+              <tr><td><span class="param-name">expansion</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>확장팩 코드 (예: EB01)</td></tr>
+              <tr><td><span class="param-name">rarity</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>레어도 (예: SEC)</td></tr>
+              <tr><td><span class="param-name">page_size</span></td><td><span class="param-type">integer</span></td><td><span class="param-req req-no">선택</span></td><td>페이지당 결과 수 (기본 20)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/onepiece/kr/cards/search/?name=루피&rarity=SEC
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "count": 3,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1234,
+      "card_number": "EB01-001",
+      "name": "몽키 D. 루피",
+      "rarity": "SEC",
+      "selling_price": 15000,
+      "shop_product_code": "OP-EB01-001-K",
+      "expansion": { "code": "EB01", "name": "메모리얼 컬렉션" }
+    },
+    ...
+  ]
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="onepiece-expansions">
+      <div class="section-title">원피스 한글판 — 확장팩 목록</div>
+      <div class="endpoint" id="ep-onepiece-expansions">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-onepiece-expansions')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/onepiece/kr/expansions/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">search</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>코드·이름 검색</td></tr>
+              <tr><td><span class="param-name">ordering</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>정렬 (release_date, code / 기본: -release_date)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">응답 예시</div>
+          <div class="code-block">{
+  "count": 10,
+  "results": [
+    { "code": "EB01", "name": "메모리얼 컬렉션", "release_date": "2026-03-01", "card_count": 121 },
+    ...
+  ]
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="onepiece-expansion-cards">
+      <div class="section-title">원피스 한글판 — 확장팩별 카드 목록</div>
+      <div class="endpoint" id="ep-onepiece-expansion-cards">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-onepiece-expansion-cards')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/onepiece/kr/expansions/{code}/cards/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">rarity</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>레어도 필터 (예: SEC)</td></tr>
+              <tr><td><span class="param-name">search</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>카드명·번호 검색</td></tr>
+              <tr><td><span class="param-name">ordering</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>정렬 (card_number, name, rarity)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/onepiece/kr/expansions/EB01/cards/?rarity=SEC
+Authorization: Api-Key YOUR_API_KEY</div>
+        </div>
+      </div>
+    </div>
+
     <!-- 엑셀 연동 도구 -->
     <div class="doc-section" id="excel-tool">
       <div class="section-title">📊 엑셀 자동 업데이트 도구</div>
-      <div class="section-desc">
-        <code>update_prices_from_server.py</code> 스크립트를 사용하면 엑셀 파일의 판매자 상품코드(B열)로 서버에서 판매가를 조회해 자동으로 업데이트합니다.
-      </div>
-
+      <div class="section-desc"><code>update_prices_from_server.py</code> 스크립트를 사용하면 엑셀 파일의 판매자 상품코드(B열)로 서버에서 판매가를 조회해 자동으로 업데이트합니다.</div>
       <div class="auth-box">
         <h3>작동 방식</h3>
         <div class="code-block">엑셀 B열 (판매자 상품코드)
@@ -484,7 +548,6 @@ F열 가격 업데이트 + 색상 표시
     ↓
 {파일명}_수정.xlsx 저장</div>
       </div>
-
       <div class="auth-box">
         <h3>설정 방법</h3>
         <div class="code-block">SERVER_URL  = "http://your-server-address"  # 서버 주소
@@ -493,13 +556,12 @@ PRICE_COL   = 6   # F열 (가격이 있는 열)
 CODE_COL    = 2   # B열 (상품코드가 있는 열)
 MAX_WORKERS = 15  # 동시 요청 수 (로컬: 30까지 가능, 원격: 10~15 권장)</div>
       </div>
-
       <div class="auth-box">
         <h3>색상 범례</h3>
         <table class="param-table">
           <thead><tr><th>색상</th><th>의미</th></tr></thead>
           <tbody>
-            <tr><td>흰색 (변경 없음)</td><td>판매가 동일</td></tr>
+            <tr><td>흰색</td><td>판매가 동일 (변경 없음)</td></tr>
             <tr><td style="color:#3dd68c">초록</td><td>±1,000원 이하 변동</td></tr>
             <tr><td style="color:#5b8def">파랑</td><td>±2,000원 이하 변동</td></tr>
             <tr><td style="color:#f5a623">노랑</td><td>±3,000원 이하 변동</td></tr>
@@ -507,22 +569,18 @@ MAX_WORKERS = 15  # 동시 요청 수 (로컬: 30까지 가능, 원격: 10~15 �
           </tbody>
         </table>
       </div>
-
-      <div class="note">
-        ⚠️ 스크립트를 실행할 때는 엑셀 파일과 같은 폴더에 두거나 <code>INPUT_FILE</code>에 경로를 직접 지정하세요.
-      </div>
+      <div class="note">⚠️ 스크립트를 실행할 때는 엑셀 파일과 같은 폴더에 두거나 <code>INPUT_FILE</code>에 경로를 직접 지정하세요.</div>
     </div>
 
   </main>
 </div>
 
 <script>
-function scrollTo(id) {
+function go(id) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
   event.currentTarget.classList.add('active');
 }
-
 function toggleEndpoint(id) {
   document.getElementById(id)?.classList.toggle('open');
 }

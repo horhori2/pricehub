@@ -23,12 +23,15 @@ from django_filters.rest_framework import DjangoFilterBackend
 import django_filters
 
 from .models import Expansion, Card, CardPrice
+from .models import OnePieceExpansion, OnePieceCard, OnePieceCardPrice
 from .serializers import (
     ExpansionListSerializer,
     ExpansionDetailSerializer,
     CardListSerializer,
     CardDetailSerializer,
     CardPriceSerializer,
+    OnePieceExpansionListSerializer,
+    OnePieceCardListSerializer
 )
 from .authentication import APIKeyAuthentication
 from .permissions import HasAPIKey
@@ -262,6 +265,92 @@ def card_by_product_code(request, shop_product_code):
         'name': card.name,
         'rarity': card.rarity,
         'selling_price': card.selling_price,
+        'shop_product_code': card.shop_product_code,
+        'expansion': {
+            'code': card.expansion.code,
+            'name': card.expansion.name,
+        }
+    })
+
+
+# ── 원피스 한글판 ──────────────────────────────────────────
+
+class OnePieceExpansionListView(generics.ListAPIView):
+    authentication_classes = [APIKeyAuthentication]
+    permission_classes = [HasAPIKey]
+    serializer_class = OnePieceExpansionListSerializer  # 아래에서 생성
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['code', 'name']
+    ordering_fields = ['release_date', 'code', 'name']
+    ordering = ['-release_date']
+
+    def get_queryset(self):
+        return OnePieceExpansion.objects.annotate(card_count=Count('cards'))
+
+
+class OnePieceExpansionDetailView(generics.RetrieveAPIView):
+    authentication_classes = [APIKeyAuthentication]
+    permission_classes = [HasAPIKey]
+    serializer_class = OnePieceExpansionListSerializer
+    lookup_field = 'code'
+
+    def get_queryset(self):
+        return OnePieceExpansion.objects.annotate(card_count=Count('cards'))
+
+
+class OnePieceCardListView(generics.ListAPIView):
+    authentication_classes = [APIKeyAuthentication]
+    permission_classes = [HasAPIKey]
+    serializer_class = OnePieceCardListSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['rarity']
+    search_fields = ['name', 'card_number']
+    ordering_fields = ['card_number', 'name', 'rarity']
+    ordering = ['card_number']
+
+    def get_queryset(self):
+        return OnePieceCard.objects.select_related('expansion').filter(
+            expansion__code=self.kwargs['code']
+        )
+
+
+class OnePieceCardSearchView(generics.ListAPIView):
+    authentication_classes = [APIKeyAuthentication]
+    permission_classes = [HasAPIKey]
+    serializer_class = OnePieceCardListSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'card_number', 'expansion__name']
+    ordering_fields = ['card_number', 'name', 'expansion__release_date']
+    ordering = ['-expansion__release_date', 'card_number']
+
+    def get_queryset(self):
+        return OnePieceCard.objects.select_related('expansion').distinct()
+
+
+@api_view(['GET'])
+@authentication_classes([APIKeyAuthentication])
+@permission_classes([HasAPIKey])
+def onepiece_card_by_product_code(request, shop_product_code):
+    try:
+        card = OnePieceCard.objects.select_related('expansion').get(
+            shop_product_code=shop_product_code
+        )
+    except OnePieceCard.DoesNotExist:
+        return Response(
+            {'error': f"상품코드 '{shop_product_code}'에 해당하는 카드가 없습니다."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    except OnePieceCard.MultipleObjectsReturned:
+        card = OnePieceCard.objects.select_related('expansion').filter(
+            shop_product_code=shop_product_code
+        ).first()
+
+    return Response({
+        'id': card.id,
+        'card_number': card.card_number,
+        'name': card.name,
+        'rarity': card.rarity,
+        'selling_price': card.selling_price if card.selling_price != 0 else None,
         'shop_product_code': card.shop_product_code,
         'expansion': {
             'code': card.expansion.code,
