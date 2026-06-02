@@ -1,6 +1,7 @@
 # pricehub/urls.py
 from django.urls import path
 from . import views
+from pricehub import api_docs_views
 
 app_name = 'pricehub'
 
@@ -23,4 +24,6 @@ urlpatterns = [
     path('japan/expansion/<str:expansion_code>/', views.japan_card_list, name='japan_card_list'),
     path('japan/card/<int:card_id>/', views.japan_card_detail, name='japan_card_detail'),
     
+
+    path('api-docs/', api_docs_views.api_docs, name='api-docs'),
 ]

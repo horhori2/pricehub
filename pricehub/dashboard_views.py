@@ -157,6 +157,8 @@ def pokemon_kr_card_list(request, code):
         'breadcrumb': [('홈', '/dashboard/'), ('포켓몬 한글판', '/dashboard/pokemon/kr/expansions/'), (expansion.name, None)],
         'detail_base_url': '/dashboard/pokemon/kr/cards',
         'back_url': '/dashboard/pokemon/kr/expansions/',
+        'bulk_price_url': f'/dashboard/pokemon/kr/bulk-price/?expansion={expansion.code}',
+        'reset_prices_url': f'/dashboard/pokemon/kr/expansions/{expansion.code}/reset-prices/',
     })
 
 
@@ -371,6 +373,8 @@ def onepiece_kr_card_list(request, code):
         'breadcrumb': [('홈', '/dashboard/'), ('원피스 한글판', '/dashboard/onepiece/kr/expansions/'), (expansion.name, None)],
         'detail_base_url': '/dashboard/onepiece/kr/cards',
         'back_url': '/dashboard/onepiece/kr/expansions/',
+        'bulk_price_url': f'/dashboard/onepiece/kr/bulk-price/?expansion={expansion.code}',
+        'reset_prices_url': f'/dashboard/onepiece/kr/expansions/{expansion.code}/reset-prices/',
     })
 
 
@@ -401,6 +405,12 @@ def onepiece_kr_card_detail(request, pk):
 @require_POST
 def onepiece_kr_set_price(request, pk):
     return _set_price(OnePieceCard, pk, request)
+
+@staff_required
+@require_POST
+def onepiece_kr_reset_prices(request, expansion_code):
+    count = OnePieceCard.objects.filter(expansion__code=expansion_code).update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
 
 
 # ════════════════════════════════════════════════════════════════
@@ -520,6 +530,14 @@ def pokemon_kr_bulk_price(request):
             ('포켓몬 한글판', '/dashboard/pokemon/kr/expansions/'),
             ('일괄 판매가 설정', None),
         ],
+        'config': {
+        'label': '포켓몬 한글판',
+        'expansion_list_url': '/dashboard/pokemon/kr/expansions/',
+        'bulk_price_url': '/dashboard/pokemon/kr/bulk-price/',
+        'bulk_run_url': '/dashboard/pokemon/kr/bulk-price/run/',
+        'bulk_issues_url': '/dashboard/pokemon/kr/bulk-price/issues/',
+        'high_rarity_list': "['SAR','CSR','UR','MUR','BWR']",
+        },
     })
 
 # ────────────────────────────────────────────────────────────────
@@ -686,6 +704,13 @@ def pokemon_kr_bulk_issues(request):
             ('일괄 판매가 설정', '/dashboard/pokemon/kr/bulk-price/'),
             ('2차 판매가 설정', None),
         ],
+        'config': {
+            'label': '포켓몬 한글판',
+            'bulk_price_url': '/dashboard/pokemon/kr/bulk-price/',
+            'bulk_issues_url': '/dashboard/pokemon/kr/bulk-price/issues/',
+            'set_price_url_prefix': '/dashboard/pokemon/kr/cards/',
+            'high_rarity_list': "['SAR','CSR','HR','UR','MUR','BWR']",
+        },
     })
 
 
@@ -959,6 +984,8 @@ def _onepiece_calc_shop_stats(raw_data_list):
 @staff_required
 def onepiece_kr_bulk_price(request):
     expansion_code = request.GET.get('expansion', '')
+    selected_rarities = request.GET.getlist('rarities')  # ← 추가
+
     selected_expansion = None
     if expansion_code:
         selected_expansion = OnePieceExpansion.objects.filter(code=expansion_code).first()
@@ -967,12 +994,17 @@ def onepiece_kr_bulk_price(request):
     expansions = list(OnePieceExpansion.objects.order_by('-release_date', '-created_at'))
     needs_review = OnePieceCard.objects.filter(selling_price=0).count()
 
+    # 레어도 목록 추가
+    rarity_qs = OnePieceCard.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
+    if expansion_code:
+        rarity_qs = rarity_qs.filter(expansion__code=expansion_code)
+    all_rarities = list(rarity_qs)
+
     raw_list = _onepiece_load_raw_data(expansion_code=expansion_code or None)
     shop_stats, overall_avg = _onepiece_calc_shop_stats(raw_list)
 
-    return render(request, 'dashboard/onepiece_bulk_price.html', {
+    return render(request, 'dashboard/bulk_price.html', {
         'mall_names': json.dumps(mall_names),
-        'mall_names_display': mall_names,
         'expansions': expansions,
         'needs_review': needs_review,
         'shop_stats_json': json.dumps(shop_stats, ensure_ascii=False),
@@ -980,11 +1012,22 @@ def onepiece_kr_bulk_price(request):
         'overall_avg': overall_avg,
         'selected_expansion': selected_expansion,
         'expansion_code': expansion_code,
+        'all_rarities': all_rarities,                          # ← 추가
+        'selected_rarities': selected_rarities,                # ← 추가
+        'selected_rarities_json': json.dumps(selected_rarities),  # ← 추가
         'breadcrumb': [
             ('홈', '/dashboard/'),
             ('원피스 한글판', '/dashboard/onepiece/kr/expansions/'),
             ('일괄 판매가 설정', None),
         ],
+        'config': {
+            'label': '원피스 한글판',
+            'expansion_list_url': '/dashboard/onepiece/kr/expansions/',
+            'bulk_price_url': '/dashboard/onepiece/kr/bulk-price/',
+            'bulk_run_url': '/dashboard/onepiece/kr/bulk-price/run/',
+            'bulk_issues_url': '/dashboard/onepiece/kr/bulk-price/issues/',
+            'high_rarity_list': "['SP-SEC','SP-SR','SEC','SL']",
+        },
     })
 
 
@@ -1106,7 +1149,7 @@ def onepiece_kr_bulk_issues(request):
 
     expansions = OnePieceExpansion.objects.order_by('-release_date')
 
-    return render(request, 'dashboard/onepiece_bulk_issues.html', {
+    return render(request, 'dashboard/bulk_issues.html', {
         'cards': cards_qs,
         'expansions': expansions,
         'expansion_code': expansion_code,
@@ -1121,6 +1164,13 @@ def onepiece_kr_bulk_issues(request):
             ('일괄 판매가 설정', '/dashboard/onepiece/kr/bulk-price/'),
             ('2차 판매가 설정', None),
         ],
+        'config': {
+            'label': '원피스 한글판',
+            'bulk_price_url': '/dashboard/onepiece/kr/bulk-price/',
+            'bulk_issues_url': '/dashboard/onepiece/kr/bulk-price/issues/',
+            'set_price_url_prefix': '/dashboard/onepiece/kr/cards/',
+            'high_rarity_list': "['SP-SEC','SP-SR','SEC','SL']",
+        },
     })
 
 @staff_required

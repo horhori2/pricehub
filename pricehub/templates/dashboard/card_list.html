@@ -97,7 +97,9 @@
     </div>
     <div class="action-btns">
       <button class="reset-btn" onclick="showResetModal()">🗑 판매가 초기화</button>
-      <a href="/dashboard/pokemon/kr/bulk-price/?expansion={{ expansion.code }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
+      {% if bulk_price_url %}
+      <a href="{{ bulk_price_url }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
+      {% endif %}
     </div>
   </div>
 
@@ -189,8 +191,10 @@ async function doReset() {
   confirmBtn.disabled = true;
   confirmBtn.textContent = '초기화 중...';
 
+  const RESET_PRICES_URL = '{{ reset_prices_url }}';
+
   try {
-    const res = await fetch(`/dashboard/pokemon/kr/expansions/${EXPANSION_CODE}/reset-prices/`, {
+    const res = await fetch(RESET_PRICES_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
     });

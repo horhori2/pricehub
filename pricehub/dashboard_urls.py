@@ -46,6 +46,9 @@ urlpatterns = [
      path('onepiece/kr/cards/<int:pk>/set-price/',
           dashboard_views.onepiece_kr_set_price, name='onepiece-kr-set-price'),
      path('onepiece/kr/cards/search/', dashboard_views.onepiece_kr_card_search, name='onepiece-kr-card-search'),
+     path('onepiece/kr/expansions/<str:expansion_code>/reset-prices/',
+     dashboard_views.onepiece_kr_reset_prices,
+     name='onepiece-kr-reset-prices'),
 
      # ── 일괄 가격 설정 ──────────────────────────────────────
      path('pokemon/kr/bulk-price/',         dashboard_views.pokemon_kr_bulk_price,   name='pokemon-kr-bulk-price'),
