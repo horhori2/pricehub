@@ -25,6 +25,8 @@ urlpatterns = [
      path('pokemon/kr/expansions/<str:expansion_code>/reset-prices/',
      dashboard_views.pokemon_kr_reset_prices,
      name='pokemon-kr-reset-prices'),
+     path('pokemon/kr/reset-all-prices/', dashboard_views.pokemon_kr_reset_all_prices, name='pokemon-kr-reset-all-prices'),
+
 
      # ── 포켓몬 일본판 ──────────────────────────────────────
      path('pokemon/jp/expansions/',
@@ -49,6 +51,7 @@ urlpatterns = [
      path('onepiece/kr/expansions/<str:expansion_code>/reset-prices/',
      dashboard_views.onepiece_kr_reset_prices,
      name='onepiece-kr-reset-prices'),
+     path('onepiece/kr/reset-all-prices/', dashboard_views.onepiece_kr_reset_all_prices, name='onepiece-kr-reset-all-prices'),
 
      # ── 일괄 가격 설정 ──────────────────────────────────────
      path('pokemon/kr/bulk-price/',         dashboard_views.pokemon_kr_bulk_price,   name='pokemon-kr-bulk-price'),

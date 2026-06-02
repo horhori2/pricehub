@@ -9,24 +9,46 @@ from typing import Optional, Tuple, List
 NAVER_CLIENT_ID = "S_iul25XJKSybg_fiSAc"
 NAVER_CLIENT_SECRET = "_73PsEM4om"
 
-# 검색어에서 제외할 레어도 (일반 레어도)
+# 검색어에서 레어도를 제외할 일반 레어도 목록
 EXCLUDED_RARITIES = ['RR', 'RRR', 'R', 'U', 'C']
 
+# 일반 레어도 집합 (고레어 키워드 필터링 적용 대상)
+GENERAL_RARITIES = {'RR', 'RRR', 'R', 'U', 'C'}
+
+# 일반 레어도 카드 검색 시 title에 포함되면 제외할 고레어 키워드
+HIGH_RARITY_KEYWORDS = [
+    'UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
+    '몬스터볼', '마스터볼', '이로치', '미러',
+]
+
+# 일반 레어도별 상위 레어도 목록 (단어 경계 정규식 매칭용)
+HIGHER_RARITIES = {
+    'C':   ['UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
+            'RR', 'RRR', 'R', 'U', 'MUR'],
+    'U':   ['UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
+            'RR', 'RRR', 'MUR'],
+    'R':   ['RR', 'RRR', 'SR', 'SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR', 'AR', 'CHR', 'BWR'],
+    'RR':  ['RRR', 'SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR'],
+    'RRR': ['SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR'],
+}
+
 # 모든 특수 레어도 목록 (필터링용)
-SPECIAL_RARITIES = ['UR', 'MUR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러', '이로치', '미러']
+SPECIAL_RARITIES = ['UR', 'MUR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
+                    '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러', '이로치', '미러']
 
 # 미러 레어도 그룹 정의
 MIRROR_RARITIES = {'미러', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러'}
 
 # 각 미러 레어도에서 상품명에 포함되어야 하는 키워드
 MIRROR_KEYWORDS = {
-    '미러':        None,       # 키워드 없어도 OK (일반 미러)
+    '미러':        None,        # 키워드 없어도 OK (일반 미러)
     '몬스터볼':    '몬스터볼',
     '마스터볼':    '마스터볼',
     '볼 미러':     '볼',
     '타입 미러':   ['타입', '에너지'],
     '로켓단 미러': '로켓단 미러',
 }
+
 
 # ==================== 공통 ====================
 
@@ -62,16 +84,21 @@ def generate_pokemon_search_query(card_name: str, rarity: str, expansion_name: s
     return search_query.strip()
 
 
-MIRROR_RARITIES = {'미러', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러'}
-
-MIRROR_KEYWORDS = {
-    '미러':        None,
-    '몬스터볼':    '몬스터볼',
-    '마스터볼':    '마스터볼',
-    '볼 미러':     '볼',
-    '타입 미러':   '타입',
-    '로켓단 미러': '로켓단 미러',
-}
+def _has_high_rarity_keyword(clean_title: str) -> bool:
+    """
+    title에 고레어 키워드가 포함되어 있는지 확인.
+    영문 키워드는 단어 경계 기준으로, 한글 키워드는 단순 포함 여부로 검사.
+    """
+    for kw in HIGH_RARITY_KEYWORDS:
+        if kw.isascii():
+            # 영문: 앞뒤가 알파벳/숫자가 아닌 경우만 매칭 (RR ≠ RRR 방지)
+            if re.search(r'(?<![A-Za-z0-9])' + re.escape(kw) + r'(?![A-Za-z0-9])', clean_title):
+                return True
+        else:
+            # 한글: 단순 포함 여부
+            if kw in clean_title:
+                return True
+    return False
 
 
 def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str]) -> Tuple[Optional[float], int, Optional[str], List[dict]]:
@@ -81,11 +108,11 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
     min_price_mall = None
     valid_items = []
 
-    excluded_malls = ["화성스토어-TCG-", "카드 베이스", "네이버", "쿠팡"]
+    excluded_malls = ["네이버", "쿠팡"]
     excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
 
     is_mirror_rarity = rarity in MIRROR_RARITIES
-    is_c_rarity = rarity == 'C'
+    is_general_rarity = rarity in GENERAL_RARITIES
 
     print(f"\n📋 필터링 상세 로그 (총 {len(items)}개):")
 
@@ -123,16 +150,28 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
 
         # ── 레어도 필터링 ──
 
-        # 1) C 레어도: EXCLUDED_RARITIES 무관하게 미러 키워드 항상 체크
-        if is_c_rarity:
-            mirror_title_keywords = ['미러', '몬스터볼', '마스터볼']
-            if any(kw in clean_title for kw in mirror_title_keywords):
-                print(f"    ❌ C 레어도인데 미러 키워드 포함")
+        if is_general_rarity:
+            # 일반 레어도 (C / U / R / RR / RRR) 공통 처리
+            # 고레어 키워드가 포함된 상품 제외
+            if _has_high_rarity_keyword(clean_title):
+                print(f"    ❌ 일반 레어도 '{rarity}'인데 고레어 키워드 포함")
                 continue
+
+            # R / RR / RRR: 상위 레어도 키워드 추가 체크 (단어 경계 정규식)
+            higher = HIGHER_RARITIES.get(rarity, [])
+            if higher:
+                if any(
+                    re.search(r'(?<![A-Za-z0-9])' + re.escape(h) + r'(?![A-Za-z0-9])', clean_title)
+                    for h in higher
+                ):
+                    print(f"    ❌ 레어도 '{rarity}'인데 상위 레어도 키워드 포함")
+                    continue
+
+            print(f"    ✅ 일반 레어도 '{rarity}' 통과")
 
         elif rarity and rarity not in EXCLUDED_RARITIES:
 
-            # 2) 미러 계열 레어도
+            # 미러 계열 레어도
             if is_mirror_rarity:
                 required_kw = MIRROR_KEYWORDS.get(rarity)
                 if required_kw:
@@ -146,34 +185,20 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
                             continue
                 print(f"    ✅ 미러 레어도 '{rarity}' 일치")
 
-            # 3) MUR
+            # MUR
             elif rarity == 'MUR':
                 if 'MUR' not in clean_title.upper():
                     print(f"    ❌ MUR 레어도 불일치")
                     continue
                 print(f"    ✅ MUR 레어도 일치")
 
-            # 4) 일반 레어도 — 단어 경계 매칭
+            # 그 외 특수 레어도 — 단어 경계 매칭
             else:
-                # 레어도가 정확히 매칭되어야 함 (RR이 RRR에 포함되는 문제 방지)
-                import re as _re
-                # 레어도 앞뒤가 알파벳/숫자가 아닌 경우만 매칭
-                pattern = r'(?<![A-Za-z0-9])' + _re.escape(rarity) + r'(?![A-Za-z0-9])'
-                if not _re.search(pattern, clean_title):
+                pattern = r'(?<![A-Za-z0-9])' + re.escape(rarity) + r'(?![A-Za-z0-9])'
+                if not re.search(pattern, clean_title):
                     print(f"    ❌ 레어도 '{rarity}' 불일치 (정확 매칭)")
                     continue
-
-                # 상위 레어도 키워드가 포함되어 있으면 제외
-                # 예: RR 카드인데 SAR, SR, CSR, HR 등이 상품명에 있으면 제외
-                HIGHER_RARITIES = {
-                    'R':   ['RR', 'RRR', 'SR', 'SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR', 'AR', 'CHR', 'BWR'],
-                    'RR':  ['RRR', 'SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR'],
-                    'RRR': ['SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR'],
-                }
-                higher = HIGHER_RARITIES.get(rarity, [])
-                if any(_re.search(r'(?<![A-Za-z0-9])' + _re.escape(h) + r'(?![A-Za-z0-9])', clean_title) for h in higher):
-                    print(f"    ❌ 레어도 '{rarity}' 인데 상위 레어도 키워드 포함")
-                    continue
+                print(f"    ✅ 레어도 '{rarity}' 일치")
 
         valid_count += 1
         valid_items.append(item)

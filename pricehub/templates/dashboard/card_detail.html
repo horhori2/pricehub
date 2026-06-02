@@ -294,6 +294,18 @@
       {% endif %}
     </div>
   </div>
+
+  <!-- ── 최근 1주일 샵별 가격 변화 차트 ── -->
+  <div class="section" style="margin-top:0;" id="weeklyChartSection">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h2 style="margin:0;">📈 최근 1주일 샵별 가격 변화</h2>
+      <div style="display:flex;gap:8px;align-items:center;" id="shopFilterWrap"></div>
+    </div>
+    <div id="weeklyChartEmpty" style="display:none;text-align:center;padding:60px;color:var(--text-muted);font-size:14px;">
+      최근 1주일간 수집된 데이터가 없습니다.
+    </div>
+    <canvas id="weeklyChart" style="max-height:320px;"></canvas>
+  </div>
 </main>
 
 <script>
@@ -421,6 +433,145 @@ async function savePrice() {
 document.getElementById('sellingPriceInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') savePrice();
 });
+
+
+// ── 1주일 차트 데이터 ─────────────────────────────────────
+const PRICE_HISTORY_WEEK = {{ price_history_week_json|safe }};
+ 
+(function() {
+  if (!PRICE_HISTORY_WEEK || !PRICE_HISTORY_WEEK.length) {
+    document.getElementById('weeklyChartEmpty').style.display = 'block';
+    document.getElementById('weeklyChart').style.display = 'none';
+    return;
+  }
+ 
+  // 전체 샵 목록 추출
+  const shopSet = new Set();
+  PRICE_HISTORY_WEEK.forEach(p => {
+    (p.raw_data || []).forEach(item => {
+      if (item.mallName) shopSet.add(item.mallName);
+    });
+  });
+  const allShops = [...shopSet];
+ 
+  // 색상 팔레트
+  const PALETTE = [
+    '#6c63ff','#4ade80','#fbbf24','#f87171','#60a5fa',
+    '#a78bfa','#34d399','#fb923c','#e879f9','#38bdf8',
+    '#facc15','#f472b6','#818cf8','#2dd4bf','#c084fc',
+  ];
+ 
+  // 날짜 라벨
+  const labels = PRICE_HISTORY_WEEK.map(p => p.date);
+ 
+  // 샵별 데이터셋 생성
+  const datasets = allShops.map((shop, idx) => {
+    const color = PALETTE[idx % PALETTE.length];
+    const data = PRICE_HISTORY_WEEK.map(p => {
+      const item = (p.raw_data || []).find(i => i.mallName === shop);
+      return item ? parseInt(item.lprice) : null;
+    });
+    return {
+      label: shop,
+      data,
+      borderColor: color,
+      backgroundColor: color + '22',
+      pointBackgroundColor: color,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      borderWidth: 2,
+      tension: 0.3,
+      spanGaps: true,  // 데이터 없는 구간 연결
+    };
+  });
+ 
+  // 샵 토글 버튼
+  const filterWrap = document.getElementById('shopFilterWrap');
+  const hiddenShops = new Set();
+ 
+  function renderFilterBtns(chart) {
+    filterWrap.innerHTML = '';
+ 
+    // 전체 토글
+    const allBtn = document.createElement('button');
+    allBtn.textContent = '전체';
+    allBtn.style.cssText = `padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;border:1px solid var(--border2);background:var(--accent2);color:#fff;cursor:pointer;font-family:inherit;`;
+    allBtn.onclick = () => {
+      hiddenShops.clear();
+      chart.data.datasets.forEach((_, i) => chart.setDatasetVisibility(i, true));
+      chart.update();
+      renderFilterBtns(chart);
+    };
+    filterWrap.appendChild(allBtn);
+ 
+    allShops.forEach((shop, idx) => {
+      const color = PALETTE[idx % PALETTE.length];
+      const btn = document.createElement('button');
+      btn.textContent = shop;
+      const hidden = hiddenShops.has(shop);
+      btn.style.cssText = `padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;
+        border:1px solid ${color};
+        background:${hidden ? 'none' : color + '22'};
+        color:${hidden ? 'var(--text-muted)' : color};
+        cursor:pointer;font-family:inherit;transition:all 0.15s;`;
+      btn.onclick = () => {
+        if (hiddenShops.has(shop)) {
+          hiddenShops.delete(shop);
+          chart.setDatasetVisibility(idx, true);
+        } else {
+          hiddenShops.add(shop);
+          chart.setDatasetVisibility(idx, false);
+        }
+        chart.update();
+        renderFilterBtns(chart);
+      };
+      filterWrap.appendChild(btn);
+    });
+  }
+ 
+  const ctx = document.getElementById('weeklyChart').getContext('2d');
+  const weeklyChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: '#2a2d3a',
+          borderWidth: 1,
+          titleColor: '#e8e9f0',
+          bodyColor: '#9ca3af',
+          padding: 12,
+          callbacks: {
+            label: ctx => {
+              if (ctx.parsed.y === null) return null;
+              return `  ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}원`;
+            }
+          }
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#6b6f85', font: { size: 10 }, maxRotation: 30 },
+          grid: { color: 'rgba(42,45,58,0.6)' },
+        },
+        y: {
+          ticks: {
+            color: '#6b6f85',
+            font: { size: 11 },
+            callback: v => v.toLocaleString() + '원',
+          },
+          grid: { color: 'rgba(42,45,58,0.8)' },
+        }
+      },
+    }
+  });
+ 
+  renderFilterBtns(weeklyChart);
+})();
 </script>
 </body>
 </html>

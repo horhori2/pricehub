@@ -23,6 +23,9 @@ from .models import (
     JapanExpansion, JapanCard, JapanCardPrice,
 )
 
+from django.utils import timezone
+from datetime import timedelta
+
 
 OUR_SHOPS = ['화성스토어-TCG-', '카드 베이스']
 
@@ -130,6 +133,8 @@ def pokemon_kr_expansion_list(request):
         'card_search_url': '/dashboard/pokemon/kr/cards/search/',
         'card_detail_base_url': '/dashboard/pokemon/kr/cards/',
         'bulk_issues_url': '/dashboard/pokemon/kr/bulk-price/issues/',
+        'reset_prices_url_prefix': '/dashboard/pokemon/kr/expansions/',
+        'reset_all_url': '/dashboard/pokemon/kr/reset-all-prices/',
     })
 
 
@@ -167,6 +172,15 @@ def pokemon_kr_card_detail(request, pk):
     card = get_object_or_404(Card.objects.select_related('expansion'), pk=pk)
     latest_price_obj = card.prices.order_by('-collected_at').first()
     market_items, stats = _parse_market_items(latest_price_obj)
+     # 최근 1주일 가격 이력
+    one_week_ago = timezone.now() - timedelta(days=7)
+    price_history_week = list(
+        card.prices
+        .filter(collected_at__gte=one_week_ago)
+        .order_by('collected_at')
+        .values('collected_at', 'raw_data')
+    )
+
     return render(request, 'dashboard/card_detail.html', {
         'card': card,
         'card_type': 'pokemon_kr',
@@ -182,6 +196,16 @@ def pokemon_kr_card_detail(request, pk):
             (card.expansion.name, f'/dashboard/pokemon/kr/expansions/{card.expansion.code}/cards/'),
             (card.name, None),
         ],
+        'price_history_week_json': json.dumps(
+            [
+                {
+                    'date': p['collected_at'].strftime('%m/%d %H:%M'),
+                    'raw_data': p['raw_data'] if isinstance(p['raw_data'], list) else [],
+                }
+                for p in price_history_week
+            ],
+            ensure_ascii=False
+        ),
     })
 
 
@@ -233,6 +257,12 @@ def pokemon_kr_card_search(request):
 @require_POST
 def pokemon_kr_reset_prices(request, expansion_code):
     count = Card.objects.filter(expansion__code=expansion_code).update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
+@staff_required
+@require_POST
+def pokemon_kr_reset_all_prices(request):
+    count = Card.objects.all().update(selling_price=0)
     return JsonResponse({'success': True, 'count': count})
 
 
@@ -346,6 +376,8 @@ def onepiece_kr_expansion_list(request):
         'card_search_url': '/dashboard/onepiece/kr/cards/search/',
         'card_detail_base_url': '/dashboard/onepiece/kr/cards/',
         'bulk_issues_url': '/dashboard/onepiece/kr/bulk-price/issues/',
+        'reset_prices_url_prefix': '/dashboard/onepiece/kr/expansions/',
+        'reset_all_url': '/dashboard/onepiece/kr/reset-all-prices/',
     })
 
 
@@ -383,6 +415,16 @@ def onepiece_kr_card_detail(request, pk):
     card = get_object_or_404(OnePieceCard.objects.select_related('expansion'), pk=pk)
     latest_price_obj = card.prices.order_by('-collected_at').first()
     market_items, stats = _parse_market_items(latest_price_obj)
+
+    # 최근 1주일 가격 이력
+    one_week_ago = timezone.now() - timedelta(days=7)
+    price_history_week = list(
+        card.prices
+        .filter(collected_at__gte=one_week_ago)
+        .order_by('collected_at')
+        .values('collected_at', 'raw_data')
+    )
+
     return render(request, 'dashboard/card_detail.html', {
         'card': card,
         'card_type': 'onepiece_kr',
@@ -392,6 +434,16 @@ def onepiece_kr_card_detail(request, pk):
         'stats': stats,
         'set_price_url': f'/dashboard/onepiece/kr/cards/{pk}/set-price/',
         'back_url': f'/dashboard/onepiece/kr/expansions/{card.expansion.code}/cards/',
+        'price_history_week_json': json.dumps(
+            [
+                {
+                    'date': p['collected_at'].strftime('%m/%d %H:%M'),
+                    'raw_data': p['raw_data'] if isinstance(p['raw_data'], list) else [],
+                }
+                for p in price_history_week
+            ],
+            ensure_ascii=False
+        ),
         'breadcrumb': [
             ('홈', '/dashboard/'),
             ('원피스 한글판', '/dashboard/onepiece/kr/expansions/'),
@@ -399,7 +451,6 @@ def onepiece_kr_card_detail(request, pk):
             (card.name, None),
         ],
     })
-
 
 @staff_required
 @require_POST
@@ -410,6 +461,12 @@ def onepiece_kr_set_price(request, pk):
 @require_POST
 def onepiece_kr_reset_prices(request, expansion_code):
     count = OnePieceCard.objects.filter(expansion__code=expansion_code).update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
+@staff_required
+@require_POST
+def onepiece_kr_reset_all_prices(request):
+    count = OnePieceCard.objects.all().update(selling_price=0)
     return JsonResponse({'success': True, 'count': count})
 
 

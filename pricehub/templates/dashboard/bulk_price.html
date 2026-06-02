@@ -454,6 +454,13 @@ async function runBulk() {
     document.getElementById('rSet').textContent = data.set_count.toLocaleString();
     document.getElementById('rReview').textContent = data.needs_review_count.toLocaleString();
     document.getElementById('rSkip').textContent = data.skipped_count.toLocaleString();
+
+    const expansionCode = document.getElementById('expansionSelect').value;
+    const issuesUrl = expansionCode
+      ? `{{ config.bulk_issues_url }}?expansion=${expansionCode}`
+      : '{{ config.bulk_issues_url }}';
+    document.getElementById('btnIssues').href = issuesUrl;
+
     if (data.needs_review_count === 0) document.getElementById('btnIssues').style.display = 'none';
     document.getElementById('resultBox').classList.add('show');
   } catch(e) { alert('오류: ' + e.message); }

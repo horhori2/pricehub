@@ -103,7 +103,7 @@ def filter_onepiece_items(items: List[dict], card_number: str, rarity: str) -> T
     min_price_mall = None
     
     # 제외할 판매처
-    excluded_malls = ["화성스토어-TCG-", "카드 베이스", "네이버", "쿠팡"]
+    excluded_malls = ["네이버", "쿠팡"]
     
     # 제외 키워드
     excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']

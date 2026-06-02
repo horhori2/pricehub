@@ -28,11 +28,9 @@
   .logout-btn:hover { color: var(--danger); border-color: var(--danger); }
 
   main { max-width: 1100px; margin: 0 auto; padding: 36px 28px; }
-
   .page-title { font-size: 26px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 4px; }
   .page-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; }
 
-  /* 통계 */
   .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
   .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 22px; }
   .stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; font-family: 'JetBrains Mono', monospace; }
@@ -40,64 +38,24 @@
   .stat-value.green { color: var(--success); }
   .stat-value.yellow { color: var(--warning); }
 
-  /* 액션 바 */
   .action-bar { display: flex; gap: 12px; margin-bottom: 28px; align-items: center; flex-wrap: wrap; }
-
-  /* 검색 박스 */
-  .search-box {
-    display: flex; align-items: center; gap: 0;
-    background: var(--surface); border: 1px solid var(--border2);
-    border-radius: 10px; overflow: hidden; flex: 1; max-width: 400px;
-    transition: border-color 0.15s;
-  }
+  .search-box { display: flex; align-items: center; background: var(--surface); border: 1px solid var(--border2); border-radius: 10px; overflow: hidden; flex: 1; max-width: 400px; transition: border-color 0.15s; }
   .search-box:focus-within { border-color: var(--accent2); }
-  .search-input {
-    flex: 1; padding: 9px 14px; background: none; border: none;
-    color: var(--text); font-family: inherit; font-size: 14px; outline: none;
-  }
+  .search-input { flex: 1; padding: 9px 14px; background: none; border: none; color: var(--text); font-family: inherit; font-size: 14px; outline: none; }
   .search-input::placeholder { color: var(--text-dim); }
-  .search-btn {
-    padding: 9px 16px; background: var(--accent2); border: none;
-    color: #fff; font-family: inherit; font-size: 13px; font-weight: 700;
-    cursor: pointer; transition: background 0.15s; white-space: nowrap;
-  }
+  .search-btn { padding: 9px 16px; background: var(--accent2); border: none; color: #fff; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
   .search-btn:hover { background: #6b5aee; }
-  .search-clear {
-    padding: 9px 12px; background: none; border: none; border-left: 1px solid var(--border);
-    color: var(--text-muted); cursor: pointer; font-size: 16px; transition: color 0.15s;
-    display: none;
-  }
+  .search-clear { padding: 9px 12px; background: none; border: none; border-left: 1px solid var(--border); color: var(--text-muted); cursor: pointer; font-size: 16px; transition: color 0.15s; display: none; }
   .search-clear:hover { color: var(--danger); }
-
-  /* 일괄 버튼 */
-  .bulk-btn {
-    display: inline-flex; align-items: center; gap: 8px;
-    padding: 9px 20px; border-radius: 10px;
-    background: linear-gradient(135deg,rgba(124,107,255,0.15),rgba(91,141,239,0.1));
-    border: 1px solid var(--accent2); color: var(--accent2);
-    text-decoration: none; font-size: 13px; font-weight: 700;
-    transition: all 0.15s; white-space: nowrap;
-  }
+  .bulk-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 20px; border-radius: 10px; background: linear-gradient(135deg,rgba(124,107,255,0.15),rgba(91,141,239,0.1)); border: 1px solid var(--accent2); color: var(--accent2); text-decoration: none; font-size: 13px; font-weight: 700; transition: all 0.15s; white-space: nowrap; }
   .bulk-btn:hover { background: linear-gradient(135deg,rgba(124,107,255,0.25),rgba(91,141,239,0.2)); transform: translateY(-1px); }
 
-  /* 검색 결과 */
-  .search-results {
-    display: none; background: var(--surface); border: 1px solid var(--border2);
-    border-radius: 14px; margin-bottom: 24px; overflow: hidden;
-  }
+  .search-results { display: none; background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; margin-bottom: 24px; overflow: hidden; }
   .search-results.show { display: block; }
-  .search-results-header {
-    padding: 14px 20px; border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: space-between;
-  }
+  .search-results-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
   .search-results-title { font-size: 13px; font-weight: 700; color: var(--text-muted); }
   .search-results-count { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--accent2); }
-
-  .search-result-item {
-    display: flex; align-items: center; gap: 14px;
-    padding: 12px 20px; border-bottom: 1px solid var(--border);
-    transition: background 0.1s; text-decoration: none; color: inherit;
-  }
+  .search-result-item { display: flex; align-items: center; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--border); transition: background 0.1s; text-decoration: none; color: inherit; }
   .search-result-item:last-child { border-bottom: none; }
   .search-result-item:hover { background: var(--surface2); }
   .result-thumb { width: 40px; height: 40px; object-fit: contain; border-radius: 5px; background: var(--surface2); border: 1px solid var(--border); flex-shrink: 0; }
@@ -109,7 +67,6 @@
   .result-selling-price { font-size: 14px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--success); }
   .result-selling-price.unset { color: var(--warning); font-size: 12px; }
   .result-market-price { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-top: 2px; }
-
   .search-empty { padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
   .search-loading { padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px; }
   .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid var(--border2); border-top-color: var(--accent2); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
@@ -117,8 +74,9 @@
 
   /* 확장팩 그리드 */
   .expansion-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-  .expansion-card { display: block; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; transition: all 0.15s; }
+  .expansion-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; transition: all 0.15s; position: relative; }
   .expansion-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+  .exp-link { display: block; text-decoration: none; color: inherit; }
   .exp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
   .exp-code { font-size: 11px; color: var(--accent2); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; }
   .exp-name { font-size: 15px; font-weight: 700; }
@@ -132,6 +90,25 @@
   .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; }
   .progress-fill.complete { background: var(--success); }
   .progress-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+
+  /* 확장팩 카드 하단 버튼 영역 */
+  .exp-footer { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .exp-reset-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--danger); background: rgba(240,96,96,0.06); color: var(--danger); font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all 0.15s; }
+  .exp-reset-btn:hover { background: rgba(240,96,96,0.15); }
+
+  /* 모달 */
+  .modal-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); align-items: center; justify-content: center; }
+  .modal-overlay.show { display: flex; }
+  .modal-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 28px; width: 360px; }
+  .modal-icon { font-size: 32px; margin-bottom: 12px; }
+  .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .modal-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
+  .modal-btns { display: flex; gap: 8px; }
+  .modal-cancel { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border2); background: none; color: var(--text-muted); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .modal-cancel:hover { border-color: var(--text-muted); color: var(--text); }
+  .modal-confirm { flex: 1; padding: 10px; border-radius: 8px; border: none; background: var(--danger); color: #fff; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+  .modal-confirm:hover { opacity: 0.85; }
+  .modal-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 </head>
 <body>
@@ -162,9 +139,9 @@
       <div class="stat-value green">{{ total_cards }}</div>
     </div>
     <a href="{{ bulk_issues_url }}" class="stat-card"
-      style="text-decoration:none;display:block;transition:all 0.15s;"
-      onmouseover="this.style.borderColor='var(--warning)'"
-      onmouseout="this.style.borderColor='var(--border)'">
+       style="text-decoration:none;display:block;transition:all 0.15s;"
+       onmouseover="this.style.borderColor='var(--warning)'"
+       onmouseout="this.style.borderColor='var(--border)'">
       <div class="stat-label">판매가 미설정 →</div>
       <div class="stat-value yellow">{{ total_unpriced }}</div>
     </a>
@@ -172,20 +149,24 @@
 
   <!-- 액션 바 -->
   <div class="action-bar" style="justify-content:space-between;">
-    <!-- 왼쪽: 검색 -->
     <div class="search-box">
       <input type="text" class="search-input" id="cardSearchInput"
-            placeholder="카드명 검색... (예: 리자몽)"
-            oninput="onSearchInput(this.value)"
-            onkeydown="if(event.key==='Enter') searchCards()">
+             placeholder="카드명 검색... (예: 리자몽)"
+             oninput="onSearchInput(this.value)"
+             onkeydown="if(event.key==='Enter') searchCards()">
       <button class="search-clear" id="searchClear" onclick="clearSearch()">×</button>
       <button class="search-btn" onclick="searchCards()">🔍 검색</button>
     </div>
-
-    <!-- 오른쪽: 일괄 버튼 -->
-    <a href="{{ bulk_price_url }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="bulk-btn"
+              style="background:rgba(240,96,96,0.08);border-color:var(--danger);color:var(--danger);"
+              onclick="showResetAllModal()">
+        🗑 전체 초기화
+      </button>
+      <a href="{{ bulk_price_url }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
+    </div>
   </div>
-  
+
   <!-- 검색 결과 -->
   <div class="search-results" id="searchResults">
     <div class="search-results-header">
@@ -198,114 +179,226 @@
   <!-- 확장팩 그리드 -->
   <div class="expansion-grid">
     {% for expansion in expansions %}
-    <a href="{{ base_url }}/expansions/{{ expansion.code }}/cards/" class="expansion-card">
-      <div class="exp-header">
-        <div>
-          <div class="exp-code">{{ expansion.code }}</div>
-          <div class="exp-name">{{ expansion.name }}</div>
-          <div class="exp-date">{% if expansion.release_date %}{{ expansion.release_date|date:"Y.m.d" }}{% endif %}</div>
+    <div class="expansion-card">
+      <!-- 카드 링크 영역 -->
+      <a href="{{ base_url }}/expansions/{{ expansion.code }}/cards/" class="exp-link">
+        <div class="exp-header">
+          <div>
+            <div class="exp-code">{{ expansion.code }}</div>
+            <div class="exp-name">{{ expansion.name }}</div>
+            <div class="exp-date">{% if expansion.release_date %}{{ expansion.release_date|date:"Y.m.d" }}{% endif %}</div>
+          </div>
+          {% if expansion.image_url %}
+          <img src="{{ expansion.image_url }}" alt="{{ expansion.name }}" class="exp-image">
+          {% endif %}
         </div>
-        {% if expansion.image_url %}
-        <img src="{{ expansion.image_url }}" alt="{{ expansion.name }}" class="exp-image">
-        {% endif %}
+        <div class="exp-stats">
+          <div class="exp-stat"><span>전체 </span><strong>{{ expansion.card_count }}</strong></div>
+          <div class="exp-stat"><span>미설정 </span><strong>{{ expansion.unpriced_count }}</strong></div>
+        </div>
+        <div class="progress-bar">
+          {% if expansion.card_count > 0 %}
+          {% widthratio expansion.unpriced_count expansion.card_count 100 as up %}
+          <div class="progress-fill {% if expansion.unpriced_count == 0 %}complete{% endif %}"
+               style="width: calc(100% - {{ up }}%)"></div>
+          {% endif %}
+        </div>
+        <div class="progress-label">
+          <span>설정 완료</span>
+          <span>{% if expansion.card_count > 0 %}{% widthratio expansion.unpriced_count expansion.card_count 100 as up %}{{ 100|add:"-"|add:up }}%{% else %}0%{% endif %}</span>
+        </div>
+      </a>
+
+      <!-- 초기화 버튼 -->
+      <div class="exp-footer">
+        <button class="exp-reset-btn"
+                onclick="showResetModal('{{ expansion.code }}', '{{ expansion.name|escapejs }}')"
+                title="{{ expansion.name }} 판매가 초기화">
+          🗑 판매가 초기화
+        </button>
       </div>
-      <div class="exp-stats">
-        <div class="exp-stat"><span>전체 </span><strong>{{ expansion.card_count }}</strong></div>
-        <div class="exp-stat"><span>미설정 </span><strong>{{ expansion.unpriced_count }}</strong></div>
-      </div>
-      <div class="progress-bar">
-        {% if expansion.card_count > 0 %}
-        {% widthratio expansion.unpriced_count expansion.card_count 100 as up %}
-        <div class="progress-fill {% if expansion.unpriced_count == 0 %}complete{% endif %}"
-             style="width: calc(100% - {{ up }}%)"></div>
-        {% endif %}
-      </div>
-      <div class="progress-label">
-        <span>설정 완료</span>
-        <span>{% if expansion.card_count > 0 %}{% widthratio expansion.unpriced_count expansion.card_count 100 as up %}{{ 100|add:"-"|add:up }}%{% else %}0%{% endif %}</span>
-      </div>
-    </a>
+    </div>
     {% endfor %}
   </div>
 </main>
 
-<script>
-const CARD_SEARCH_URL = '{{ card_search_url }}';
-const CARD_DETAIL_BASE_URL = '{{ card_detail_base_url }}';  
-let searchTimer = null;
+<!-- 초기화 모달 -->
+<div class="modal-overlay" id="resetModal" onclick="hideResetModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-icon" id="modalIcon">⚠️</div>
+    <div class="modal-title" id="modalTitle">판매가 초기화</div>
+    <div class="modal-desc" id="modalDesc"></div>
+    <div class="modal-btns" id="modalBtns">
+      <button class="modal-cancel" onclick="hideResetModal()">취소</button>
+      <button class="modal-confirm" id="confirmBtn" onclick="doReset()">초기화</button>
+    </div>
+  </div>
+</div>
 
+<script>
+const CSRF = '{{ csrf_token }}';
+const CARD_SEARCH_URL = '{{ card_search_url }}';
+const CARD_DETAIL_BASE_URL = '{{ card_detail_base_url }}';
+const RESET_URL_PREFIX = '{{ reset_prices_url_prefix }}';  // 예: /dashboard/pokemon/kr/expansions/
+let searchTimer = null;
+let pendingCode = null;
+
+// ── 검색 ──────────────────────────────────────────────────
 function onSearchInput(val) {
   document.getElementById('searchClear').style.display = val ? 'block' : 'none';
   clearTimeout(searchTimer);
   if (!val.trim()) { clearSearch(); return; }
   searchTimer = setTimeout(() => searchCards(), 400);
 }
-
 function clearSearch() {
   document.getElementById('cardSearchInput').value = '';
   document.getElementById('searchClear').style.display = 'none';
   document.getElementById('searchResults').classList.remove('show');
 }
-
 async function searchCards() {
   const q = document.getElementById('cardSearchInput').value.trim();
   if (!q) return;
-
   const results = document.getElementById('searchResults');
   const body    = document.getElementById('searchResultsBody');
   const title   = document.getElementById('searchResultsTitle');
   const count   = document.getElementById('searchResultsCount');
-
   results.classList.add('show');
   title.textContent = `"${q}" 검색 결과`;
   body.innerHTML = '<div class="search-loading"><span class="spinner"></span>검색 중...</div>';
   count.textContent = '';
-
   try {
     const res  = await fetch(`${CARD_SEARCH_URL}?name=${encodeURIComponent(q)}&page_size=30`);
     const data = await res.json();
     const cards = data.results || data;
-
     if (!cards.length) {
       body.innerHTML = `<div class="search-empty">검색 결과가 없습니다.</div>`;
       count.textContent = '0개';
       return;
     }
-
     count.textContent = `${cards.length}개`;
-    body.innerHTML = cards.map(card => {
-      const sellingPrice = card.selling_price && card.selling_price > 0
-        ? `<div class="result-selling-price">${parseInt(card.selling_price).toLocaleString()}원</div>`
+    body.innerHTML = cards.map(item => {
+      const sellingPrice = item.selling_price && item.selling_price > 0
+        ? `<div class="result-selling-price">${parseInt(item.selling_price).toLocaleString()}원</div>`
         : `<div class="result-selling-price unset">미설정</div>`;
-
-      const latestPrice = card.latest_price
-        ? `<div class="result-market-price">시장가 ${parseInt(card.latest_price).toLocaleString()}원</div>`
+      const latestPrice = item.latest_price
+        ? `<div class="result-market-price">시장가 ${parseInt(item.latest_price).toLocaleString()}원</div>`
         : '';
-
-      const detailUrl = `${CARD_DETAIL_BASE_URL}${card.id}/`;
-
-      return `<a href="${detailUrl}" class="search-result-item">
-        ${card.image_url
-          ? `<img src="${card.image_url}" class="result-thumb" loading="lazy">`
+      return `<a href="${CARD_DETAIL_BASE_URL}${item.id}/" class="search-result-item">
+        ${item.image_url
+          ? `<img src="${item.image_url}" class="result-thumb" loading="lazy">`
           : `<div class="result-thumb" style="display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>`}
         <div class="result-info">
-          <div class="result-name">${card.name}</div>
+          <div class="result-name">${item.name}</div>
           <div class="result-meta">
-            <span class="result-rarity">${card.rarity}</span>
-            ${card.expansion?.name || card.expansion_name || ''} · No.${card.card_number}
+            <span class="result-rarity">${item.rarity}</span>
+            ${item.expansion?.name || ''} · No.${item.card_number}
           </div>
         </div>
-        <div class="result-price">
-          ${sellingPrice}
-          ${latestPrice}
-        </div>
+        <div class="result-price">${sellingPrice}${latestPrice}</div>
       </a>`;
     }).join('');
-
   } catch(e) {
     body.innerHTML = `<div class="search-empty">검색 중 오류가 발생했습니다.</div>`;
   }
 }
+
+// ── 초기화 모달 ───────────────────────────────────────────
+function showResetModal(code, name) {
+  pendingCode = code;
+  document.getElementById('modalIcon').textContent = '⚠️';
+  document.getElementById('modalTitle').textContent = '판매가 초기화';
+  document.getElementById('modalDesc').innerHTML =
+    `<strong>${name}</strong>의 모든 카드 판매가를 초기화하시겠습니까?<br>설정된 판매가가 전부 미설정(0)으로 변경됩니다.`;
+  document.getElementById('modalBtns').innerHTML =
+    `<button class="modal-cancel" onclick="hideResetModal()">취소</button>
+     <button class="modal-confirm" id="confirmBtn" onclick="doReset()">초기화</button>`;
+  document.getElementById('resetModal').classList.add('show');
+}
+function hideResetModal() {
+  document.getElementById('resetModal').classList.remove('show');
+  pendingCode = null;
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideResetModal(); });
+
+async function doReset() {
+  if (!pendingCode) return;
+  document.getElementById('confirmBtn').disabled = true;
+  document.getElementById('confirmBtn').textContent = '초기화 중...';
+  try {
+    const res = await fetch(`${RESET_URL_PREFIX}${pendingCode}/reset-prices/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('modalIcon').textContent = '✅';
+      document.getElementById('modalTitle').textContent = '초기화 완료';
+      document.getElementById('modalDesc').innerHTML = `<strong>${data.count}개</strong> 카드의 판매가가 초기화됐습니다.`;
+      document.getElementById('modalBtns').innerHTML =
+        `<button class="modal-confirm" onclick="location.reload()" style="background:var(--success);">확인</button>`;
+    } else {
+      document.getElementById('modalIcon').textContent = '❌';
+      document.getElementById('modalTitle').textContent = '오류 발생';
+      document.getElementById('modalDesc').textContent = data.error || '알 수 없는 오류';
+      document.getElementById('modalBtns').innerHTML =
+        `<button class="modal-cancel" onclick="hideResetModal()">닫기</button>`;
+    }
+  } catch(e) {
+    document.getElementById('modalIcon').textContent = '❌';
+    document.getElementById('modalTitle').textContent = '네트워크 오류';
+    document.getElementById('modalDesc').textContent = '서버와 통신 중 오류가 발생했습니다.';
+    document.getElementById('modalBtns').innerHTML =
+      `<button class="modal-cancel" onclick="hideResetModal()">닫기</button>`;
+  }
+}
+
+const RESET_ALL_URL = '{{ reset_all_url }}';
+
+function showResetAllModal() {
+  pendingCode = '__all__';
+  document.getElementById('modalIcon').textContent = '⚠️';
+  document.getElementById('modalTitle').textContent = '전체 판매가 초기화';
+  document.getElementById('modalDesc').innerHTML =
+    `<strong>{{ title }} 전체</strong> 확장팩의 모든 카드 판매가를 초기화하시겠습니까?<br>
+     <span style="color:var(--danger);font-weight:700;">이 작업은 되돌릴 수 없습니다.</span>`;
+  document.getElementById('modalBtns').innerHTML =
+    `<button class="modal-cancel" onclick="hideResetModal()">취소</button>
+     <button class="modal-confirm" id="confirmBtn" onclick="doResetAll()">전체 초기화</button>`;
+  document.getElementById('resetModal').classList.add('show');
+}
+
+async function doResetAll() {
+  document.getElementById('confirmBtn').disabled = true;
+  document.getElementById('confirmBtn').textContent = '초기화 중...';
+  try {
+    const res = await fetch(RESET_ALL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('modalIcon').textContent = '✅';
+      document.getElementById('modalTitle').textContent = '초기화 완료';
+      document.getElementById('modalDesc').innerHTML = `<strong>${data.count}개</strong> 카드의 판매가가 초기화됐습니다.`;
+      document.getElementById('modalBtns').innerHTML =
+        `<button class="modal-confirm" onclick="location.reload()" style="background:var(--success);">확인</button>`;
+    } else {
+      document.getElementById('modalIcon').textContent = '❌';
+      document.getElementById('modalTitle').textContent = '오류 발생';
+      document.getElementById('modalDesc').textContent = data.error || '알 수 없는 오류';
+      document.getElementById('modalBtns').innerHTML =
+        `<button class="modal-cancel" onclick="hideResetModal()">닫기</button>`;
+    }
+  } catch(e) {
+    document.getElementById('modalIcon').textContent = '❌';
+    document.getElementById('modalTitle').textContent = '네트워크 오류';
+    document.getElementById('modalDesc').textContent = '서버와 통신 중 오류가 발생했습니다.';
+    document.getElementById('modalBtns').innerHTML =
+      `<button class="modal-cancel" onclick="hideResetModal()">닫기</button>`;
+  }
+}
+
+
 </script>
 </body>
 </html>
