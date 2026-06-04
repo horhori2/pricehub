@@ -36,7 +36,7 @@ def collect_prices_for_all_cards():
         try:
             print(f"[{idx}/{total_cards}] {card.name} ({card.card_number}) - {card.expansion.name}")
 
-            if card.rarity and card.rarity.startswith('SP-'):
+            if card.rarity == 'SP':
                 print(f"  🔍 SP 카드 - 검색어: SP {card.card_number}")
             elif card.is_manga:
                 print(f"  🎨 망가 카드 - 검색어: 망가 {card.card_number}")

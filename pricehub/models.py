@@ -198,26 +198,20 @@ class OnePieceCard(models.Model):
     RARITY_CHOICES = [
         ('SEC', 'SEC'),
         ('SL', 'SL'),
-        ('SP', 'SP'),
+        ('SP', 'SP'),   # SP-* 전부 이걸로 통일
         ('SR', 'SR'),
         ('L', 'L'),
         ('R', 'R'),
         ('UC', 'UC'),
         ('C', 'C'),
         ('P', 'P'),
-        # P-, SP- 접두어 레어도
         ('P-SEC', 'P-SEC'),
         ('P-SR', 'P-SR'),
         ('P-L', 'P-L'),
         ('P-R', 'P-R'),
         ('P-UC', 'P-UC'),
         ('P-C', 'P-C'),
-        ('SP-SEC', 'SP-SEC'),
-        ('SP-SR', 'SP-SR'),
-        ('SP-L', 'SP-L'),
-        ('SP-R', 'SP-R'),
-        ('SP-UC', 'SP-UC'),
-        ('SP-C', 'SP-C'),
+        # SP-SEC, SP-SR, SP-L, SP-R, SP-UC, SP-C 제거
     ]
     
     expansion = models.ForeignKey(OnePieceExpansion, on_delete=models.CASCADE, related_name='cards', verbose_name="확장팩")
@@ -241,6 +235,17 @@ class OnePieceCard(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.card_number}) - {self.expansion.name}"
+    
+    @staticmethod
+    def normalize_rarity(rarity: str) -> str:
+        """SP-* 레어도를 전부 'SP'로 정규화"""
+        if rarity and rarity.startswith('SP-'):
+            return 'SP'
+        return rarity
+
+    def save(self, *args, **kwargs):
+        self.rarity = self.normalize_rarity(self.rarity)
+        super().save(*args, **kwargs)
 
 class OnePieceCardPrice(models.Model):
     """원피스 카드 일반 최저가"""

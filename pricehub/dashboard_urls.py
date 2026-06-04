@@ -1,66 +1,127 @@
 """
 pricehub/dashboard_urls.py
 """
-from django.urls import path
-from . import dashboard_views
+from django.urls import path, include
+from . import views as v
+
+# ── 헬퍼: 카테고리별 URL 패턴 생성 ─────────────────────────────────
+def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False, has_search=False, has_reset=False):
+    """
+    공통 카드 URL 패턴을 생성합니다.
+
+    Args:
+        prefix:         URL/name 접두어  ex) 'pokemon/kr', 'onepiece/kr'
+        views:          해당 prefix에 대응하는 view 함수 딕셔너리
+                        keys: expansion_list, card_list, card_detail,
+                              set_price, [search], [reset_prices],
+                              [reset_all], [bulk_price], [bulk_run],
+                              [bulk_issues], [shop_stats], [shop_stats_detail]
+        has_bulk:       bulk-price 3종 세트 포함 여부
+        has_shop_stats: shop-stats 2종 포함 여부
+        has_search:     카드 검색 엔드포인트 포함 여부
+        has_reset:      reset-prices / reset-all-prices 포함 여부
+    """
+    name = prefix.replace('/', '-')   # 'pokemon/kr' → 'pokemon-kr'
+
+    patterns = [
+        path('expansions/',
+             views['expansion_list'],
+             name=f'{name}-expansions'),
+        path('expansions/<str:code>/cards/',
+             views['card_list'],
+             name=f'{name}-card-list'),
+        path('cards/<int:pk>/',
+             views['card_detail'],
+             name=f'{name}-card-detail'),
+        path('cards/<int:pk>/set-price/',
+             views['set_price'],
+             name=f'{name}-set-price'),
+    ]
+
+    if has_search:
+        patterns.append(
+            path('cards/search/', views['search'], name=f'{name}-card-search')
+        )
+    if has_reset:
+        patterns += [
+            path('expansions/<str:expansion_code>/reset-prices/',
+                 views['reset_prices'],
+                 name=f'{name}-reset-prices'),
+            path('reset-all-prices/',
+                 views['reset_all'],
+                 name=f'{name}-reset-all-prices'),
+        ]
+    if has_bulk:
+        patterns += [
+            path('bulk-price/',        views['bulk_price'],  name=f'{name}-bulk-price'),
+            path('bulk-price/run/',    views['bulk_run'],    name=f'{name}-bulk-run'),
+            path('bulk-price/issues/', views['bulk_issues'], name=f'{name}-bulk-issues'),
+        ]
+    if has_shop_stats:
+        patterns += [
+            path('shop-stats/',             views['shop_stats'],        name=f'{name}-shop-stats'),
+            path('shop-stats/<str:code>/',  views['shop_stats_detail'], name=f'{name}-shop-stats-detail'),
+        ]
+
+    return [path(f'{prefix}/', include(patterns))]
+
+
+# ── 카테고리별 뷰 매핑 ────────────────────────────────────────────
+
+_pokemon_kr_views = {
+    'expansion_list':   v.pokemon_kr_expansion_list,
+    'card_list':        v.pokemon_kr_card_list,
+    'card_detail':      v.pokemon_kr_card_detail,
+    'set_price':        v.pokemon_kr_set_price,
+    'search':           v.pokemon_kr_card_search,
+    'reset_prices':     v.pokemon_kr_reset_prices,
+    'reset_all':        v.pokemon_kr_reset_all_prices,
+    'bulk_price':       v.pokemon_kr_bulk_price,
+    'bulk_run':         v.pokemon_kr_bulk_run,
+    'bulk_issues':      v.pokemon_kr_bulk_issues,
+    'shop_stats':       v.pokemon_kr_shop_stats,
+    'shop_stats_detail': v.pokemon_kr_shop_stats_detail,
+}
+
+_pokemon_jp_views = {
+    'expansion_list':   v.pokemon_jp_expansion_list,
+    'card_list':        v.pokemon_jp_card_list,
+    'card_detail':      v.pokemon_jp_card_detail,
+    'set_price':        v.pokemon_jp_set_price,
+}
+
+_onepiece_kr_views = {
+    'expansion_list':   v.onepiece_kr_expansion_list,
+    'card_list':        v.onepiece_kr_card_list,
+    'card_detail':      v.onepiece_kr_card_detail,
+    'set_price':        v.onepiece_kr_set_price,
+    'search':           v.onepiece_kr_card_search,
+    'reset_prices':     v.onepiece_kr_reset_prices,
+    'reset_all':        v.onepiece_kr_reset_all_prices,
+    'bulk_price':       v.onepiece_kr_bulk_price,
+    'bulk_run':         v.onepiece_kr_bulk_run,
+    'bulk_issues':      v.onepiece_kr_bulk_issues,
+}
+
+
+# ── URL 패턴 조립 ─────────────────────────────────────────────────
 
 urlpatterns = [
-     # 로그인/로그아웃
-     path('login/',  dashboard_views.dashboard_login,  name='dashboard-login'),
-     path('logout/', dashboard_views.dashboard_logout, name='dashboard-logout'),
+    # 로그인/로그아웃
+    path('login/',  v.dashboard_login,  name='dashboard-login'),
+    path('logout/', v.dashboard_logout, name='dashboard-logout'),
 
-     # 홈 (카테고리 선택)
-     path('', dashboard_views.home, name='dashboard-home'),
+    # 홈
+    path('', v.home, name='dashboard-home'),
 
-     # ── 포켓몬 한글판 ──────────────────────────────────────
-     path('pokemon/kr/expansions/',
-          dashboard_views.pokemon_kr_expansion_list, name='pokemon-kr-expansions'),
-     path('pokemon/kr/expansions/<str:code>/cards/',
-          dashboard_views.pokemon_kr_card_list, name='pokemon-kr-card-list'),
-     path('pokemon/kr/cards/<int:pk>/',
-          dashboard_views.pokemon_kr_card_detail, name='pokemon-kr-card-detail'),
-     path('pokemon/kr/cards/<int:pk>/set-price/',
-          dashboard_views.pokemon_kr_set_price, name='pokemon-kr-set-price'),
-     path('pokemon/kr/cards/search/', dashboard_views.pokemon_kr_card_search, name='pokemon-kr-card-search'),
-     path('pokemon/kr/expansions/<str:expansion_code>/reset-prices/',
-     dashboard_views.pokemon_kr_reset_prices,
-     name='pokemon-kr-reset-prices'),
-     path('pokemon/kr/reset-all-prices/', dashboard_views.pokemon_kr_reset_all_prices, name='pokemon-kr-reset-all-prices'),
+    # 포켓몬 한글판 
+    *_card_urls('pokemon/kr', _pokemon_kr_views,
+                has_search=True, has_reset=True, has_bulk=True, has_shop_stats=True),
 
+    # 포켓몬 일본판
+    *_card_urls('pokemon/jp', _pokemon_jp_views),
 
-     # ── 포켓몬 일본판 ──────────────────────────────────────
-     path('pokemon/jp/expansions/',
-          dashboard_views.pokemon_jp_expansion_list, name='pokemon-jp-expansions'),
-     path('pokemon/jp/expansions/<str:code>/cards/',
-          dashboard_views.pokemon_jp_card_list, name='pokemon-jp-card-list'),
-     path('pokemon/jp/cards/<int:pk>/',
-          dashboard_views.pokemon_jp_card_detail, name='pokemon-jp-card-detail'),
-     path('pokemon/jp/cards/<int:pk>/set-price/',
-          dashboard_views.pokemon_jp_set_price, name='pokemon-jp-set-price'),
-
-     # ── 원피스 한글판 ──────────────────────────────────────
-     path('onepiece/kr/expansions/',
-          dashboard_views.onepiece_kr_expansion_list, name='onepiece-kr-expansions'),
-     path('onepiece/kr/expansions/<str:code>/cards/',
-          dashboard_views.onepiece_kr_card_list, name='onepiece-kr-card-list'),
-     path('onepiece/kr/cards/<int:pk>/',
-          dashboard_views.onepiece_kr_card_detail, name='onepiece-kr-card-detail'),
-     path('onepiece/kr/cards/<int:pk>/set-price/',
-          dashboard_views.onepiece_kr_set_price, name='onepiece-kr-set-price'),
-     path('onepiece/kr/cards/search/', dashboard_views.onepiece_kr_card_search, name='onepiece-kr-card-search'),
-     path('onepiece/kr/expansions/<str:expansion_code>/reset-prices/',
-     dashboard_views.onepiece_kr_reset_prices,
-     name='onepiece-kr-reset-prices'),
-     path('onepiece/kr/reset-all-prices/', dashboard_views.onepiece_kr_reset_all_prices, name='onepiece-kr-reset-all-prices'),
-
-     # ── 일괄 가격 설정 ──────────────────────────────────────
-     path('pokemon/kr/bulk-price/',         dashboard_views.pokemon_kr_bulk_price,   name='pokemon-kr-bulk-price'),
-     path('pokemon/kr/bulk-price/run/',     dashboard_views.pokemon_kr_bulk_run,     name='pokemon-kr-bulk-run'),
-     path('pokemon/kr/bulk-price/issues/',  dashboard_views.pokemon_kr_bulk_issues,  name='pokemon-kr-bulk-issues'),
-     path('pokemon/kr/shop-stats/',         dashboard_views.pokemon_kr_shop_stats,        name='pokemon-kr-shop-stats'),
-     path('pokemon/kr/shop-stats/<str:code>/', dashboard_views.pokemon_kr_shop_stats_detail, name='pokemon-kr-shop-stats-detail'),
-
-     path('onepiece/kr/bulk-price/',         dashboard_views.onepiece_kr_bulk_price,   name='onepiece-kr-bulk-price'),
-     path('onepiece/kr/bulk-price/run/',     dashboard_views.onepiece_kr_bulk_run,     name='onepiece-kr-bulk-run'),
-     path('onepiece/kr/bulk-price/issues/',  dashboard_views.onepiece_kr_bulk_issues,  name='onepiece-kr-bulk-issues'),
+    # 원피스 한글판
+    *_card_urls('onepiece/kr', _onepiece_kr_views,
+                has_search=True, has_reset=True, has_bulk=True),
 ]

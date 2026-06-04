@@ -1,27 +1,34 @@
 # pricehub/utils.py
+import os
 import re
 import urllib.request
 import urllib.parse
 import json
+import logging
 from typing import Optional, Tuple, List
 
-# 네이버 API 정보
-NAVER_CLIENT_ID = "S_iul25XJKSybg_fiSAc"
-NAVER_CLIENT_SECRET = "_73PsEM4om"
+logger = logging.getLogger(__name__)
 
-# 검색어에서 레어도를 제외할 일반 레어도 목록
+# ── 네이버 API (.env에서 로드) ───────────────────────────────────
+NAVER_CLIENT_ID     = os.environ.get('NAVER_CLIENT_ID', '')
+NAVER_CLIENT_SECRET = os.environ.get('NAVER_CLIENT_SECRET', '')
+
+# ── 공통 필터 ─────────────────────────────────────────────────────
+EXCLUDED_MALLS    = {'네이버', '쿠팡'}
+EXCLUDED_KEYWORDS = ['일본', '일본판', 'JP', 'JPN', '일판']
+
+# ════════════════════════════════════════════════════════════════
+# 포켓몬 한글판 — 레어도 상수
+# ════════════════════════════════════════════════════════════════
+
 EXCLUDED_RARITIES = ['RR', 'RRR', 'R', 'U', 'C']
+GENERAL_RARITIES  = {'RR', 'RRR', 'R', 'U', 'C'}
 
-# 일반 레어도 집합 (고레어 키워드 필터링 적용 대상)
-GENERAL_RARITIES = {'RR', 'RRR', 'R', 'U', 'C'}
-
-# 일반 레어도 카드 검색 시 title에 포함되면 제외할 고레어 키워드
 HIGH_RARITY_KEYWORDS = [
     'UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
     '몬스터볼', '마스터볼', '이로치', '미러',
 ]
 
-# 일반 레어도별 상위 레어도 목록 (단어 경계 정규식 매칭용)
 HIGHER_RARITIES = {
     'C':   ['UR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
             'RR', 'RRR', 'R', 'U', 'MUR'],
@@ -32,16 +39,15 @@ HIGHER_RARITIES = {
     'RRR': ['SAR', 'CSR', 'HR', 'UR', 'MUR', 'SSR'],
 }
 
-# 모든 특수 레어도 목록 (필터링용)
-SPECIAL_RARITIES = ['UR', 'MUR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
-                    '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러', '이로치', '미러']
+SPECIAL_RARITIES = [
+    'UR', 'MUR', 'SSR', 'SR', 'CHR', 'CSR', 'BWR', 'AR', 'SAR', 'HR', 'MA',
+    '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러', '이로치', '미러',
+]
 
-# 미러 레어도 그룹 정의
 MIRROR_RARITIES = {'미러', '몬스터볼', '마스터볼', '볼 미러', '타입 미러', '로켓단 미러'}
 
-# 각 미러 레어도에서 상품명에 포함되어야 하는 키워드
 MIRROR_KEYWORDS = {
-    '미러':        None,        # 키워드 없어도 OK (일반 미러)
+    '미러':        None,
     '몬스터볼':    '몬스터볼',
     '마스터볼':    '마스터볼',
     '볼 미러':     '볼',
@@ -49,333 +55,381 @@ MIRROR_KEYWORDS = {
     '로켓단 미러': '로켓단 미러',
 }
 
+# ════════════════════════════════════════════════════════════════
+# 원피스 한글판 — 레어도/키워드 상수
+# ════════════════════════════════════════════════════════════════
 
-# ==================== 공통 ====================
+_BASE_CARD_NUMBER_RE    = re.compile(r'_[Pp]\d+$', re.IGNORECASE)
+_SUPER_PARALLEL_KEYWORDS = ['슈퍼 패러렐', '슈퍼패러렐', '슈퍼파라렐', '슈퍼 파라렐']
+_MANGA_KEYWORDS          = ['망가', 'MANGA', 'manga']
+_PARALLEL_KEYWORDS       = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레']
+_CARDKINGDOM_KEYWORDS    = ['카드킹덤', 'CARDKINGDOM', 'cardkingdom', '카드 킹덤']
+
+
+# ════════════════════════════════════════════════════════════════
+# 공통 유틸
+# ════════════════════════════════════════════════════════════════
+
+FilterResult     = Tuple[Optional[float], int, Optional[str], List[dict]]
+SinglePriceResult = Tuple[Optional[float], Optional[str]]
+
 
 def search_naver_shopping(search_query: str) -> List[dict]:
     """네이버 쇼핑 API 검색"""
+    if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
+        logger.error("NAVER_CLIENT_ID / NAVER_CLIENT_SECRET 환경변수가 설정되지 않았습니다.")
+        return []
     try:
         enc_text = urllib.parse.quote(search_query)
-        url = f"https://openapi.naver.com/v1/search/shop?query={enc_text}&sort=sim&exclude=used:rental:cbshop&display=20"
-        request = urllib.request.Request(url)
-        request.add_header("X-Naver-Client-Id", NAVER_CLIENT_ID)
-        request.add_header("X-Naver-Client-Secret", NAVER_CLIENT_SECRET)
-        response = urllib.request.urlopen(request)
+        url = (
+            f"https://openapi.naver.com/v1/search/shop"
+            f"?query={enc_text}&sort=sim&exclude=used:rental:cbshop&display=20"
+        )
+        req = urllib.request.Request(url)
+        req.add_header("X-Naver-Client-Id", NAVER_CLIENT_ID)
+        req.add_header("X-Naver-Client-Secret", NAVER_CLIENT_SECRET)
+        response = urllib.request.urlopen(req)
         if response.getcode() == 200:
-            result = json.loads(response.read())
-            return result.get('items', [])
-        else:
-            print(f"❌ API 요청 실패: {response.getcode()}")
-            return []
+            return json.loads(response.read()).get('items', [])
+        logger.error("네이버 API 요청 실패: %s", response.getcode())
+        return []
     except Exception as e:
-        print(f"❌ 예외 발생: {e}")
+        logger.exception("네이버 API 예외: %s", e)
         return []
 
 
-# ==================== 포켓몬 한글판 ====================
+def _word_boundary_match(keyword: str, text: str) -> bool:
+    """영문 키워드는 단어 경계, 한글은 단순 포함으로 검사"""
+    if keyword.isascii():
+        return bool(re.search(
+            r'(?<![A-Za-z0-9])' + re.escape(keyword) + r'(?![A-Za-z0-9])',
+            text,
+        ))
+    return keyword in text
+
+
+def _clean_title(raw_title: str) -> str:
+    return re.sub(r'<[^>]+>', '', raw_title)
+
+
+def _is_excluded(item: dict) -> bool:
+    """공통 제외 조건 (판매처·일본판 키워드)"""
+    if item.get('mallName', '') in EXCLUDED_MALLS:
+        return True
+    return any(kw in item.get('title', '') for kw in EXCLUDED_KEYWORDS)
+
+
+def _build_price_result(valid_items: List[dict]) -> FilterResult:
+    """유효 상품 리스트에서 최저가·최저가 판매처를 추출해 반환"""
+    if not valid_items:
+        return None, 0, None, []
+    min_item = min(valid_items, key=lambda x: float(x['lprice']))
+    return (
+        float(min_item['lprice']),
+        len(valid_items),
+        min_item.get('mallName'),
+        valid_items,
+    )
+
+
+def _get_prices(query_fn, filter_fn, *args, log_prefix: str = '') -> dict:
+    """검색어 생성 → API 호출 → 필터링 → 결과 반환 공통 흐름"""
+    search_query = query_fn(*args)
+    logger.debug("%s 검색어: %s", log_prefix, search_query)
+
+    items = search_naver_shopping(search_query)
+    if not items:
+        logger.debug("%s 검색 결과 없음", log_prefix)
+        return {'general_price': (None, 0, None), 'search_query': search_query, 'valid_items': []}
+
+    logger.debug("%s 검색 결과: %d개", log_prefix, len(items))
+    min_price, valid_count, min_price_mall, valid_items = filter_fn(items, *args[:2])
+
+    if min_price:
+        logger.debug("%s 최저가: %d원 (%s) — 유효 %d개",
+                     log_prefix, int(min_price), min_price_mall, valid_count)
+    else:
+        logger.debug("%s 최저가 없음", log_prefix)
+
+    return {
+        'general_price': (min_price, valid_count, min_price_mall),
+        'search_query': search_query,
+        'valid_items': valid_items,
+    }
+
+
+# ════════════════════════════════════════════════════════════════
+# 포켓몬 한글판
+# ════════════════════════════════════════════════════════════════
 
 def generate_pokemon_search_query(card_name: str, rarity: str, expansion_name: str) -> str:
     """포켓몬카드 검색어 생성"""
-    search_query = f"포켓몬카드 {card_name}"
+    query = f"포켓몬카드 {card_name}"
     if rarity and rarity not in EXCLUDED_RARITIES:
-        search_query += f" {rarity}"
+        query += f" {rarity}"
     if expansion_name:
-        search_query += f" {expansion_name}"
-    return search_query.strip()
+        query += f" {expansion_name}"
+    return query.strip()
 
 
 def _has_high_rarity_keyword(clean_title: str) -> bool:
-    """
-    title에 고레어 키워드가 포함되어 있는지 확인.
-    영문 키워드는 단어 경계 기준으로, 한글 키워드는 단순 포함 여부로 검사.
-    """
-    for kw in HIGH_RARITY_KEYWORDS:
-        if kw.isascii():
-            # 영문: 앞뒤가 알파벳/숫자가 아닌 경우만 매칭 (RR ≠ RRR 방지)
-            if re.search(r'(?<![A-Za-z0-9])' + re.escape(kw) + r'(?![A-Za-z0-9])', clean_title):
-                return True
-        else:
-            # 한글: 단순 포함 여부
-            if kw in clean_title:
-                return True
-    return False
+    return any(_word_boundary_match(kw, clean_title) for kw in HIGH_RARITY_KEYWORDS)
 
 
-def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str]) -> Tuple[Optional[float], int, Optional[str], List[dict]]:
+def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str]) -> FilterResult:
     """포켓몬카드 검색 결과 필터링"""
-    min_price = None
-    valid_count = 0
-    min_price_mall = None
+    is_mirror_rarity  = rarity in MIRROR_RARITIES
+    is_general_rarity = rarity in GENERAL_RARITIES
+    card_name_no_space = re.sub(r'\s+', '', card_name).lower()
     valid_items = []
 
-    excluded_malls = ["네이버", "쿠팡"]
-    excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
-
-    is_mirror_rarity = rarity in MIRROR_RARITIES
-    is_general_rarity = rarity in GENERAL_RARITIES
-
-    print(f"\n📋 필터링 상세 로그 (총 {len(items)}개):")
-
-    for idx, item in enumerate(items, 1):
-        title = item['title']
-        price = float(item['lprice'])
-        mall_name = item.get('mallName', '알 수 없음')
-
-        print(f"\n[{idx}] 가격: {int(price)}원 / 판매처: {mall_name}")
-
-        clean_title = re.sub(r'<[^>]+>', '', title)
-        print(f"    제목: {clean_title}")
-
-        # ── 제외 판매처 ──
-        if mall_name in excluded_malls:
-            print(f"    ❌ 제외 판매처")
+    for item in items:
+        if _is_excluded(item):
             continue
-
-        # ── 일본판 제외 ──
-        if any(keyword in title for keyword in excluded_keywords):
-            print(f"    ❌ 일본판 키워드 포함")
+        title = _clean_title(item['title'])
+        if re.sub(r'\s+', '', title).lower().find(card_name_no_space) == -1:
             continue
-
-        # ── 카드명 일치 ──
-        card_name_no_space = re.sub(r'\s+', '', card_name)
-        title_no_space = re.sub(r'\s+', '', clean_title)
-
-        if card_name_no_space.lower() not in title_no_space.lower():
-            print(f"    ❌ 카드명 불일치")
-            print(f"       찾는 카드명: {card_name_no_space}")
-            print(f"       상품 제목: {title_no_space}")
-            continue
-
-        print(f"    ✅ 카드명 일치")
-
-        # ── 레어도 필터링 ──
 
         if is_general_rarity:
-            # 일반 레어도 (C / U / R / RR / RRR) 공통 처리
-            # 고레어 키워드가 포함된 상품 제외
-            if _has_high_rarity_keyword(clean_title):
-                print(f"    ❌ 일반 레어도 '{rarity}'인데 고레어 키워드 포함")
+            if _has_high_rarity_keyword(title):
                 continue
-
-            # R / RR / RRR: 상위 레어도 키워드 추가 체크 (단어 경계 정규식)
-            higher = HIGHER_RARITIES.get(rarity, [])
-            if higher:
-                if any(
-                    re.search(r'(?<![A-Za-z0-9])' + re.escape(h) + r'(?![A-Za-z0-9])', clean_title)
-                    for h in higher
-                ):
-                    print(f"    ❌ 레어도 '{rarity}'인데 상위 레어도 키워드 포함")
-                    continue
-
-            print(f"    ✅ 일반 레어도 '{rarity}' 통과")
-
+            if any(_word_boundary_match(h, title) for h in HIGHER_RARITIES.get(rarity, [])):
+                continue
         elif rarity and rarity not in EXCLUDED_RARITIES:
-
-            # 미러 계열 레어도
             if is_mirror_rarity:
                 required_kw = MIRROR_KEYWORDS.get(rarity)
                 if required_kw:
-                    if isinstance(required_kw, list):
-                        if not any(kw in clean_title for kw in required_kw):
-                            print(f"    ❌ 미러 레어도 '{rarity}' 키워드 {required_kw} 불일치")
-                            continue
-                    else:
-                        if required_kw not in clean_title:
-                            print(f"    ❌ 미러 레어도 '{rarity}' 키워드 '{required_kw}' 불일치")
-                            continue
-                print(f"    ✅ 미러 레어도 '{rarity}' 일치")
-
-            # MUR
+                    kws = required_kw if isinstance(required_kw, list) else [required_kw]
+                    if not any(kw in title for kw in kws):
+                        continue
             elif rarity == 'MUR':
-                if 'MUR' not in clean_title.upper():
-                    print(f"    ❌ MUR 레어도 불일치")
+                if 'MUR' not in title.upper():
                     continue
-                print(f"    ✅ MUR 레어도 일치")
-
-            # 그 외 특수 레어도 — 단어 경계 매칭
             else:
-                pattern = r'(?<![A-Za-z0-9])' + re.escape(rarity) + r'(?![A-Za-z0-9])'
-                if not re.search(pattern, clean_title):
-                    print(f"    ❌ 레어도 '{rarity}' 불일치 (정확 매칭)")
+                if not _word_boundary_match(rarity, title):
                     continue
-                print(f"    ✅ 레어도 '{rarity}' 일치")
 
-        valid_count += 1
         valid_items.append(item)
-        print(f"    ✅ 유효한 상품!")
 
-        if min_price is None or price < min_price:
-            min_price = price
-            min_price_mall = mall_name
-            print(f"    💰 최저가 업데이트: {int(min_price)}원")
-
-    print(f"\n📊 필터링 결과: 유효 상품 {valid_count}개")
-    return min_price, valid_count, min_price_mall, valid_items
+    return _build_price_result(valid_items)
 
 
 def get_all_prices_for_card(card_name: str, rarity: str, expansion_name: str) -> dict:
+    """포켓몬카드 가격 통합 검색"""
+    return _get_prices(
+        generate_pokemon_search_query,
+        filter_pokemon_items,
+        card_name, rarity, expansion_name,
+        log_prefix='[포켓몬]',
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+# 원피스 한글판 — 공통 필터 내부 헬퍼
+# ════════════════════════════════════════════════════════════════
+
+def _onepiece_rarity_flags(rarity: str):
+    """레어도 문자열에서 is_manga, is_special, is_parallel 플래그 반환"""
+    is_manga    = rarity.startswith('SP-') and rarity != 'SP-SP'
+    is_special  = rarity == 'SP-SP'
+    is_parallel = rarity.startswith('P-')
+    return is_manga, is_special, is_parallel
+
+
+def _onepiece_title_matches(title: str, base_number: str,
+                             is_manga: bool, is_special: bool, is_parallel: bool,
+                             price: float) -> bool:
     """
-    포켓몬카드 가격 통합 검색
-
-    Returns:
-        {
-            'general_price': (최저가, 유효상품수, 판매처),
-            'search_query': 검색어,
-            'valid_items': 유효한 상품 전체 결과
-        }
+    원피스 카드번호·레어도 필터를 적용해 상품이 유효한지 반환.
+    공통 제외(판매처·일본판)는 호출 전에 처리되어 있어야 함.
     """
-    search_query = generate_pokemon_search_query(card_name, rarity, expansion_name)
-    print(f"🔍 [통합검색] 검색어: {search_query}")
-
-    items = search_naver_shopping(search_query)
-
-    if not items:
-        print(f"❌ 검색 결과 없음")
-        return {
-            'general_price': (None, 0, None),
-            'search_query': search_query,
-            'valid_items': [],
-        }
-
-    print(f"✅ 검색 결과: {len(items)}개")
-
-    min_price, valid_count, min_price_mall, valid_items = filter_pokemon_items(items, card_name, rarity)
-
-    if min_price:
-        print(f"💰 일반 최저가: {int(min_price)}원 ({min_price_mall}) - 유효: {valid_count}개")
-    else:
-        print(f"⚠️ 일반 최저가 없음")
-
-    return {
-        'general_price': (min_price, valid_count, min_price_mall),
-        'search_query': search_query,
-        'valid_items': valid_items,
-    }
-
-
-# ==================== 원피스 한글판 ====================
-
-def generate_onepiece_search_query(card_name: str, rarity: str, expansion_name: str, card_number: str, is_manga: bool = False) -> str:
-    """원피스 카드 검색어 생성"""
-    base_card_number = re.sub(r"_[Pp]\d+$", "", card_number)
-
-    if card_number != base_card_number:
-        print(f"  카드번호 변환: {card_number} → {base_card_number}")
+    if base_number not in title:
+        return False
 
     if is_manga:
-        search_query = f"망가 {base_card_number}"
-        print(f"  슈퍼 패러렐(망가) 검색어: {search_query}")
-        return search_query
+        has_kw = (
+            any(kw in title for kw in _SUPER_PARALLEL_KEYWORDS)
+            or any(kw in title for kw in _MANGA_KEYWORDS)
+        )
+        if not has_kw or price < 200000:
+            return False
+    elif is_special:
+        if not any(kw in title for kw in ['스페셜', 'SP']):
+            return False
+    elif is_parallel:
+        if not any(kw in title for kw in _PARALLEL_KEYWORDS):
+            return False
 
-    if rarity and rarity.startswith('SP-'):
-        search_query = f"SP {base_card_number}"
-        print(f"  SP 카드 검색어 ({rarity}): {search_query}")
-        return search_query
-
-    if rarity and rarity.startswith('P-') and not base_card_number.startswith('P-'):
-        search_query = f"패러렐 {base_card_number}"
-        print(f"  패러렐 카드 검색어: {search_query}")
-        return search_query
-
-    if base_card_number.startswith('ST') or base_card_number.startswith('P-'):
-        search_query = f"원피스 {base_card_number}"
-        print(f"  일반 카드 검색어: {search_query}")
-        return search_query
-
-    print(f"  기본 검색어: {base_card_number}")
-    return base_card_number
+    return True
 
 
-def filter_onepiece_items(items: List[dict], card_number: str, rarity: str, is_manga: bool = False) -> Tuple[Optional[float], int, Optional[str], List[dict]]:
-    """원피스 카드 검색 결과 필터링"""
-    min_price = None
-    valid_count = 0
-    min_price_mall = None
+# ════════════════════════════════════════════════════════════════
+# 원피스 한글판 — 공개 함수
+# ════════════════════════════════════════════════════════════════
+
+def generate_onepiece_search_query(
+    card_name: str,
+    rarity: str,
+    expansion_name: str,
+    card_number: str,
+    is_manga: bool = False,
+) -> str:
+    """
+    원피스 카드 검색어 생성.
+
+    is_manga=True  → '망가 {base}'
+    SP-SP          → '스페셜 {base}'
+    SP-* (망가)    → '망가 {base}'  (is_manga 없이 rarity로 판단)
+    P-*            → '패러렐 {base}'
+    ST* / P-프로모  → '원피스 {base}'
+    그 외           → '{base}'
+    """
+    base = _BASE_CARD_NUMBER_RE.sub('', card_number)
+
+    if is_manga:
+        return f"망가 {base}"
+    if rarity == 'SP-SP':
+        return f"스페셜 {base}"
+    if rarity.startswith('SP-'):           # SP-SR, SP-SEC 등 슈퍼패러렐
+        return f"망가 {base}"
+    if rarity.startswith('P-') and not base.startswith('P-'):
+        return f"패러렐 {base}"
+    if base.startswith(('ST', 'P-')):
+        return f"원피스 {base}"
+    return base
+
+
+def filter_onepiece_items(
+    items: List[dict],
+    card_name: str,
+    rarity: str,
+    expansion_name: str,
+    card_number: str,
+    is_manga: bool = False,
+) -> FilterResult:
+    """원피스 카드 일반 필터링 (최저가 반환)"""
+    base_number = _BASE_CARD_NUMBER_RE.sub('', card_number)
+    _auto_manga, is_special, is_parallel = _onepiece_rarity_flags(rarity)
+    is_manga = is_manga or _auto_manga  # 명시적 전달 or rarity 기반 자동 판단
     valid_items = []
 
-    excluded_malls = ["네이버", "쿠팡"]
-    excluded_keywords = ['일본', '일본판', 'JP', 'JPN', '일판']
+    for item in items:
+        if _is_excluded(item):
+            continue
+        title = _clean_title(item['title'])
+        price = float(item['lprice'])
+        if _onepiece_title_matches(title, base_number, is_manga, is_special, is_parallel, price):
+            valid_items.append(item)
 
-    base_card_number = re.sub(r"_[Pp]\d+", "", card_number, flags=re.IGNORECASE)
-    is_special = rarity == 'SP-SP'
-    is_parallel = rarity.startswith('P-')
+    return _build_price_result(valid_items)
+
+
+def filter_onepiece_shop_item(
+    items: List[dict],
+    card_number: str,
+    rarity: str,
+    *,
+    mall_name: Optional[str] = None,
+    mall_keywords: Optional[List[str]] = None,
+) -> SinglePriceResult:
+    """
+    특정 샵 전용 필터링 (첫 번째 매칭 상품 반환).
+
+    mall_name      : 정확한 mallName 일치 (예: 'TCG999')
+    mall_keywords  : mallName 또는 title에 포함되는 키워드 목록 (예: 카드킹덤)
+    둘 중 하나만 전달하면 됩니다.
+    """
+    base_number = _BASE_CARD_NUMBER_RE.sub('', card_number)
+    is_manga, is_special, is_parallel = _onepiece_rarity_flags(rarity)
 
     for item in items:
-        title = item['title']
+        item_mall = item.get('mallName', '')
+        item_title = item.get('title', '')
+
+        # 샵 매칭
+        if mall_name and item_mall != mall_name:
+            continue
+        if mall_keywords and not any(
+            kw in item_mall or kw in item_title for kw in mall_keywords
+        ):
+            continue
+
+        if any(kw in item_title for kw in EXCLUDED_KEYWORDS):
+            continue
+
+        title = _clean_title(item_title)
         price = float(item['lprice'])
-        mall_name = item.get('mallName', '알 수 없음')
+        if _onepiece_title_matches(title, base_number, is_manga, is_special, is_parallel, price):
+            return price, item_mall or mall_name
 
-        if mall_name in excluded_malls:
-            continue
-        if any(keyword in title for keyword in excluded_keywords):
-            continue
-
-        clean_title = re.sub(r'<[^>]+>', '', title)
-
-        if base_card_number not in clean_title:
-            continue
-
-        if is_manga:
-            super_parallel_keywords = ['슈퍼 패러렐', '슈퍼패러렐', '슈퍼파라렐', '슈퍼 파라렐']
-            manga_keywords = ['망가', 'MANGA', 'manga']
-            if not (any(kw in clean_title for kw in super_parallel_keywords) or
-                    any(kw in clean_title for kw in manga_keywords)):
-                continue
-            if price < 200000:
-                continue
-        elif is_special:
-            if not any(kw in clean_title for kw in ['스페셜', 'SP']):
-                continue
-        elif is_parallel:
-            parallel_keywords = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레']
-            if not any(kw in clean_title for kw in parallel_keywords):
-                continue
-
-        valid_count += 1
-        valid_items.append(item)
-
-        if min_price is None or price < min_price:
-            min_price = price
-            min_price_mall = mall_name
-
-    return min_price, valid_count, min_price_mall, valid_items
+    return None, None
 
 
-def get_onepiece_all_prices(card_name: str, rarity: str, expansion_name: str, card_number: str, is_manga: bool = False) -> dict:
+def get_onepiece_all_prices(
+    card_name: str,
+    rarity: str,
+    expansion_name: str,
+    card_number: str,
+    is_manga: bool = False,
+) -> dict:
     """
-    원피스 카드 가격 통합 검색
+    원피스 카드 가격 통합 검색 (API 1회 호출).
 
     Returns:
         {
-            'general_price': (최저가, 유효상품수, 판매처),
-            'search_query': 검색어,
-            'valid_items': 유효한 상품 전체 결과
+            'general_price':     (최저가, 유효상품수, 판매처),
+            'cardkingdom_price': (카드킹덤가격, 판매처),
+            'search_query':      검색어,
+            'valid_items':       유효 상품 전체 리스트,
         }
     """
     search_query = generate_onepiece_search_query(card_name, rarity, expansion_name, card_number, is_manga)
-    print(f"🔍 [원피스 통합검색] 검색어: {search_query}")
+    logger.debug("[원피스] 검색어: %s", search_query)
 
     items = search_naver_shopping(search_query)
-
     if not items:
-        print(f"❌ 검색 결과 없음")
+        logger.debug("[원피스] 검색 결과 없음")
         return {
             'general_price': (None, 0, None),
+            'cardkingdom_price': (None, None),
             'search_query': search_query,
             'valid_items': [],
         }
 
-    print(f"✅ 검색 결과: {len(items)}개")
+    logger.debug("[원피스] 검색 결과: %d개", len(items))
 
-    min_price, valid_count, min_price_mall, valid_items = filter_onepiece_items(items, card_number, rarity, is_manga)
+    # API 1회 호출 후 각 필터에 재사용
+    min_price, valid_count, min_price_mall, valid_items = filter_onepiece_items(
+        items, card_name, rarity, expansion_name, card_number, is_manga,
+    )
+    cardkingdom_price, cardkingdom_mall = filter_onepiece_shop_item(
+        items, card_number, rarity, mall_keywords=_CARDKINGDOM_KEYWORDS,
+    )
 
     if min_price:
-        print(f"💰 일반 최저가: {int(min_price)}원 ({min_price_mall}) - 유효: {valid_count}개")
-    else:
-        print(f"⚠️ 일반 최저가 없음")
+        logger.debug("[원피스] 최저가: %d원 (%s) — 유효 %d개",
+                     int(min_price), min_price_mall, valid_count)
+    if cardkingdom_price:
+        logger.debug("[원피스] 카드킹덤: %d원", int(cardkingdom_price))
 
     return {
         'general_price': (min_price, valid_count, min_price_mall),
+        'cardkingdom_price': (cardkingdom_price, cardkingdom_mall),
         'search_query': search_query,
         'valid_items': valid_items,
     }
+
+
+# ── 하위 호환 별칭 (onepiece_utils.py 사용 코드가 있을 경우) ──────
+def filter_onepiece_tcg999_items(
+    items: List[dict], card_number: str, rarity: str,
+) -> SinglePriceResult:
+    """TCG999 전용 필터링 (하위 호환)"""
+    return filter_onepiece_shop_item(items, card_number, rarity, mall_name='TCG999')
+
+
+def filter_onepiece_cardkingdom_items(
+    items: List[dict], card_number: str, rarity: str,
+) -> SinglePriceResult:
+    """카드킹덤 전용 필터링 (하위 호환)"""
+    return filter_onepiece_shop_item(items, card_number, rarity, mall_keywords=_CARDKINGDOM_KEYWORDS)

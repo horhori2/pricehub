@@ -1,503 +1,938 @@
-# pricehub/views.py
-from django.shortcuts import render, get_object_or_404
-from django.http import JsonResponse
-from django.db.models import (
-    Prefetch, Count, OuterRef, Subquery, Q, 
-    Case, When, Value, IntegerField, Avg, Min, Max
-)
-from django.utils import timezone
+"""
+pricehub/views.py
 
-from datetime import datetime, timedelta
+판매가 관리 대시보드.
+- 홈: 게임(포켓몬/원피스/디지몬) × 언어(한글판/일본판) 선택
+- 각 카테고리별: 확장팩 목록 → 카드 목록 → 카드 상세 + 판매가 설정
+"""
 import json
+import re
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from django.db.models import OuterRef, Subquery
+
+from django.utils import timezone
+from datetime import timedelta
 
 from .models import (
-    # 포켓몬 한글판
     Expansion, Card, CardPrice,
-    # 원피스
     OnePieceExpansion, OnePieceCard, OnePieceCardPrice,
-    # 포켓몬 일본판
-    JapanExpansion, JapanCard, JapanCardPrice
+    JapanExpansion, JapanCard, JapanCardPrice,
 )
 
 
-# ==================== 포켓몬 카드 뷰 ====================
-
-def expansion_list(request):
-    expansions = Expansion.objects.annotate(
-        card_count=Count('cards')
-    ).order_by('-release_date', '-created_at')
-    return render(request, 'pricehub/expansion_list.html', {'expansions': expansions})
+OUR_SHOPS = ['화성스토어-TCG-', '카드 베이스']
 
 
-def card_search(request):
-    query = request.GET.get('q', '').strip()
+# ════════════════════════════════════════════════════════════════
+# 카테고리 설정 레지스트리
+# 새 TCG 추가 시 여기만 등록하면 됩니다.
+# ════════════════════════════════════════════════════════════════
 
-    if not query:
-        return render(request, 'pricehub/search_results.html', {'query': query, 'cards': [], 'count': 0})
+CATEGORY_CONFIGS = {
+    'pokemon_kr': {
+        'label': '포켓몬 한글판',
+        'expansion_model': Expansion,
+        'card_model': Card,
+        'price_model': CardPrice,
+        'base_url': '/pokemon/kr',
+        'high_rarity_list': "['SAR','CSR','UR','MUR','BWR']",
+        'bulk_issues_high_rarity_list': "['SAR','CSR','HR','UR','MUR','BWR']",
+        'card_detail_template': 'dashboard/card_detail.html',
+        'card_type_key': 'pokemon_kr',
+    },
+    'pokemon_jp': {
+        'label': '포켓몬 일본판',
+        'expansion_model': JapanExpansion,
+        'card_model': JapanCard,
+        'price_model': JapanCardPrice,
+        'base_url': '/pokemon/jp',
+        'card_detail_template': 'dashboard/card_detail_jp.html',
+        'card_type_key': 'pokemon_jp',
+    },
+    'onepiece_kr': {
+        'label': '원피스 한글판',
+        'expansion_model': OnePieceExpansion,
+        'card_model': OnePieceCard,
+        'price_model': OnePieceCardPrice,
+        'base_url': '/onepiece/kr',
+        'high_rarity_list': "['SP-SEC','SP-SR','SEC','SL']",
+        'bulk_issues_high_rarity_list': "['SP-SEC','SP-SR','SEC','SL']",
+        'card_detail_template': 'dashboard/card_detail.html',
+        'card_type_key': 'onepiece_kr',
+    },
+}
 
-    latest_general_subquery = CardPrice.objects.filter(
-        card=OuterRef('pk')
-    ).order_by('-collected_at')
+def _cfg(key):
+    return CATEGORY_CONFIGS[key]
 
-    cards = Card.objects.filter(
-        Q(name__icontains=query) | Q(card_number__icontains=query)
-    ).select_related('expansion').annotate(
-        latest_general_price=Subquery(latest_general_subquery.values('price')[:1]),
-        latest_general_source=Subquery(latest_general_subquery.values('source')[:1]),
-    ).order_by('expansion__code', 'card_number')
-
-    return render(request, 'pricehub/search_results.html', {
-        'query': query, 'cards': cards, 'count': cards.count(),
-    })
-
-
-def card_list(request, expansion_code):
-    expansion = get_object_or_404(Expansion, code=expansion_code)
-    query = request.GET.get('q', '').strip()
-    sort_by = request.GET.get('sort', 'number')
-
-    latest_general_subquery = CardPrice.objects.filter(
-        card=OuterRef('pk')
-    ).order_by('-collected_at')
-
-    cards = Card.objects.filter(expansion=expansion)
-
-    if query:
-        cards = cards.filter(Q(name__icontains=query) | Q(card_number__icontains=query))
-
-    cards = cards.annotate(
-        latest_general_price=Subquery(latest_general_subquery.values('price')[:1]),
-        latest_general_source=Subquery(latest_general_subquery.values('source')[:1]),
-    )
-
-    rarity_order = Case(
-        When(rarity='MUR', then=Value(1)),
-        When(rarity='BWR', then=Value(2)),
-        When(rarity='SAR', then=Value(3)),
-        When(rarity='UR', then=Value(4)),
-        When(rarity='SSR', then=Value(5)),
-        When(rarity='SR', then=Value(6)),
-        When(rarity='HR', then=Value(7)),
-        When(rarity='CSR', then=Value(8)),
-        When(rarity='CHR', then=Value(9)),
-        When(rarity='AR', then=Value(10)),
-        When(rarity='마스터볼', then=Value(11)),
-        When(rarity='몬스터볼', then=Value(12)),
-        When(rarity='이로치', then=Value(13)),
-        When(rarity='미러', then=Value(14)),
-        When(rarity='RRR', then=Value(15)),
-        When(rarity='RR', then=Value(16)),
-        When(rarity='R', then=Value(17)),
-        When(rarity='U', then=Value(18)),
-        When(rarity='C', then=Value(19)),
-        default=Value(99),
-        output_field=IntegerField(),
-    )
-
-    if sort_by == 'number':
-        cards = cards.order_by('card_number')
-    elif sort_by == 'name':
-        cards = cards.order_by('name', 'card_number')
-    elif sort_by == 'rarity':
-        cards = cards.annotate(rarity_rank=rarity_order).order_by('rarity_rank', 'card_number')
-    elif sort_by == 'general_high':
-        cards = cards.order_by('-latest_general_price', 'card_number')
-    elif sort_by == 'general_low':
-        cards = cards.order_by('latest_general_price', 'card_number')
-    else:
-        cards = cards.order_by('card_number')
-
-    return render(request, 'pricehub/card_list.html', {
-        'expansion': expansion, 'cards': cards, 'query': query,
-        'sort_by': sort_by, 'total_count': Card.objects.filter(expansion=expansion).count(),
-    })
+def _url(key, path=''):
+    return _cfg(key)['base_url'] + path
 
 
-def card_detail(request, card_id):
-    card = get_object_or_404(Card.objects.select_related('expansion'), id=card_id)
-    period = request.GET.get('period', '30')
+# ════════════════════════════════════════════════════════════════
+# 권한
+# ════════════════════════════════════════════════════════════════
 
-    now = timezone.now()
-    if period == '7':
-        start_date = now - timedelta(days=7)
-        date_format = '%m-%d'
-    elif period == '30':
-        start_date = now - timedelta(days=30)
-        date_format = '%m-%d'
-    elif period == '90':
-        start_date = now - timedelta(days=90)
-        date_format = '%m-%d'
-    elif period == 'all':
-        start_date = None
-        date_format = '%Y-%m-%d'
-    else:
-        start_date = now - timedelta(days=30)
-        date_format = '%m-%d'
+def is_staff(user):
+    return user.is_active and user.is_staff
 
-    if start_date:
-        general_prices = CardPrice.objects.filter(card=card, collected_at__gte=start_date).order_by('collected_at')
-    else:
-        general_prices = CardPrice.objects.filter(card=card).order_by('collected_at')
+staff_required = user_passes_test(is_staff, login_url='/login/')
 
-    latest_general = CardPrice.objects.filter(card=card).order_by('-collected_at').first()
 
-    stats = {
-        'general': {
-            'min': min([p.price for p in general_prices]) if general_prices else None,
-            'max': max([p.price for p in general_prices]) if general_prices else None,
-            'avg': sum([p.price for p in general_prices]) / len(general_prices) if general_prices else None,
+# ════════════════════════════════════════════════════════════════
+# 로그인/로그아웃
+# ════════════════════════════════════════════════════════════════
+
+def dashboard_login(request):
+    error = None
+    if request.method == 'POST':
+        user = authenticate(request,
+                            username=request.POST.get('username'),
+                            password=request.POST.get('password'))
+        if user and user.is_staff:
+            login(request, user)
+            return redirect('/')
+        error = '아이디 또는 비밀번호가 올바르지 않습니다.'
+    return render(request, 'dashboard/login.html', {'error': error})
+
+
+def dashboard_logout(request):
+    logout(request)
+    return redirect('/login/')
+
+
+# ════════════════════════════════════════════════════════════════
+# 홈 (카테고리 선택)
+# ════════════════════════════════════════════════════════════════
+
+@staff_required
+def home(request):
+    categories = [
+        {
+            'game': '포켓몬',
+            'game_key': 'pokemon',
+            'icon': '🎴',
+            'regions': [
+                {
+                    'label': '한글판',
+                    'key': 'kr',
+                    'url': _url('pokemon_kr', '/expansions/'),
+                    'total': Card.objects.count(),
+                    'unpriced': Card.objects.filter(selling_price=0).count(),
+                },
+                {
+                    'label': '일본판',
+                    'key': 'jp',
+                    'url': _url('pokemon_jp', '/expansions/'),
+                    'total': JapanCard.objects.count(),
+                    'unpriced': JapanCard.objects.filter(selling_price=0).count(),
+                },
+            ],
         },
-    }
-
-    general_chart_data = {
-        'labels': json.dumps([p.collected_at.strftime(date_format) for p in general_prices]),
-        'data': json.dumps([float(p.price) for p in general_prices])
-    }
-
-    return render(request, 'pricehub/card_detail.html', {
-        'card': card, 'latest_general': latest_general,
-        'general_chart_data': general_chart_data, 'period': period, 'stats': stats,
-    })
-
-
-# ==================== 원피스 카드 뷰 ====================
-
-def onepiece_expansion_list(request):
-    expansions = OnePieceExpansion.objects.annotate(
-        card_count=Count('cards')
-    ).order_by('-release_date', '-created_at')
-    return render(request, 'pricehub/onepiece_expansion_list.html', {'expansions': expansions})
-
-
-def onepiece_card_search(request):
-    query = request.GET.get('q', '').strip()
-
-    if not query:
-        return render(request, 'pricehub/onepiece_search_results.html', {'query': query, 'cards': [], 'count': 0})
-
-    latest_general_subquery = OnePieceCardPrice.objects.filter(
-        card=OuterRef('pk')
-    ).order_by('-collected_at')
-
-    cards = OnePieceCard.objects.filter(
-        Q(name__icontains=query) | Q(card_number__icontains=query)
-    ).select_related('expansion').annotate(
-        latest_general_price=Subquery(latest_general_subquery.values('price')[:1]),
-        latest_general_source=Subquery(latest_general_subquery.values('source')[:1]),
-    ).order_by('expansion__code', 'card_number')
-
-    return render(request, 'pricehub/onepiece_search_results.html', {
-        'query': query, 'cards': cards, 'count': cards.count(),
-    })
-
-
-def onepiece_card_list(request, expansion_code):
-    expansion = get_object_or_404(OnePieceExpansion, code=expansion_code)
-    query = request.GET.get('q', '').strip()
-    sort_by = request.GET.get('sort', 'number')
-
-    latest_general_subquery = OnePieceCardPrice.objects.filter(
-        card=OuterRef('pk')
-    ).order_by('-collected_at')
-
-    cards = OnePieceCard.objects.filter(expansion=expansion)
-
-    if query:
-        cards = cards.filter(Q(name__icontains=query) | Q(card_number__icontains=query))
-
-    cards = cards.annotate(
-        latest_general_price=Subquery(latest_general_subquery.values('price')[:1]),
-        latest_general_source=Subquery(latest_general_subquery.values('source')[:1]),
-    )
-
-    rarity_order = Case(
-        When(rarity='SEC', then=Value(1)),
-        When(rarity='SP-SEC', then=Value(2)),
-        When(rarity='P-SEC', then=Value(3)),
-        When(rarity='SL', then=Value(4)),
-        When(rarity='SP-SL', then=Value(5)),
-        When(rarity='P-SL', then=Value(6)),
-        When(rarity='SR', then=Value(7)),
-        When(rarity='SP-SR', then=Value(8)),
-        When(rarity='P-SR', then=Value(9)),
-        When(rarity='SP', then=Value(10)),
-        When(rarity='L', then=Value(11)),
-        When(rarity='P-L', then=Value(12)),
-        When(rarity='R', then=Value(13)),
-        When(rarity='P-R', then=Value(14)),
-        When(rarity='UC', then=Value(15)),
-        When(rarity='P-UC', then=Value(16)),
-        When(rarity='C', then=Value(17)),
-        When(rarity='P-C', then=Value(18)),
-        When(rarity='P', then=Value(19)),
-        default=Value(99),
-        output_field=IntegerField(),
-    )
-
-    if sort_by == 'number':
-        cards = cards.order_by('card_number')
-    elif sort_by == 'name':
-        cards = cards.order_by('name', 'card_number')
-    elif sort_by == 'rarity':
-        cards = cards.annotate(rarity_rank=rarity_order).order_by('rarity_rank', 'card_number')
-    elif sort_by == 'general_high':
-        cards = cards.order_by('-latest_general_price', 'card_number')
-    elif sort_by == 'general_low':
-        cards = cards.order_by('latest_general_price', 'card_number')
-    else:
-        cards = cards.order_by('card_number')
-
-    return render(request, 'pricehub/onepiece_card_list.html', {
-        'expansion': expansion, 'cards': cards, 'query': query,
-        'sort_by': sort_by, 'total_count': OnePieceCard.objects.filter(expansion=expansion).count(),
-    })
-
-
-def onepiece_card_detail(request, card_id):
-    card = get_object_or_404(OnePieceCard.objects.select_related('expansion'), id=card_id)
-    period = request.GET.get('period', '30')
-
-    now = timezone.now()
-    if period == '7':
-        start_date = now - timedelta(days=7)
-        date_format = '%m-%d'
-    elif period == '30':
-        start_date = now - timedelta(days=30)
-        date_format = '%m-%d'
-    elif period == '90':
-        start_date = now - timedelta(days=90)
-        date_format = '%m-%d'
-    elif period == 'all':
-        start_date = None
-        date_format = '%Y-%m-%d'
-    else:
-        start_date = now - timedelta(days=30)
-        date_format = '%m-%d'
-
-    if start_date:
-        general_prices = OnePieceCardPrice.objects.filter(card=card, collected_at__gte=start_date).order_by('collected_at')
-    else:
-        general_prices = OnePieceCardPrice.objects.filter(card=card).order_by('collected_at')
-
-    latest_general = OnePieceCardPrice.objects.filter(card=card).order_by('-collected_at').first()
-
-    stats = {
-        'general': {
-            'min': min([p.price for p in general_prices]) if general_prices else None,
-            'max': max([p.price for p in general_prices]) if general_prices else None,
-            'avg': sum([p.price for p in general_prices]) / len(general_prices) if general_prices else None,
+        {
+            'game': '원피스',
+            'game_key': 'onepiece',
+            'icon': '⚓',
+            'regions': [
+                {
+                    'label': '한글판',
+                    'key': 'kr',
+                    'url': _url('onepiece_kr', '/expansions/'),
+                    'total': OnePieceCard.objects.count(),
+                    'unpriced': OnePieceCard.objects.filter(selling_price=0).count(),
+                },
+            ],
         },
-    }
-
-    general_chart_data = {
-        'labels': json.dumps([p.collected_at.strftime(date_format) for p in general_prices]),
-        'data': json.dumps([float(p.price) for p in general_prices])
-    }
-
-    return render(request, 'pricehub/onepiece_card_detail.html', {
-        'card': card, 'latest_general': latest_general,
-        'general_chart_data': general_chart_data, 'period': period, 'stats': stats,
-    })
+        {
+            'game': '디지몬',
+            'game_key': 'digimon',
+            'icon': '🦕',
+            'regions': [],
+            'coming_soon': True,
+        },
+    ]
+    return render(request, 'dashboard/home.html', {'categories': categories})
 
 
-# ==================== 포켓몬 일본판 뷰 ====================
+# ════════════════════════════════════════════════════════════════
+# 공통 헬퍼 — 가격 데이터
+# ════════════════════════════════════════════════════════════════
 
-def japan_expansion_list(request):
-    expansions = JapanExpansion.objects.all().order_by('-release_date', '-created_at')
-    for expansion in expansions:
-        expansion.card_count = JapanCard.objects.filter(expansion=expansion).count()
-        expansion.price_count = JapanCardPrice.objects.filter(
-            card__expansion=expansion
-        ).values('card').distinct().count()
+def _load_raw_data(price_model, expansion_code=None, rarities=None):
+    """카드별 최신 raw_data 1건씩 반환 (메모리 최적화)"""
+    qs = price_model.objects.exclude(raw_data={}).exclude(raw_data=[])
+    if expansion_code:
+        qs = qs.filter(card__expansion__code=expansion_code)
+    if rarities:
+        qs = qs.filter(card__rarity__in=rarities)
 
-    return render(request, 'pricehub/japan_expansion_list.html', {
-        'expansions': expansions, 'page_title': '포켓몬 일본판 확장팩 목록'
-    })
+    seen_cards = {}
+    for cp in qs.order_by('-collected_at').values('card_id', 'id'):
+        if cp['card_id'] not in seen_cards:
+            seen_cards[cp['card_id']] = cp['id']
+
+    return list(
+        price_model.objects.filter(id__in=seen_cards.values())
+                            .values_list('raw_data', flat=True)
+    )
 
 
-def japan_card_search(request):
-    query = request.GET.get('q', '')
+def _collect_mall_names(price_model, expansion_code=None, limit=500):
+    """raw_data에서 mallName 빈도 집계"""
+    qs = price_model.objects.exclude(raw_data={}).exclude(raw_data=[])
+    if expansion_code:
+        qs = qs.filter(card__expansion__code=expansion_code)
 
-    if not query:
-        return render(request, 'pricehub/japan_search_results.html', {
-            'cards': [], 'query': query, 'page_title': '포켓몬 일본판 카드 검색'
+    seen_cards = {}
+    for cp in qs.order_by('-collected_at').values('card_id', 'id'):
+        if cp['card_id'] not in seen_cards:
+            seen_cards[cp['card_id']] = cp['id']
+        if len(seen_cards) >= limit:
+            break
+
+    name_count = {}
+    for raw in price_model.objects.filter(id__in=seen_cards.values()).values_list('raw_data', flat=True):
+        if isinstance(raw, list):
+            for item in raw:
+                name = item.get('mallName', '').strip()
+                if name:
+                    name_count[name] = name_count.get(name, 0) + 1
+
+    return sorted(name_count.items(), key=lambda x: -x[1])
+
+
+def _calc_shop_stats(raw_data_list):
+    """raw_data 리스트에서 샵별 통계 집계"""
+    shops = {}
+    total_prices = []
+
+    for raw in raw_data_list:
+        if isinstance(raw, dict):
+            raw = [raw] if raw else []
+        if not isinstance(raw, list):
+            continue
+        for item in raw:
+            mall = item.get('mallName', '').strip()
+            try:
+                price = int(float(item.get('lprice', 0)))
+            except (ValueError, TypeError):
+                continue
+            if not mall or price <= 0:
+                continue
+            if mall not in shops:
+                shops[mall] = {'count': 0, 'prices': []}
+            shops[mall]['count'] += 1
+            shops[mall]['prices'].append(price)
+            total_prices.append(price)
+
+    overall_avg = round(sum(total_prices) / len(total_prices)) if total_prices else 0
+
+    result = []
+    for mall, data in shops.items():
+        prices = data['prices']
+        avg = round(sum(prices) / len(prices))
+        diff = avg - overall_avg
+        diff_pct = round((diff / overall_avg) * 100, 1) if overall_avg else 0
+        result.append({
+            'name': mall,
+            'count': data['count'],
+            'avg': avg,
+            'min': min(prices),
+            'max': max(prices),
+            'diff': diff,
+            'diff_pct': diff_pct,
+            'cheaper': diff < 0,
         })
 
-    latest_yuyu_subquery = JapanCardPrice.objects.filter(
-        card=OuterRef('pk'), source='유유테이'
-    ).order_by('-collected_at').values('price')[:1]
-
-    latest_cardrush_subquery = JapanCardPrice.objects.filter(
-        card=OuterRef('pk'), source='카드러쉬', condition='S'
-    ).order_by('-collected_at').values('price')[:1]
-
-    cards = JapanCard.objects.filter(
-        Q(name__icontains=query) |
-        Q(card_number__icontains=query) |
-        Q(shop_product_code__icontains=query)
-    ).select_related('expansion').annotate(
-        latest_yuyu_price=Subquery(latest_yuyu_subquery),
-        latest_cardrush_price=Subquery(latest_cardrush_subquery)
-    ).order_by('expansion', 'card_number')
-
-    return render(request, 'pricehub/japan_search_results.html', {
-        'cards': cards, 'query': query, 'page_title': f'포켓몬 일본판 검색: {query}'
-    })
+    result.sort(key=lambda x: -x['count'])
+    return result, overall_avg
 
 
-def japan_card_list(request, expansion_code):
-    expansion = get_object_or_404(JapanExpansion, code=expansion_code)
-    query = request.GET.get('q', '')
-    rarity_filter = request.GET.get('rarity', '')
-    mirror_filter = request.GET.get('mirror', '')
-    sort_by = request.GET.get('sort', 'card_number')
+def _parse_market_items(latest_price_obj):
+    """CardPrice.raw_data에서 market_items + stats 반환"""
+    market_items = []
+    if latest_price_obj and latest_price_obj.raw_data:
+        raw = latest_price_obj.raw_data
+        if isinstance(raw, list):
+            market_items = raw
+        elif isinstance(raw, dict) and raw:
+            market_items = [raw]
 
-    cards = JapanCard.objects.filter(expansion=expansion).select_related('expansion')
+    for item in market_items:
+        item['clean_title'] = re.sub(r'<[^>]+>', '', item.get('title', ''))
+        item['price_int'] = int(float(item.get('lprice', 0)))
 
-    if query:
-        cards = cards.filter(Q(name__icontains=query) | Q(card_number__icontains=query))
-    if rarity_filter:
-        cards = cards.filter(rarity=rarity_filter)
-    if mirror_filter == 'mirror':
-        cards = cards.filter(is_mirror=True)
-    elif mirror_filter == 'normal':
-        cards = cards.filter(is_mirror=False)
+    our_items = []
+    for shop in OUR_SHOPS:
+        for item in market_items:
+            if item.get('mallName') == shop:
+                our_items.append(item)
+                break
 
-    latest_yuyu_subquery = JapanCardPrice.objects.filter(
-        card=OuterRef('pk'), source='유유테이'
-    ).order_by('-collected_at').values('price')[:1]
-
-    latest_cardrush_s_subquery = JapanCardPrice.objects.filter(
-        card=OuterRef('pk'), source='카드러쉬', condition='S'
-    ).order_by('-collected_at').values('price')[:1]
-
-    latest_cardrush_a_subquery = JapanCardPrice.objects.filter(
-        card=OuterRef('pk'), source='카드러쉬', condition='A-'
-    ).order_by('-collected_at').values('price')[:1]
-
-    cards = cards.annotate(
-        latest_yuyu_price=Subquery(latest_yuyu_subquery),
-        latest_cardrush_s_price=Subquery(latest_cardrush_s_subquery),
-        latest_cardrush_a_price=Subquery(latest_cardrush_a_subquery)
+    other_items = sorted(
+        [i for i in market_items if i.get('mallName') not in OUR_SHOPS],
+        key=lambda x: x['price_int'],
     )
 
-    if sort_by == 'card_number':
-        cards = cards.order_by('card_number', 'mirror_type')
-    elif sort_by == 'name':
-        cards = cards.order_by('name')
-    elif sort_by == 'rarity':
-        cards = cards.order_by('rarity', 'card_number')
-    elif sort_by == 'yuyu_price':
-        cards = cards.order_by('-latest_yuyu_price', 'card_number')
-    elif sort_by == 'cardrush_price':
-        cards = cards.order_by('-latest_cardrush_s_price', 'card_number')
+    market_items = our_items + other_items
+    prices = [item['price_int'] for item in market_items if item['price_int'] > 0]
+    return market_items, _calc_stats(prices)
 
-    rarities = JapanCard.objects.filter(expansion=expansion).values_list('rarity', flat=True).distinct().order_by('rarity')
 
-    return render(request, 'pricehub/japan_card_list.html', {
-        'expansion': expansion, 'cards': cards, 'rarities': rarities,
-        'query': query, 'rarity_filter': rarity_filter, 'mirror_filter': mirror_filter,
-        'sort_by': sort_by, 'page_title': f'{expansion.name} - 카드 목록'
+def _calc_stats(prices):
+    if not prices:
+        return {}
+    sorted_p = sorted(prices)
+    return {
+        'min': sorted_p[0],
+        'max': sorted_p[-1],
+        'avg': round(sum(sorted_p) / len(sorted_p)),
+        'median': sorted_p[len(sorted_p) // 2],
+        'count': len(sorted_p),
+    }
+
+
+def _set_price(model_class, pk, request):
+    """공통 판매가 저장 (AJAX POST)"""
+    obj = get_object_or_404(model_class, pk=pk)
+    try:
+        data = json.loads(request.body)
+        price = int(data.get('selling_price', 0))
+        if price < 0:
+            return JsonResponse({'success': False, 'error': '올바른 가격을 입력하세요.'})
+        obj.selling_price = price if price > 0 else None
+        obj.save(update_fields=['selling_price'])
+        return JsonResponse({'success': True, 'selling_price': obj.selling_price})
+    except (ValueError, TypeError) as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+def _price_history_json(card, price_model_relation):
+    """최근 1주일 가격 이력 JSON"""
+    one_week_ago = timezone.now() - timedelta(days=7)
+    history = list(
+        price_model_relation
+        .filter(collected_at__gte=one_week_ago)
+        .order_by('collected_at')
+        .values('collected_at', 'raw_data')
+    )
+    return json.dumps(
+        [
+            {
+                'date': p['collected_at'].strftime('%m/%d %H:%M'),
+                'raw_data': p['raw_data'] if isinstance(p['raw_data'], list) else [],
+            }
+            for p in history
+        ],
+        ensure_ascii=False,
+    )
+
+
+def _get_rarities(card_model, expansion_code=None):
+    qs = card_model.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
+    if expansion_code:
+        qs = qs.filter(expansion__code=expansion_code)
+    return list(qs)
+
+
+# ════════════════════════════════════════════════════════════════
+# 공통 뷰 로직 — expansion_list / card_list / card_search
+# ════════════════════════════════════════════════════════════════
+
+def _expansion_list_view(request, cfg_key, extra_ctx=None):
+    cfg = _cfg(cfg_key)
+    expansion_model = cfg['expansion_model']
+    card_model = cfg['card_model']
+    base_url = cfg['base_url']
+
+    expansions = list(expansion_model.objects.order_by('-release_date', '-created_at'))
+    for e in expansions:
+        e.card_count = e.cards.count()
+        e.unpriced_count = e.cards.filter(selling_price=0).count()
+
+    ctx = {
+        'expansions': expansions,
+        'total_cards': sum(e.card_count for e in expansions),
+        'total_unpriced': sum(e.unpriced_count for e in expansions),
+        'base_url': base_url,
+        'title': cfg['label'],
+        'breadcrumb': [('홈', '/'), (cfg['label'], None)],
+        'card_detail_base_url': f'{base_url}/cards/',
+    }
+    if extra_ctx:
+        ctx.update(extra_ctx)
+    return render(request, 'dashboard/expansion_list.html', ctx)
+
+
+def _card_list_view(request, cfg_key, code, extra_ctx=None):
+    cfg = _cfg(cfg_key)
+    expansion_model = cfg['expansion_model']
+    card_model = cfg['card_model']
+    price_model = cfg['price_model']
+    base_url = cfg['base_url']
+
+    expansion = get_object_or_404(expansion_model, code=code)
+    latest_price_qs = price_model.objects.filter(card=OuterRef('pk')).order_by('-collected_at')
+    cards = (
+        card_model.objects.filter(expansion=expansion)
+        .annotate(
+            latest_market_price=Subquery(latest_price_qs.values('price')[:1]),
+            latest_collected_at=Subquery(latest_price_qs.values('collected_at')[:1]),
+        )
+        .order_by('card_number')
+    )
+
+    filter_type = request.GET.get('filter', 'all')
+    if filter_type == 'unpriced':
+        cards = cards.filter(selling_price=0)
+    elif filter_type == 'priced':
+        cards = cards.filter(selling_price__gt=0)
+
+    ctx = {
+        'expansion': expansion,
+        'cards': cards,
+        'filter_type': filter_type,
+        'breadcrumb': [
+            ('홈', '/'),
+            (cfg['label'], f'{base_url}/expansions/'),
+            (expansion.name, None),
+        ],
+        'detail_base_url': f'{base_url}/cards',
+        'back_url': f'{base_url}/expansions/',
+    }
+    if extra_ctx:
+        ctx.update(extra_ctx)
+    return render(request, 'dashboard/card_list.html', ctx)
+
+
+def _card_search_view(request, card_model):
+    q = request.GET.get('name', '').strip()
+    page_size = min(int(request.GET.get('page_size', 30)), 50)
+
+    if not q:
+        return JsonResponse({'results': []})
+
+    cards = (
+        card_model.objects
+        .filter(name__icontains=q)
+        .select_related('expansion')
+        .order_by('expansion__release_date', 'card_number')
+        [:page_size]
+    )
+
+    results = []
+    for card in cards:
+        latest = card.prices.first()
+        results.append({
+            'id': card.id,
+            'name': card.name,
+            'rarity': card.rarity,
+            'card_number': card.card_number,
+            'image_url': card.image_url,
+            'selling_price': card.selling_price if card.selling_price != 0 else None,
+            'latest_price': float(latest.price) if latest else None,
+            'expansion': {
+                'code': card.expansion.code,
+                'name': card.expansion.name,
+            },
+        })
+
+    return JsonResponse({'results': results})
+
+
+# ════════════════════════════════════════════════════════════════
+# 공통 뷰 로직 — bulk_price / bulk_run / bulk_issues
+# ════════════════════════════════════════════════════════════════
+
+def _bulk_price_view(request, cfg_key):
+    cfg = _cfg(cfg_key)
+    card_model = cfg['card_model']
+    price_model = cfg['price_model']
+    base_url = cfg['base_url']
+
+    expansion_code = request.GET.get('expansion', '')
+    selected_rarities = request.GET.getlist('rarities')
+
+    selected_expansion = None
+    if expansion_code:
+        selected_expansion = cfg['expansion_model'].objects.filter(code=expansion_code).first()
+
+    mall_names = _collect_mall_names(price_model, expansion_code=expansion_code or None)
+    expansions = list(cfg['expansion_model'].objects.order_by('-release_date', '-created_at'))
+    needs_review = card_model.objects.filter(selling_price=0).count()
+    all_rarities = _get_rarities(card_model, expansion_code or None)
+
+    raw_list = _load_raw_data(price_model, expansion_code=expansion_code or None, rarities=selected_rarities or None)
+    shop_stats, overall_avg = _calc_shop_stats(raw_list)
+
+    label_breadcrumb = cfg['label'].split()[0]  # '포켓몬' or '원피스'
+
+    return render(request, 'dashboard/bulk_price.html', {
+        'mall_names': json.dumps(mall_names),
+        'mall_names_display': mall_names,
+        'expansions': expansions,
+        'needs_review': needs_review,
+        'shop_stats_json': json.dumps(shop_stats, ensure_ascii=False),
+        'shop_stats': shop_stats,
+        'overall_avg': overall_avg,
+        'selected_expansion': selected_expansion,
+        'expansion_code': expansion_code,
+        'all_rarities': all_rarities,
+        'selected_rarities': selected_rarities,
+        'selected_rarities_json': json.dumps(selected_rarities),
+        'breadcrumb': [
+            ('홈', '/'),
+            (cfg['label'], f'{base_url}/expansions/'),
+            ('일괄 판매가 설정', None),
+        ],
+        'config': {
+            'label': cfg['label'],
+            'expansion_list_url': f'{base_url}/expansions/',
+            'bulk_price_url': f'{base_url}/bulk-price/',
+            'bulk_run_url': f'{base_url}/bulk-price/run/',
+            'bulk_issues_url': f'{base_url}/bulk-price/issues/',
+            'high_rarity_list': cfg.get('high_rarity_list', '[]'),
+        },
     })
 
 
-def japan_card_detail(request, card_id):
-    card = get_object_or_404(JapanCard.objects.select_related('expansion'), id=card_id)
-    period = request.GET.get('period', '30')
+def _bulk_run_view(request, cfg_key):
+    cfg = _cfg(cfg_key)
+    card_model = cfg['card_model']
+    price_model = cfg['price_model']
 
-    now = timezone.now()
-    if period == '7':
-        start_date = now - timedelta(days=7)
-        period_label = '1주일'
-        date_format = '%m-%d'
-    elif period == '90':
-        start_date = now - timedelta(days=90)
-        period_label = '3개월'
-        date_format = '%m-%d'
-    elif period == 'all':
-        start_date = None
-        period_label = '전체'
-        date_format = '%Y-%m-%d'
-    else:
-        start_date = now - timedelta(days=30)
-        period_label = '1개월'
-        date_format = '%m-%d'
+    try:
+        data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'error': '잘못된 요청입니다.'}, status=400)
 
-    base_yuyu = JapanCardPrice.objects.filter(card=card, source='유유테이')
-    base_cardrush = JapanCardPrice.objects.filter(card=card, source='카드러쉬')
+    priorities = [p.strip() for p in data.get('priorities', []) if p.strip()]
+    expansion_code = data.get('expansion_code', '').strip()
+    skip_priced = data.get('skip_priced', False)
+    rarities = data.get('rarities', [])
+    min_price_floor = int(data.get('min_price', 0) or 0)
+    fallback_mode = data.get('fallback_mode', '')  # 'avg', 'max', ''
 
-    if start_date:
-        yuyu_prices = base_yuyu.filter(collected_at__gte=start_date).order_by('collected_at')
-        cardrush_prices = base_cardrush.filter(collected_at__gte=start_date).order_by('collected_at')
-    else:
-        yuyu_prices = base_yuyu.order_by('collected_at')
-        cardrush_prices = base_cardrush.order_by('collected_at')
+    if not priorities:
+        return JsonResponse({'error': '우선순위를 1개 이상 설정해주세요.'}, status=400)
 
-    cardrush_by_condition = {}
-    for price in cardrush_prices:
-        cardrush_by_condition.setdefault(price.condition, []).append(price)
+    cards_qs = card_model.objects.select_related('expansion').order_by('expansion__code', 'card_number')
+    if expansion_code:
+        cards_qs = cards_qs.filter(expansion__code=expansion_code)
+    if rarities:
+        cards_qs = cards_qs.filter(rarity__in=rarities)
 
-    latest_yuyu = yuyu_prices.last() if yuyu_prices.exists() else None
-    latest_cardrush_by_condition = {c: prices[-1] for c, prices in cardrush_by_condition.items() if prices}
-    latest_cardrush_s = latest_cardrush_by_condition.get('S')
+    latest_price_id_qs = (
+        price_model.objects
+        .filter(card=OuterRef('pk'))
+        .exclude(raw_data={})
+        .exclude(raw_data=[])
+        .order_by('-collected_at')
+        .values('id')[:1]
+    )
+    cards_list = list(cards_qs.annotate(latest_price_id=Subquery(latest_price_id_qs)))
 
-    lowest_price = None
-    lowest_source = None
-    if latest_yuyu and latest_cardrush_s:
-        if latest_yuyu.price <= latest_cardrush_s.price:
-            lowest_price, lowest_source = float(latest_yuyu.price), '유유테이'
+    price_ids = [c.latest_price_id for c in cards_list if c.latest_price_id]
+    price_map = {cp.id: cp.raw_data for cp in price_model.objects.filter(id__in=price_ids)}
+
+    to_update, skipped, needs_review = [], [], []
+
+    for card in cards_list:
+        if skip_priced and card.selling_price != 0:
+            skipped.append(card.id)
+            continue
+
+        raw = price_map.get(card.latest_price_id, [])
+        if isinstance(raw, dict):
+            raw = [raw]
+
+        # 우선순위 매칭
+        matched_price = None
+        for mall_name in priorities:
+            for item in raw:
+                if item.get('mallName', '') == mall_name:
+                    try:
+                        price = int(float(item.get('lprice', 0)))
+                        if price > 0:
+                            matched_price = price
+                    except (ValueError, TypeError):
+                        pass
+                    break
+            if matched_price:
+                break
+
+        if matched_price:
+            if min_price_floor > 0 and matched_price < min_price_floor:
+                matched_price = min_price_floor
+            card.selling_price = matched_price
+            to_update.append(card)
         else:
-            lowest_price, lowest_source = float(latest_cardrush_s.price), '카드러쉬'
-    elif latest_yuyu:
-        lowest_price, lowest_source = float(latest_yuyu.price), '유유테이'
-    elif latest_cardrush_s:
-        lowest_price, lowest_source = float(latest_cardrush_s.price), '카드러쉬'
+            # fallback 처리
+            fallback_price = None
+            if fallback_mode in ('avg', 'max'):
+                prices = []
+                for item in raw:
+                    try:
+                        p = int(float(item.get('lprice', 0)))
+                        if p > 0:
+                            prices.append(p)
+                    except (ValueError, TypeError):
+                        pass
+                if prices:
+                    raw_price = (sum(prices) / len(prices)) if fallback_mode == 'avg' else max(prices)
+                    fallback_price = round(raw_price / 100) * 100
 
-    price_stats = {
-        'yuyu': {
-            'current': float(latest_yuyu.price) if latest_yuyu else None,
-            'min': float(min([p.price for p in yuyu_prices])) if yuyu_prices.exists() else None,
-            'max': float(max([p.price for p in yuyu_prices])) if yuyu_prices.exists() else None,
-            'avg': float(sum([p.price for p in yuyu_prices]) / len(yuyu_prices)) if yuyu_prices.exists() else None,
-        },
-        'cardrush': {
-            c: {
-                'current': float(prices[-1].price),
-                'min': float(min([p.price for p in prices])),
-                'max': float(max([p.price for p in prices])),
-                'avg': float(sum([p.price for p in prices]) / len(prices)),
-            }
-            for c, prices in cardrush_by_condition.items() if prices
-        },
-        'lowest': {'price': lowest_price, 'source': lowest_source} if lowest_price else None
-    }
+            if fallback_price:
+                if min_price_floor > 0 and fallback_price < min_price_floor:
+                    fallback_price = min_price_floor
+                card.selling_price = fallback_price
+                to_update.append(card)
+            else:
+                needs_review.append(card.id)
 
-    chart_data = {
-        'yuyu': {
-            'labels': json.dumps([p.collected_at.strftime(date_format) for p in yuyu_prices]),
-            'prices': json.dumps([float(p.price) for p in yuyu_prices])
-        },
-        'cardrush': {
-            c: {
-                'labels': json.dumps([p.collected_at.strftime(date_format) for p in prices]),
-                'prices': json.dumps([float(p.price) for p in prices])
-            }
-            for c, prices in cardrush_by_condition.items()
-        }
-    }
+    if to_update:
+        card_model.objects.bulk_update(to_update, ['selling_price'])
 
-    condition_order = ['S', 'A-', 'B', 'C']
-    available_conditions = sorted(
-        cardrush_by_condition.keys(),
-        key=lambda x: condition_order.index(x) if x in condition_order else 99
-    )
-
-    return render(request, 'pricehub/japan_card_detail.html', {
-        'card': card, 'latest_yuyu': latest_yuyu,
-        'latest_cardrush_by_condition': latest_cardrush_by_condition,
-        'available_conditions': available_conditions,
-        'condition_labels': {'S': 'S급 (신품)', 'A-': 'A-급', 'B': 'B급', 'C': 'C급'},
-        'price_stats': price_stats, 'chart_data': chart_data,
-        'period': period, 'period_label': period_label,
-        'page_title': f'{card.name} - 카드 상세'
+    return JsonResponse({
+        'success': True,
+        'total': len(cards_list),
+        'set_count': len(to_update),
+        'skipped_count': len(skipped),
+        'needs_review_count': len(needs_review),
+        'needs_review_ids': needs_review[:100],
     })
+
+
+def _bulk_issues_view(request, cfg_key):
+    cfg = _cfg(cfg_key)
+    card_model = cfg['card_model']
+    price_model = cfg['price_model']
+    base_url = cfg['base_url']
+
+    expansion_code = request.GET.get('expansion', '')
+    selected_rarities = request.GET.getlist('rarities')
+
+    cards_qs = card_model.objects.filter(selling_price=0).select_related('expansion')
+    if expansion_code:
+        cards_qs = cards_qs.filter(expansion__code=expansion_code)
+    cards_qs = cards_qs.order_by('expansion__code', 'card_number')
+
+    all_rarities = _get_rarities(card_model, expansion_code or None)
+
+    seen = {}
+    for cp in (
+        price_model.objects.filter(card__in=cards_qs)
+        .exclude(raw_data={}).exclude(raw_data=[])
+        .order_by('-collected_at')
+        .values('card_id', 'raw_data')
+    ):
+        if cp['card_id'] not in seen:
+            seen[cp['card_id']] = cp['raw_data']
+
+    expansions = cfg['expansion_model'].objects.order_by('-release_date')
+
+    return render(request, 'dashboard/bulk_issues.html', {
+        'cards': cards_qs,
+        'expansions': expansions,
+        'expansion_code': expansion_code,
+        'total': cards_qs.count(),
+        'card_raw_json': json.dumps(seen, ensure_ascii=False),
+        'all_rarities': all_rarities,
+        'selected_rarities': selected_rarities,
+        'selected_rarities_json': json.dumps(selected_rarities),
+        'breadcrumb': [
+            ('홈', '/'),
+            (cfg['label'], f'{base_url}/expansions/'),
+            ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
+            ('2차 판매가 설정', None),
+        ],
+        'config': {
+            'label': cfg['label'],
+            'bulk_price_url': f'{base_url}/bulk-price/',
+            'bulk_issues_url': f'{base_url}/bulk-price/issues/',
+            'set_price_url_prefix': f'{base_url}/cards/',
+            'high_rarity_list': cfg.get('bulk_issues_high_rarity_list', cfg.get('high_rarity_list', '[]')),
+        },
+    })
+
+
+# ════════════════════════════════════════════════════════════════
+# 포켓몬 한글판 — 뷰
+# ════════════════════════════════════════════════════════════════
+
+@staff_required
+def pokemon_kr_expansion_list(request):
+    return _expansion_list_view(request, 'pokemon_kr', {
+        'bulk_price_url': '/pokemon/kr/bulk-price/',
+        'card_search_url': '/pokemon/kr/cards/search/',
+        'bulk_issues_url': '/pokemon/kr/bulk-price/issues/',
+        'reset_prices_url_prefix': '/pokemon/kr/expansions/',
+        'reset_all_url': '/pokemon/kr/reset-all-prices/',
+    })
+
+
+@staff_required
+def pokemon_kr_card_list(request, code):
+    expansion = get_object_or_404(Expansion, code=code)
+    return _card_list_view(request, 'pokemon_kr', code, {
+        'bulk_price_url': f'/pokemon/kr/bulk-price/?expansion={expansion.code}',
+        'reset_prices_url': f'/pokemon/kr/expansions/{expansion.code}/reset-prices/',
+    })
+
+
+@staff_required
+def pokemon_kr_card_detail(request, pk):
+    card = get_object_or_404(Card.objects.select_related('expansion'), pk=pk)
+    latest_price_obj = card.prices.order_by('-collected_at').first()
+    market_items, stats = _parse_market_items(latest_price_obj)
+    base = '/pokemon/kr'
+
+    return render(request, 'dashboard/card_detail.html', {
+        'card': card,
+        'card_type': 'pokemon_kr',
+        'latest_price_obj': latest_price_obj,
+        'market_items': market_items,
+        'market_items_json': json.dumps(market_items, ensure_ascii=False),
+        'stats': stats,
+        'set_price_url': f'{base}/cards/{pk}/set-price/',
+        'back_url': f'{base}/expansions/{card.expansion.code}/cards/',
+        'price_history_week_json': _price_history_json(card, card.prices),
+        'breadcrumb': [
+            ('홈', '/'),
+            ('포켓몬 한글판', f'{base}/expansions/'),
+            (card.expansion.name, f'{base}/expansions/{card.expansion.code}/cards/'),
+            (card.name, None),
+        ],
+    })
+
+
+@staff_required
+@require_POST
+def pokemon_kr_set_price(request, pk):
+    return _set_price(Card, pk, request)
+
+
+@staff_required
+def pokemon_kr_card_search(request):
+    return _card_search_view(request, Card)
+
+
+@staff_required
+@require_POST
+def pokemon_kr_reset_prices(request, expansion_code):
+    count = Card.objects.filter(expansion__code=expansion_code).update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
+
+@staff_required
+@require_POST
+def pokemon_kr_reset_all_prices(request):
+    count = Card.objects.all().update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
+
+@staff_required
+def pokemon_kr_bulk_price(request):
+    return _bulk_price_view(request, 'pokemon_kr')
+
+
+@staff_required
+@require_POST
+def pokemon_kr_bulk_run(request):
+    return _bulk_run_view(request, 'pokemon_kr')
+
+
+@staff_required
+def pokemon_kr_bulk_issues(request):
+    return _bulk_issues_view(request, 'pokemon_kr')
+
+
+@staff_required
+def pokemon_kr_shop_stats(request):
+    raw_list = _load_raw_data(CardPrice)
+    shop_stats, overall_avg = _calc_shop_stats(raw_list)
+    expansions = Expansion.objects.order_by('-release_date')
+    return render(request, 'dashboard/shop_stats.html', {
+        'shop_stats_json': json.dumps(shop_stats, ensure_ascii=False),
+        'shop_stats': shop_stats,
+        'overall_avg': overall_avg,
+        'expansion': None,
+        'expansions': expansions,
+        'total_cards': Card.objects.count(),
+        'title': '포켓몬 한글판 전체',
+        'breadcrumb': [
+            ('홈', '/'),
+            ('포켓몬 한글판', '/pokemon/kr/expansions/'),
+            ('경쟁 샵 랭킹', None),
+        ],
+    })
+
+
+@staff_required
+def pokemon_kr_shop_stats_detail(request, code):
+    expansion = get_object_or_404(Expansion, code=code)
+    raw_list = _load_raw_data(CardPrice, expansion_code=code)
+    shop_stats, overall_avg = _calc_shop_stats(raw_list)
+    expansions = Expansion.objects.order_by('-release_date')
+    return render(request, 'dashboard/shop_stats.html', {
+        'shop_stats_json': json.dumps(shop_stats, ensure_ascii=False),
+        'shop_stats': shop_stats,
+        'overall_avg': overall_avg,
+        'expansion': expansion,
+        'expansions': expansions,
+        'total_cards': Card.objects.filter(expansion=expansion).count(),
+        'title': expansion.name,
+        'breadcrumb': [
+            ('홈', '/'),
+            ('포켓몬 한글판', '/pokemon/kr/expansions/'),
+            ('경쟁 샵 랭킹', '/pokemon/kr/shop-stats/'),
+            (expansion.name, None),
+        ],
+    })
+
+
+# ════════════════════════════════════════════════════════════════
+# 포켓몬 일본판 — 뷰
+# ════════════════════════════════════════════════════════════════
+
+@staff_required
+def pokemon_jp_expansion_list(request):
+    return _expansion_list_view(request, 'pokemon_jp', {
+        'card_search_url': '/pokemon/jp/cards/search/',
+    })
+
+
+@staff_required
+def pokemon_jp_card_list(request, code):
+    return _card_list_view(request, 'pokemon_jp', code)
+
+
+@staff_required
+def pokemon_jp_card_detail(request, pk):
+    card = get_object_or_404(JapanCard.objects.select_related('expansion'), pk=pk)
+    base = '/pokemon/jp'
+
+    latest_prices = {}
+    for price in JapanCardPrice.objects.filter(card=card).order_by('-collected_at'):
+        key = f"{price.source}_{price.condition}"
+        if key not in latest_prices:
+            latest_prices[key] = price
+
+    price_values = [int(p.price) for p in latest_prices.values()]
+    stats = _calc_stats(price_values)
+
+    return render(request, 'dashboard/card_detail_jp.html', {
+        'card': card,
+        'latest_prices': latest_prices,
+        'stats': stats,
+        'set_price_url': f'{base}/cards/{pk}/set-price/',
+        'back_url': f'{base}/expansions/{card.expansion.code}/cards/',
+        'breadcrumb': [
+            ('홈', '/'),
+            ('포켓몬 일본판', f'{base}/expansions/'),
+            (card.expansion.name, f'{base}/expansions/{card.expansion.code}/cards/'),
+            (card.name, None),
+        ],
+    })
+
+
+@staff_required
+@require_POST
+def pokemon_jp_set_price(request, pk):
+    return _set_price(JapanCard, pk, request)
+
+
+# ════════════════════════════════════════════════════════════════
+# 원피스 한글판 — 뷰
+# ════════════════════════════════════════════════════════════════
+
+@staff_required
+def onepiece_kr_expansion_list(request):
+    return _expansion_list_view(request, 'onepiece_kr', {
+        'bulk_price_url': '/onepiece/kr/bulk-price/',
+        'card_search_url': '/onepiece/kr/cards/search/',
+        'bulk_issues_url': '/onepiece/kr/bulk-price/issues/',
+        'reset_prices_url_prefix': '/onepiece/kr/expansions/',
+        'reset_all_url': '/onepiece/kr/reset-all-prices/',
+    })
+
+
+@staff_required
+def onepiece_kr_card_list(request, code):
+    expansion = get_object_or_404(OnePieceExpansion, code=code)
+    return _card_list_view(request, 'onepiece_kr', code, {
+        'bulk_price_url': f'/onepiece/kr/bulk-price/?expansion={expansion.code}',
+        'reset_prices_url': f'/onepiece/kr/expansions/{expansion.code}/reset-prices/',
+    })
+
+
+@staff_required
+def onepiece_kr_card_detail(request, pk):
+    card = get_object_or_404(OnePieceCard.objects.select_related('expansion'), pk=pk)
+    latest_price_obj = card.prices.order_by('-collected_at').first()
+    market_items, stats = _parse_market_items(latest_price_obj)
+    base = '/onepiece/kr'
+
+    return render(request, 'dashboard/card_detail.html', {
+        'card': card,
+        'card_type': 'onepiece_kr',
+        'latest_price_obj': latest_price_obj,
+        'market_items': market_items,
+        'market_items_json': json.dumps(market_items, ensure_ascii=False),
+        'stats': stats,
+        'set_price_url': f'{base}/cards/{pk}/set-price/',
+        'back_url': f'{base}/expansions/{card.expansion.code}/cards/',
+        'price_history_week_json': _price_history_json(card, card.prices),
+        'breadcrumb': [
+            ('홈', '/'),
+            ('원피스 한글판', f'{base}/expansions/'),
+            (card.expansion.name, f'{base}/expansions/{card.expansion.code}/cards/'),
+            (card.name, None),
+        ],
+    })
+
+
+@staff_required
+@require_POST
+def onepiece_kr_set_price(request, pk):
+    return _set_price(OnePieceCard, pk, request)
+
+
+@staff_required
+@require_POST
+def onepiece_kr_reset_prices(request, expansion_code):
+    count = OnePieceCard.objects.filter(expansion__code=expansion_code).update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
+
+@staff_required
+@require_POST
+def onepiece_kr_reset_all_prices(request):
+    count = OnePieceCard.objects.all().update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
+
+@staff_required
+def onepiece_kr_bulk_price(request):
+    return _bulk_price_view(request, 'onepiece_kr')
+
+
+@staff_required
+@require_POST
+def onepiece_kr_bulk_run(request):
+    return _bulk_run_view(request, 'onepiece_kr')
+
+
+@staff_required
+def onepiece_kr_bulk_issues(request):
+    return _bulk_issues_view(request, 'onepiece_kr')
+
+
+@staff_required
+def onepiece_kr_card_search(request):
+    return _card_search_view(request, OnePieceCard)
