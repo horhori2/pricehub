@@ -105,6 +105,7 @@ class Card(models.Model):
         max_length=500, 
         verbose_name='이미지주소'
     )
+    is_favorite = models.BooleanField(default=False, verbose_name='즐겨찾기', db_index=True)
     created_at = models.DateTimeField(
         auto_now_add=True, 
         verbose_name='생성일시'
@@ -220,6 +221,7 @@ class OnePieceCard(models.Model):
     name = models.CharField(max_length=100, verbose_name="카드명")
     rarity = models.CharField(max_length=20, choices=RARITY_CHOICES, verbose_name="레어도")
     image_url = models.URLField(max_length=500, blank=True, verbose_name="이미지 URL")
+    is_favorite = models.BooleanField(default=False, verbose_name='즐겨찾기', db_index=True)
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
     selling_price = models.PositiveIntegerField(
         default=0,

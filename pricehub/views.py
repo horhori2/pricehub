@@ -30,7 +30,6 @@ OUR_SHOPS = ['화성스토어-TCG-', '카드 베이스']
 
 # ════════════════════════════════════════════════════════════════
 # 카테고리 설정 레지스트리
-# 새 TCG 추가 시 여기만 등록하면 됩니다.
 # ════════════════════════════════════════════════════════════════
 
 CATEGORY_CONFIGS = {
@@ -44,6 +43,8 @@ CATEGORY_CONFIGS = {
         'bulk_issues_high_rarity_list': "['SAR','CSR','HR','UR','MUR','BWR']",
         'card_detail_template': 'dashboard/card_detail.html',
         'card_type_key': 'pokemon_kr',
+        'favorites_url': '/pokemon/kr/favorites/',
+        'toggle_favorite_url_base': '/pokemon/kr/cards/',
     },
     'pokemon_jp': {
         'label': '포켓몬 일본판',
@@ -64,6 +65,8 @@ CATEGORY_CONFIGS = {
         'bulk_issues_high_rarity_list': "['SP-SEC','SP-SR','SEC','SL']",
         'card_detail_template': 'dashboard/card_detail.html',
         'card_type_key': 'onepiece_kr',
+        'favorites_url': '/onepiece/kr/favorites/',
+        'toggle_favorite_url_base': '/onepiece/kr/cards/',
     },
 }
 
@@ -393,6 +396,15 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
     elif filter_type == 'priced':
         cards = cards.filter(selling_price__gt=0)
 
+    # ── 즐겨찾기 context (favorites_url이 있는 카테고리만)
+    fav_ctx = {}
+    if 'favorites_url' in cfg:
+        fav_ctx = {
+            'favorites_url': cfg['favorites_url'],
+            'toggle_favorite_url_base': cfg['toggle_favorite_url_base'],
+            'favorite_count': card_model.objects.filter(is_favorite=True).count(),
+        }
+
     ctx = {
         'expansion': expansion,
         'cards': cards,
@@ -404,6 +416,7 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
         ],
         'detail_base_url': f'{base_url}/cards',
         'back_url': f'{base_url}/expansions/',
+        **fav_ctx,
     }
     if extra_ctx:
         ctx.update(extra_ctx)
@@ -469,8 +482,6 @@ def _bulk_price_view(request, cfg_key):
 
     raw_list = _load_raw_data(price_model, expansion_code=expansion_code or None, rarities=selected_rarities or None)
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
-
-    label_breadcrumb = cfg['label'].split()[0]  # '포켓몬' or '원피스'
 
     return render(request, 'dashboard/bulk_price.html', {
         'mall_names': json.dumps(mall_names),
@@ -551,7 +562,6 @@ def _bulk_run_view(request, cfg_key):
         if isinstance(raw, dict):
             raw = [raw]
 
-        # 우선순위 매칭
         matched_price = None
         for mall_name in priorities:
             for item in raw:
@@ -572,7 +582,6 @@ def _bulk_run_view(request, cfg_key):
             card.selling_price = matched_price
             to_update.append(card)
         else:
-            # fallback 처리
             fallback_price = None
             if fallback_mode in ('avg', 'max'):
                 prices = []
@@ -797,6 +806,52 @@ def pokemon_kr_shop_stats_detail(request, code):
 
 
 # ════════════════════════════════════════════════════════════════
+# 포켓몬 한글판 — 즐겨찾기
+# ════════════════════════════════════════════════════════════════
+
+@staff_required
+@require_POST
+def pokemon_kr_toggle_favorite(request, card_id):
+    try:
+        card = Card.objects.get(pk=card_id)
+    except Card.DoesNotExist:
+        return JsonResponse({'error': '카드를 찾을 수 없습니다.'}, status=404)
+    card.is_favorite = not card.is_favorite
+    card.save(update_fields=['is_favorite'])
+    return JsonResponse({'success': True, 'is_favorite': card.is_favorite})
+
+
+@staff_required
+def pokemon_kr_favorites(request):
+    cards = (
+        Card.objects.filter(is_favorite=True)
+        .select_related('expansion')
+        .prefetch_related('prices')
+        .order_by('expansion__name', 'card_number')
+    )
+    card_data = []
+    for card in cards:
+        latest = card.prices.order_by('-collected_at').first()
+        card_data.append({
+            'card': card,
+            'latest_price': latest.price if latest else None,
+            'collected_at': latest.collected_at if latest else None,
+        })
+    return render(request, 'dashboard/favorites.html', {
+        'card_data': card_data,
+        'game': 'pokemon',
+        'lang': 'kr',
+        'title': '즐겨찾기 — 포켓몬 한글판',
+        'total': len(card_data),
+        'breadcrumb': [
+            ('홈', '/'),
+            ('포켓몬 한글판', '/pokemon/kr/expansions/'),
+            ('즐겨찾기', None),
+        ],
+    })
+
+
+# ════════════════════════════════════════════════════════════════
 # 포켓몬 일본판 — 뷰
 # ════════════════════════════════════════════════════════════════
 
@@ -936,3 +991,49 @@ def onepiece_kr_bulk_issues(request):
 @staff_required
 def onepiece_kr_card_search(request):
     return _card_search_view(request, OnePieceCard)
+
+
+# ════════════════════════════════════════════════════════════════
+# 원피스 한글판 — 즐겨찾기
+# ════════════════════════════════════════════════════════════════
+
+@staff_required
+@require_POST
+def onepiece_kr_toggle_favorite(request, card_id):
+    try:
+        card = OnePieceCard.objects.get(pk=card_id)
+    except OnePieceCard.DoesNotExist:
+        return JsonResponse({'error': '카드를 찾을 수 없습니다.'}, status=404)
+    card.is_favorite = not card.is_favorite
+    card.save(update_fields=['is_favorite'])
+    return JsonResponse({'success': True, 'is_favorite': card.is_favorite})
+
+
+@staff_required
+def onepiece_kr_favorites(request):
+    cards = (
+        OnePieceCard.objects.filter(is_favorite=True)
+        .select_related('expansion')
+        .prefetch_related('prices')
+        .order_by('expansion__name', 'card_number')
+    )
+    card_data = []
+    for card in cards:
+        latest = card.prices.order_by('-collected_at').first()
+        card_data.append({
+            'card': card,
+            'latest_price': latest.price if latest else None,
+            'collected_at': latest.collected_at if latest else None,
+        })
+    return render(request, 'dashboard/favorites.html', {
+        'card_data': card_data,
+        'game': 'onepiece',
+        'lang': 'kr',
+        'title': '즐겨찾기 — 원피스 한글판',
+        'total': len(card_data),
+        'breadcrumb': [
+            ('홈', '/'),
+            ('원피스 한글판', '/onepiece/kr/expansions/'),
+            ('즐겨찾기', None),
+        ],
+    })
