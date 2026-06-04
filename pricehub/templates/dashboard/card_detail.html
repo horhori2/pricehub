@@ -132,12 +132,12 @@
 <body>
 <header>
   <div class="header-left">
-    <a href="/dashboard/expansions/{{ card.expansion.code }}/" class="back-btn">← 목록</a>
+    <a href="/expansions/{{ card.expansion.code }}/" class="back-btn">← 목록</a>
     <div class="breadcrumb">
-      <a href="/dashboard/">홈</a> / <a href="/dashboard/expansions/{{ card.expansion.code }}/">{{ card.expansion.name }}</a> / {{ card.name }}
+      <a href="/">홈</a> / <a href="/expansions/{{ card.expansion.code }}/">{{ card.expansion.name }}</a> / {{ card.name }}
     </div>
   </div>
-  <a href="/dashboard/logout/" class="logout-btn">로그아웃</a>
+  <a href="/logout/" class="logout-btn">로그아웃</a>
 </header>
 
 <main>
@@ -403,7 +403,7 @@ async function savePrice() {
   const price = parseInt(input.value) || 0;
 
   try {
-    const res = await fetch(`/dashboard/pokemon/kr/cards/${CARD_ID}/set-price/`, {
+    const res = await fetch(`/pokemon/kr/cards/${CARD_ID}/set-price/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

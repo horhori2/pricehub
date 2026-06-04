@@ -165,7 +165,7 @@
 
 <header>
   <div class="header-left">
-    <a href="/dashboard/pokemon/kr/expansions/" class="back-btn">← 포켓몬 한글판</a>
+    <a href="/pokemon/kr/expansions/" class="back-btn">← 포켓몬 한글판</a>
     <div class="breadcrumb">
       {% for crumb in breadcrumb %}
         {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
@@ -173,7 +173,7 @@
       {% endfor %}
     </div>
   </div>
-  <a href="/dashboard/logout/" class="logout-btn">로그아웃</a>
+  <a href="/logout/" class="logout-btn">로그아웃</a>
 </header>
 
 <main>
@@ -185,9 +185,9 @@
     <div class="scope-box">
       <span class="scope-label">범위:</span>
       <select class="scope-select" onchange="location.href=this.value">
-        <option value="/dashboard/pokemon/kr/shop-stats/" {% if not expansion %}selected{% endif %}>전체 (포켓몬 한글판)</option>
+        <option value="/pokemon/kr/shop-stats/" {% if not expansion %}selected{% endif %}>전체 (포켓몬 한글판)</option>
         {% for exp in expansions %}
-        <option value="/dashboard/pokemon/kr/shop-stats/{{ exp.code }}/"
+        <option value="/pokemon/kr/shop-stats/{{ exp.code }}/"
                 {% if expansion and expansion.code == exp.code %}selected{% endif %}>
           {{ exp.code }} — {{ exp.name }}
         </option>
@@ -296,7 +296,7 @@
               <div class="r-stat-v c-yellow" id="rReview">0</div>
             </div>
           </div>
-          <a href="/dashboard/pokemon/kr/bulk-price/issues/" class="issues-link" id="issuesLink">
+          <a href="/pokemon/kr/bulk-price/issues/" class="issues-link" id="issuesLink">
             ⚠️ 점검 필요 카드 확인
           </a>
         </div>
@@ -454,7 +454,7 @@ async function runBulk() {
   btn.innerHTML = '<span class="spinner"></span>적용 중...';
 
   try {
-    const res = await fetch('/dashboard/pokemon/kr/bulk-price/run/', {
+    const res = await fetch('/pokemon/kr/bulk-price/run/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
       body: JSON.stringify({

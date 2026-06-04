@@ -114,7 +114,7 @@
 <body>
 <header>
   <div class="header-left">
-    <a href="/dashboard/" class="back-btn">← 홈</a>
+    <a href="/" class="back-btn">← 홈</a>
     <div class="breadcrumb">
       {% for crumb in breadcrumb %}
         {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
@@ -122,7 +122,7 @@
       {% endfor %}
     </div>
   </div>
-  <a href="/dashboard/logout/" class="logout-btn">로그아웃</a>
+  <a href="/logout/" class="logout-btn">로그아웃</a>
 </header>
 
 <main>
@@ -239,7 +239,7 @@
 const CSRF = '{{ csrf_token }}';
 const CARD_SEARCH_URL = '{{ card_search_url }}';
 const CARD_DETAIL_BASE_URL = '{{ card_detail_base_url }}';
-const RESET_URL_PREFIX = '{{ reset_prices_url_prefix }}';  // 예: /dashboard/pokemon/kr/expansions/
+const RESET_URL_PREFIX = '{{ reset_prices_url_prefix }}';  // 예: /pokemon/kr/expansions/
 let searchTimer = null;
 let pendingCode = null;
 

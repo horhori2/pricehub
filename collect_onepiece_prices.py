@@ -46,7 +46,6 @@ def collect_prices_for_all_cards():
                 rarity=card.rarity,
                 expansion_name=card.expansion.name,
                 card_number=card.card_number,
-                is_manga=card.is_manga
             )
 
             general_price, valid_count, mall_name = result['general_price']
@@ -116,9 +115,9 @@ def collect_prices_for_expansion(expansion_code: str):
         try:
             print(f"[{idx}/{total_cards}] {card.name} ({card.card_number}) - {card.rarity}")
 
-            if card.rarity and card.rarity.startswith('SP-'):
+            if card.rarity == 'SP':
                 print(f"  🔍 SP 카드 - 검색어: SP {card.card_number}")
-            elif card.is_manga:
+            elif card.rarity == 'MANGA':
                 print(f"  🎨 망가 카드 - 검색어: 망가 {card.card_number}")
 
             result = get_onepiece_all_prices(
@@ -126,7 +125,6 @@ def collect_prices_for_expansion(expansion_code: str):
                 rarity=card.rarity,
                 expansion_name=card.expansion.name,
                 card_number=card.card_number,
-                is_manga=card.is_manga
             )
 
             general_price, valid_count, mall_name = result['general_price']
@@ -177,11 +175,10 @@ def test_single_card(card_id: int):
     print(f"  카드번호: {card.card_number}")
     print(f"  확장팩: {card.expansion.name}")
     print(f"  레어도: {card.rarity}")
-    print(f"  망가: {'예' if card.is_manga else '아니오'}")
 
-    if card.rarity and card.rarity.startswith('SP-'):
+    if card.rarity == 'SP':
         print(f"  🔍 검색어: SP {card.card_number}")
-    elif card.is_manga:
+    elif card.rarity == 'MANGA':
         print(f"  🔍 검색어: 망가 {card.card_number}")
     else:
         print(f"  🔍 검색어: {card.name} {card.card_number} {card.expansion.name}")
@@ -193,7 +190,6 @@ def test_single_card(card_id: int):
         rarity=card.rarity,
         expansion_name=card.expansion.name,
         card_number=card.card_number,
-        is_manga=card.is_manga
     )
 
     general_price, valid_count, mall_name = result['general_price']
@@ -256,8 +252,8 @@ if __name__ == '__main__':
         else:
             print("\n최근 등록된 카드:")
             for card in recent_cards:
-                manga_tag = " [망가]" if card.is_manga else ""
-                sp_tag = " [SP]" if card.rarity and card.rarity.startswith('SP-') else ""
+                sp_tag = " [SP]" if card.rarity == 'SP' else ""
+                manga_tag = " [망가]" if card.rarity == 'MANGA' else ""
                 print(f"  ID {card.id}: {card.name} ({card.card_number}) - {card.expansion.name}{sp_tag}{manga_tag}")
             card_id = int(input("\n카드 ID를 입력하세요: ").strip())
             test_single_card(card_id)
