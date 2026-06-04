@@ -50,11 +50,13 @@ def extract_text_only(element):
 def modify_rarity(card_number: str, rarity: str) -> str:
     match = re.search(r"_[Pp](\d+)", card_number)
     if match:
+        if rarity == 'SP':          # ← 추가: SP는 번호 관계없이 그대로
+            return 'SP'
         p_num = int(match.group(1))
         if p_num == 1:
-            return f"P-{rarity}"
+            return f"P-{rarity}"    # _P1 → P-SR, P-SEC 등
         else:
-            return f"SP-{rarity}"
+            return 'MANGA'          # _P2~ → MANGA
     return rarity
 
 
@@ -209,20 +211,18 @@ def crawl_onepiece_series(series_code: str, series_name: str, policy: str, suffi
                         continue
 
                     adjusted_rarity   = modify_rarity(card_number, rarity)
-                    is_manga          = adjusted_rarity.startswith('SP-') and adjusted_rarity != 'SP-SP'
                     shop_product_code = generate_shop_product_code(card_number)
 
                     new_data = {
                         'card_number': card_number,
                         'name':        card_name,
                         'rarity':      adjusted_rarity if adjusted_rarity in dict(OnePieceCard.RARITY_CHOICES) else 'C',
-                        'is_manga':    is_manga,
                         'image_url':   '',
                         'expansion':   expansion,
                     }
 
                     total_cards += 1
-                    manga_tag = " [망가]" if is_manga else ""
+                    manga_tag = " [망가]" if adjusted_rarity == 'MANGA' else ""
 
                     # ── 기존 레코드 조회 ──────────────────────────────────
                     existing = OnePieceCard.objects.filter(
