@@ -44,8 +44,8 @@ class OnePieceExpansionAdmin(admin.ModelAdmin):
 
 @admin.register(OnePieceCard)
 class OnePieceCardAdmin(admin.ModelAdmin):
-    list_display = ['name', 'card_number', 'expansion', 'rarity', 'is_manga', 'created_at']
-    list_filter = ['expansion', 'rarity', 'is_manga']
+    list_display = ['name', 'card_number', 'expansion', 'rarity', 'created_at']
+    list_filter = ['expansion', 'rarity']
     search_fields = ['name', 'card_number']
     ordering = ['expansion', 'card_number']
 

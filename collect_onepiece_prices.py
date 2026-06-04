@@ -38,7 +38,7 @@ def collect_prices_for_all_cards():
 
             if card.rarity == 'SP':
                 print(f"  🔍 SP 카드 - 검색어: SP {card.card_number}")
-            elif card.is_manga:
+            elif card.rarity == 'MANGA':
                 print(f"  🎨 망가 카드 - 검색어: 망가 {card.card_number}")
 
             result = get_onepiece_all_prices(

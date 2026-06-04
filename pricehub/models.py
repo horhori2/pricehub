@@ -198,28 +198,27 @@ class OnePieceCard(models.Model):
     RARITY_CHOICES = [
         ('SEC', 'SEC'),
         ('SL', 'SL'),
-        ('SP', 'SP'),   # SP-* 전부 이걸로 통일
+        ('SP', 'SP'),
         ('SR', 'SR'),
         ('L', 'L'),
         ('R', 'R'),
         ('UC', 'UC'),
         ('C', 'C'),
         ('P', 'P'),
+        ('MANGA', 'MANGA'),
         ('P-SEC', 'P-SEC'),
         ('P-SR', 'P-SR'),
         ('P-L', 'P-L'),
         ('P-R', 'P-R'),
         ('P-UC', 'P-UC'),
         ('P-C', 'P-C'),
-        # SP-SEC, SP-SR, SP-L, SP-R, SP-UC, SP-C 제거
     ]
-    
+
     expansion = models.ForeignKey(OnePieceExpansion, on_delete=models.CASCADE, related_name='cards', verbose_name="확장팩")
     shop_product_code = models.CharField(max_length=50, unique=True, verbose_name="상품코드")
     card_number = models.CharField(max_length=20, verbose_name="카드번호")
     name = models.CharField(max_length=100, verbose_name="카드명")
     rarity = models.CharField(max_length=20, choices=RARITY_CHOICES, verbose_name="레어도")
-    is_manga = models.BooleanField(default=False, verbose_name="망가(슈퍼패러렐)") # 추가
     image_url = models.URLField(max_length=500, blank=True, verbose_name="이미지 URL")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
     selling_price = models.PositiveIntegerField(
