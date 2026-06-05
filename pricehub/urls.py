@@ -45,6 +45,8 @@ def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
             path('bulk-price/',        views['bulk_price'],  name=f'{name}-bulk-price'),
             path('bulk-price/run/',    views['bulk_run'],    name=f'{name}-bulk-run'),
             path('bulk-price/issues/', views['bulk_issues'], name=f'{name}-bulk-issues'),
+            path('bulk-price/approve/', views['bulk_approve'], name=f'{name}-bulk-approve'),
+            path('bulk-price/edit/', views['bulk_edit'], name=f'{name}-bulk-edit'),
         ]
     if has_shop_stats:
         patterns += [
@@ -54,13 +56,14 @@ def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
     if has_favorites:
         patterns += [
             path('favorites/',
-                 views['favorites'],       name=f'{name}-favorites'),
+                 views['favorites'],            name=f'{name}-favorites'),
+            path('favorites/reset-prices/',
+                 views['reset_fav_prices'],     name=f'{name}-reset-fav-prices'),
             path('cards/<int:card_id>/favorite/',
-                 views['toggle_favorite'], name=f'{name}-toggle-favorite'),
+                 views['toggle_favorite'],      name=f'{name}-toggle-favorite'),
         ]
 
     return [path(f'{prefix}/', include(patterns))]
-
 
 _pokemon_kr_views = {
     'expansion_list':    v.pokemon_kr_expansion_list,
@@ -76,7 +79,10 @@ _pokemon_kr_views = {
     'shop_stats':        v.pokemon_kr_shop_stats,
     'shop_stats_detail': v.pokemon_kr_shop_stats_detail,
     'favorites':         v.pokemon_kr_favorites,
+    'reset_fav_prices':  v.pokemon_kr_reset_favorite_prices,
     'toggle_favorite':   v.pokemon_kr_toggle_favorite,
+    'bulk_approve': v.pokemon_kr_bulk_approve,
+    'bulk_edit': v.pokemon_kr_bulk_edit,
 }
 
 _pokemon_jp_views = {
@@ -97,8 +103,11 @@ _onepiece_kr_views = {
     'bulk_price':      v.onepiece_kr_bulk_price,
     'bulk_run':        v.onepiece_kr_bulk_run,
     'bulk_issues':     v.onepiece_kr_bulk_issues,
-    'favorites':       v.onepiece_kr_favorites,
-    'toggle_favorite': v.onepiece_kr_toggle_favorite,
+    'favorites':        v.onepiece_kr_favorites,
+    'reset_fav_prices': v.onepiece_kr_reset_favorite_prices,
+    'toggle_favorite':  v.onepiece_kr_toggle_favorite,
+    'bulk_approve': v.onepiece_kr_bulk_approve,
+    'bulk_edit': v.onepiece_kr_bulk_edit,
 }
 
 
@@ -118,4 +127,6 @@ urlpatterns = [
                 has_favorites=True),
 
     path('api-docs/', api_docs_views.api_docs, name='api-docs'),
+
+
 ]

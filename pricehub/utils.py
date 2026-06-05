@@ -59,10 +59,11 @@ MIRROR_KEYWORDS = {
 # 원피스 한글판 — 레어도/키워드 상수
 # ════════════════════════════════════════════════════════════════
 
-_BASE_CARD_NUMBER_RE     = re.compile(r'_[Pp]\d+$', re.IGNORECASE)
-_SUPER_PARALLEL_KEYWORDS = ['슈퍼 패러렐', '슈퍼패러렐', '슈퍼파라렐', '슈퍼 파라렐']
-_MANGA_KEYWORDS          = ['망가', 'MANGA', 'manga']
-_PARALLEL_KEYWORDS       = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레', 'P-']
+_BASE_CARD_NUMBER_RE       = re.compile(r'_[Pp]\d+$', re.IGNORECASE)
+_SUPER_PARALLEL_KEYWORDS  = ['슈퍼 패러렐', '슈퍼패러렐', '슈퍼파라렐', '슈퍼 파라렐']
+_MANGA_KEYWORDS           = ['망가', 'MANGA', 'manga']
+_PARALLEL_KEYWORDS        = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레', 'P-']
+_ONEPIECE_GENERAL_RARITIES = {'C', 'R', 'UC', 'SR', 'SEC'}
 
 
 # ════════════════════════════════════════════════════════════════
@@ -236,7 +237,7 @@ def _onepiece_rarity_flags(rarity: str):
 
 def _onepiece_title_matches(title: str, base_number: str,
                              is_manga: bool, is_special: bool, is_parallel: bool,
-                             price: float) -> bool:
+                             price: float, rarity: str = '') -> bool:
     """
     원피스 카드번호·레어도 필터를 적용해 상품이 유효한지 반환.
     공통 제외(판매처·일본판)는 호출 전에 처리되어 있어야 함.
@@ -263,8 +264,15 @@ def _onepiece_title_matches(title: str, base_number: str,
         if not has_parallel_kw:
             return False
 
+    elif rarity in _ONEPIECE_GENERAL_RARITIES:
+        # 일반 레어도(C, R, UC, SR, SEC): 패러렐/스페셜 키워드 있으면 제외
+        if has_parallel_kw:
+            return False
+        if '스페셜' in title or _word_boundary_match('SP', title):
+            return False
+
     else:
-        # 일반 레어도: 패러렐 키워드 있으면 제외
+        # 그 외 레어도(L, SL, SEC 등): 패러렐 키워드만 제외
         if has_parallel_kw:
             return False
 
@@ -320,7 +328,7 @@ def filter_onepiece_items(
             continue
         title = _clean_title(item['title'])
         price = float(item['lprice'])
-        if _onepiece_title_matches(title, base_number, is_manga, is_special, is_parallel, price):
+        if _onepiece_title_matches(title, base_number, is_manga, is_special, is_parallel, price, rarity):
             valid_items.append(item)
 
     return _build_price_result(valid_items)

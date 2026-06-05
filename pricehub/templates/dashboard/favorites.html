@@ -1,77 +1,13 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
 <title>{{ title }}</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0a0c12; --surface: #13161f; --surface2: #1a1e2a; --surface3: #20263a;
-    --border: #252a3a; --border2: #2f3650;
-    --accent: #5b8def; --accent2: #7c6bff;
-    --success: #3dd68c; --warning: #f5a623; --danger: #f06060;
-    --text: #dde2f0; --text-muted: #5a6080; --text-dim: #3a4060;
-  }
-  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); }
-
-  /* ── 헤더 ── */
-  header { background: rgba(19,22,31,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-  .header-left { display: flex; align-items: center; gap: 14px; }
-  .back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 13px; padding: 5px 12px; text-decoration: none; transition: all 0.15s; }
-  .back-btn:hover { border-color: var(--accent); color: var(--text); }
-  .breadcrumb { font-size: 13px; color: var(--text-muted); }
-  .breadcrumb a { color: var(--text-muted); text-decoration: none; }
-  .breadcrumb a:hover { color: var(--accent); }
-  .breadcrumb span { margin: 0 5px; color: var(--text-dim); }
-  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 12px; padding: 5px 12px; text-decoration: none; }
-
-  main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
-
-  /* ── 페이지 헤더 ── */
-  .page-header { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
-  .page-title { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; display: flex; align-items: center; gap: 10px; }
-  .fav-count { background: rgba(255,199,0,0.15); color: #ffc700; border: 1px solid rgba(255,199,0,0.3); border-radius: 20px; padding: 3px 12px; font-size: 13px; font-weight: 700; }
-
-  /* ── 확장팩 그룹 ── */
-  .expansion-group { margin-bottom: 32px; }
-  .expansion-group-title { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; }
-
-  /* ── 카드 테이블 ── */
-  .fav-table { width: 100%; border-collapse: collapse; }
-  .fav-table th { text-align: left; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface); font-family: 'JetBrains Mono', monospace; }
-  .fav-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; background: var(--surface); }
-  .fav-table tr:hover td { background: var(--surface2); }
-  .card-thumb { width: 42px; height: 42px; object-fit: contain; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); }
-  .card-name-text { font-weight: 600; color: var(--text); text-decoration: none; display: block; }
-  .card-name-text:hover { color: var(--accent); }
-  .card-number-text { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
-  .rarity-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; background: rgba(91,141,239,0.1); color: var(--accent); border: 1px solid rgba(91,141,239,0.2); font-family: 'JetBrains Mono', monospace; }
-  .price-set { color: var(--success); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-  .price-unset { color: var(--text-dim); font-size: 12px; }
-  .market-price { color: var(--text-muted); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
-
-  /* ── 별 버튼 ── */
-  .star-btn { background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 4px 6px; border-radius: 6px; transition: transform 0.15s; }
-  .star-btn:hover { transform: scale(1.25); }
-  .star-btn.removing { animation: star-out 0.3s ease forwards; }
-  @keyframes star-out {
-    0%   { transform: scale(1); opacity: 1; }
-    50%  { transform: scale(1.4); opacity: 0.5; }
-    100% { transform: scale(0); opacity: 0; }
-  }
-
-  /* ── 빈 상태 ── */
-  .empty { text-align: center; padding: 80px; color: var(--text-muted); }
-  .empty-icon { font-size: 48px; margin-bottom: 16px; }
-  .empty-text { font-size: 15px; margin-bottom: 20px; line-height: 1.6; }
-  .empty-link { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; background: rgba(124,107,255,0.1); border: 1px solid var(--accent2); border-radius: 10px; color: var(--accent2); text-decoration: none; font-size: 14px; font-weight: 600; }
-
-  /* ── 토스트 ── */
-  #fav-toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 20px; font-size: 13px; color: var(--text); z-index: 9999; transition: transform 0.25s cubic-bezier(.34,1.56,.64,1); pointer-events: none; }
-  #fav-toast.show { transform: translateX(-50%) translateY(0); }
-</style>
+<link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
 </head>
 <body>
 
@@ -89,113 +25,114 @@
 </header>
 
 <main>
-  <div class="page-header">
-    <div class="page-title">
-      ⭐ {{ title }}
-    </div>
+  <div class="page-title">
+    ⭐ {{ title }}
     <span class="fav-count" id="favCount">{{ total }}개</span>
   </div>
 
   {% if card_data %}
-    {% regroup card_data by card.expansion.name as expansion_groups %}
+  <div class="action-row">
+    <div></div>
+    <div class="action-btns">
+      <button class="reset-btn" onclick="showResetModal()">🗑 판매가 초기화</button>
+      <a href="{{ bulk_price_url }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
+    </div>
+  </div>
 
-    {% for group in expansion_groups %}
-    <div class="expansion-group">
-      <div class="expansion-group-title">{{ group.grouper }}</div>
-      <table class="fav-table">
-        <thead>
-          <tr>
-            <th style="width:52px"></th>
-            <th>카드</th>
-            <th>레어도</th>
-            <th>시장 최저가</th>
-            <th>판매가</th>
-            <th style="width:44px"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for item in group.list %}
-          <tr id="fav-row-{{ item.card.id }}">
-            <td>{% if item.card.image_url %}<img src="{{ item.card.image_url }}" class="card-thumb">{% endif %}</td>
-            <td>
-              <a href="{% if game == 'pokemon' %}/pokemon/kr/cards/{{ item.card.id }}/{% else %}/onepiece/kr/cards/{{ item.card.id }}/{% endif %}" class="card-name-text">{{ item.card.name }}</a>
-              <div class="card-number-text">{{ item.card.shop_product_code }}</div>
-            </td>
-            <td><span class="rarity-badge">{{ item.card.rarity }}</span></td>
-            <td>
-              {% if item.latest_price %}<span class="market-price">{{ item.latest_price|floatformat:0 }}원</span>
-              {% else %}<span class="price-unset">미수집</span>{% endif %}
-            </td>
-            <td>
+  {% regroup card_data by card.expansion.name as expansion_groups %}
+  {% for group in expansion_groups %}
+    <div class="expansion-group-title">{{ group.grouper }}</div>
+    <table class="card-table">
+      <thead>
+        <tr>
+          <th style="width:52px"></th>
+          <th>카드</th>
+          <th>레어도</th>
+          <th>시장 최저가</th>
+          <th>판매가</th>
+          <th style="width:36px"></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in group.list %}
+        <tr id="fav-row-{{ item.card.id }}"
+            onclick="location.href='{% if game == "pokemon" %}/pokemon/kr/cards/{{ item.card.id }}/{% else %}/onepiece/kr/cards/{{ item.card.id }}/{% endif %}'">
+          <td>{% if item.card.image_url %}<img src="{{ item.card.image_url }}" class="card-thumb">{% endif %}</td>
+          <td>
+            <div class="card-name-text">{{ item.card.name }}</div>
+            <div class="card-number-text">{{ item.card.shop_product_code }}</div>
+          </td>
+          <td><span class="rarity-badge">{{ item.card.rarity }}</span></td>
+          <td>
+            {% if item.latest_price %}<span class="market-price">{{ item.latest_price|floatformat:0 }}원</span>
+            {% else %}<span class="price-unset">미수집</span>{% endif %}
+          </td>
+          <td onclick="event.stopPropagation()">
+            <div class="price-display" id="price-display-{{ item.card.id }}">
               {% if item.card.selling_price %}<span class="price-set">{{ item.card.selling_price|floatformat:0 }}원</span>
               {% else %}<span class="price-unset">미설정</span>{% endif %}
-            </td>
-            <td>
-              <button class="star-btn" title="즐겨찾기 해제" onclick="toggleFavorite({{ item.card.id }}, this)">⭐</button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% endfor %}
+            </div>
+            <div class="price-input-wrap" id="price-edit-{{ item.card.id }}">
+              <input type="number" class="price-input" id="price-val-{{ item.card.id }}"
+                     value="{{ item.card.selling_price|default:'' }}" placeholder="0"
+                     onkeydown="if(event.key==='Enter') savePrice({{ item.card.id }}); if(event.key==='Escape') cancelEdit({{ item.card.id }})">
+              <button class="price-save-btn" onclick="savePrice({{ item.card.id }})">저장</button>
+              <button class="price-cancel-btn" onclick="cancelEdit({{ item.card.id }})">✕</button>
+            </div>
+          </td>
+          <td onclick="event.stopPropagation()">
+            <button class="star-toggle active"
+                    data-card-id="{{ item.card.id }}"
+                    title="즐겨찾기 해제"
+                    onclick="removeFavorite(this)">⭐</button>
+          </td>
+          <td onclick="event.stopPropagation()">
+            <a href="{% if game == 'pokemon' %}/pokemon/kr/cards/{{ item.card.id }}/{% else %}/onepiece/kr/cards/{{ item.card.id }}/{% endif %}"
+               class="set-btn">설정</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endfor %}
 
   {% else %}
   <div class="empty">
-    <div class="empty-icon">☆</div>
-    <div class="empty-text">즐겨찾기한 카드가 없어요.<br>카드 목록에서 ☆ 버튼을 눌러 추가하세요.</div>
-    <a href="{% if game == 'pokemon' %}/pokemon/kr/expansions/{% else %}/onepiece/kr/expansions/{% endif %}" class="empty-link">카드 목록 보러 가기</a>
+    <div style="font-size:48px;margin-bottom:16px;">☆</div>
+    즐겨찾기한 카드가 없어요.<br>카드 목록에서 ☆ 버튼을 눌러 추가하세요.
+    <br><br>
+    <a href="{% if game == 'pokemon' %}/pokemon/kr/expansions/{% else %}/onepiece/kr/expansions/{% endif %}"
+       style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;background:rgba(124,107,255,0.1);border:1px solid var(--accent2);border-radius:10px;color:var(--accent2);text-decoration:none;font-size:14px;font-weight:600;">
+      카드 목록 보러 가기
+    </a>
   </div>
   {% endif %}
 </main>
 
+<!-- 모달 -->
+<div class="modal-overlay" id="resetModal" onclick="hideModal()">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-icon" id="modalIcon">⚠️</div>
+    <div class="modal-title" id="modalTitle">즐겨찾기 판매가 초기화</div>
+    <div class="modal-desc" id="modalDesc">
+      <span id="resetModalDesc">즐겨찾기된 카드의 판매가를 모두 초기화하시겠습니까?<br>설정된 판매가가 전부 미설정(0)으로 변경됩니다.</span>
+    </div>
+    <div class="modal-btns" id="modalBtns">
+      <button class="modal-cancel" onclick="hideModal()">취소</button>
+      <button class="modal-confirm" id="confirmBtn" onclick="doReset()">초기화</button>
+    </div>
+  </div>
+</div>
+
 <div id="fav-toast"></div>
 
+<script src="{% static 'dashboard/dashboard.js' %}"></script>
 <script>
-const TOGGLE_BASE = '{% if game == "pokemon" %}/pokemon/kr/cards/{% else %}/onepiece/kr/cards/{% endif %}';
-const CSRF = '{{ csrf_token }}';
-
-async function toggleFavorite(cardId, btn) {
-  btn.classList.add('removing');
-  const row = document.getElementById(`fav-row-${cardId}`);
-
-  try {
-    const res  = await fetch(`${TOGGLE_BASE}${cardId}/favorite/`, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
-    });
-    const data = await res.json();
-
-    if (data.success && !data.is_favorite) {
-      setTimeout(() => {
-        row.style.transition = 'max-height 0.25s ease, opacity 0.25s ease';
-        row.style.maxHeight  = row.offsetHeight + 'px';
-        row.style.overflow   = 'hidden';
-        requestAnimationFrame(() => {
-          row.style.maxHeight = '0';
-          row.style.opacity   = '0';
-        });
-        setTimeout(() => row.remove(), 260);
-
-        const countEl = document.getElementById('favCount');
-        const cur = parseInt(countEl.textContent) || 0;
-        countEl.textContent = Math.max(0, cur - 1) + '개';
-      }, 200);
-      showToast('즐겨찾기에서 제거했어요');
-    }
-  } catch {
-    btn.classList.remove('removing');
-    showToast('오류가 발생했어요');
-  }
-}
-
-function showToast(msg) {
-  const t = document.getElementById('fav-toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
-}
+/* 페이지별 설정값 */
+const TOGGLE_FAV_BASE = '{% if game == "pokemon" %}/pokemon/kr/cards/{% else %}/onepiece/kr/cards/{% endif %}';
+const SET_PRICE_BASE  = TOGGLE_FAV_BASE;
+const RESET_URL       = '{{ reset_favorites_url }}';
 </script>
 </body>
 </html>

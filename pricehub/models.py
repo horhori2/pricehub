@@ -119,7 +119,13 @@ class Card(models.Model):
         verbose_name='판매가',
         help_text='관리자가 설정한 최종 판매가 (0=미설정)'
     )
-
+    modified_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=0,
+        null=True,
+        blank=True,
+        verbose_name='수정 가격 (일괄 설정 임시값)',
+    )
 
     class Meta:
         db_table = 'card'
@@ -227,6 +233,11 @@ class OnePieceCard(models.Model):
         default=0,
         verbose_name='판매가',
         help_text='관리자가 설정한 최종 판매가 (0=미설정)'
+    )
+    modified_price = models.PositiveIntegerField(
+    default=0,
+    verbose_name='수정 가격 (일괄 설정 임시값)',
+    help_text='일괄 설정 실행 시 임시 저장. 하락 시 작업자 확인 후 반영.',
     )
     class Meta:
         db_table = 'onepiece_card'

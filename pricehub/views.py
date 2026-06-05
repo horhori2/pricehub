@@ -352,16 +352,21 @@ def _expansion_list_view(request, cfg_key, extra_ctx=None):
     expansion_model = cfg['expansion_model']
     card_model = cfg['card_model']
     base_url = cfg['base_url']
-
+ 
     expansions = list(expansion_model.objects.order_by('-release_date', '-created_at'))
     for e in expansions:
         e.card_count = e.cards.count()
         e.unpriced_count = e.cards.filter(selling_price=0).count()
-
+ 
+    # 하락 대기 카드 수
+    drop_qs = card_model.objects.filter(modified_price__gt=0, selling_price__gt=0)
+    drop_count = sum(1 for c in drop_qs if c.modified_price < c.selling_price)
+ 
     ctx = {
         'expansions': expansions,
         'total_cards': sum(e.card_count for e in expansions),
         'total_unpriced': sum(e.unpriced_count for e in expansions),
+        'total_drop': drop_count,                              # ← 신규
         'base_url': base_url,
         'title': cfg['label'],
         'breadcrumb': [('홈', '/'), (cfg['label'], None)],
@@ -459,7 +464,7 @@ def _card_search_view(request, card_model):
 
 
 # ════════════════════════════════════════════════════════════════
-# 공통 뷰 로직 — bulk_price / bulk_run / bulk_issues
+# 공통 뷰 로직 — bulk_price / bulk_run / bulk_issues / approve / edit
 # ════════════════════════════════════════════════════════════════
 
 def _bulk_price_view(request, cfg_key):
@@ -477,11 +482,17 @@ def _bulk_price_view(request, cfg_key):
 
     mall_names = _collect_mall_names(price_model, expansion_code=expansion_code or None)
     expansions = list(cfg['expansion_model'].objects.order_by('-release_date', '-created_at'))
-    needs_review = card_model.objects.filter(selling_price=0).count()
     all_rarities = _get_rarities(card_model, expansion_code or None)
 
     raw_list = _load_raw_data(price_model, expansion_code=expansion_code or None, rarities=selected_rarities or None)
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
+
+    # ── 하락 대기 카드 수 (modified_price > 0 이고 modified_price < selling_price)
+    drop_qs = card_model.objects.filter(modified_price__gt=0, selling_price__gt=0)
+    drop_pending = sum(1 for c in drop_qs if c.modified_price < c.selling_price)
+    # selling_price 미설정(0)인데 modified_price가 있는 경우
+    new_pending = card_model.objects.filter(modified_price__gt=0, selling_price=0).count()
+    needs_review = drop_pending + new_pending
 
     return render(request, 'dashboard/bulk_price.html', {
         'mall_names': json.dumps(mall_names),
@@ -513,6 +524,14 @@ def _bulk_price_view(request, cfg_key):
 
 
 def _bulk_run_view(request, cfg_key):
+    """
+    [업그레이드 로직]
+    1. 가격 추출 성공 → modified_price 항상 저장
+    2. 신규(selling_price=0)  → selling_price도 바로 저장
+    3. 유지/상승              → selling_price 바로 업데이트
+    4. 하락                   → modified_price만 저장, selling_price 유지 (하락 대기)
+    5. 매칭 없음              → 변경 없음 (needs_review)
+    """
     cfg = _cfg(cfg_key)
     card_model = cfg['card_model']
     price_model = cfg['price_model']
@@ -522,12 +541,13 @@ def _bulk_run_view(request, cfg_key):
     except json.JSONDecodeError:
         return JsonResponse({'error': '잘못된 요청입니다.'}, status=400)
 
-    priorities = [p.strip() for p in data.get('priorities', []) if p.strip()]
-    expansion_code = data.get('expansion_code', '').strip()
-    skip_priced = data.get('skip_priced', False)
-    rarities = data.get('rarities', [])
+    priorities      = [p.strip() for p in data.get('priorities', []) if p.strip()]
+    expansion_code  = data.get('expansion_code', '').strip()
+    skip_priced     = data.get('skip_priced', False)
+    rarities        = data.get('rarities', [])
     min_price_floor = int(data.get('min_price', 0) or 0)
-    fallback_mode = data.get('fallback_mode', '')  # 'avg', 'max', ''
+    fallback_mode   = data.get('fallback_mode', '')  # 'avg', 'max', ''
+    overwrite       = data.get('overwrite', False)    # True면 하락도 강제 반영
 
     if not priorities:
         return JsonResponse({'error': '우선순위를 1개 이상 설정해주세요.'}, status=400)
@@ -551,7 +571,12 @@ def _bulk_run_view(request, cfg_key):
     price_ids = [c.latest_price_id for c in cards_list if c.latest_price_id]
     price_map = {cp.id: cp.raw_data for cp in price_model.objects.filter(id__in=price_ids)}
 
-    to_update, skipped, needs_review = [], [], []
+    to_update  = []   # bulk_update 대상
+    skipped    = []   # skip_priced로 건너뜀
+    drop_wait  = []   # 하락 대기 card id
+    no_match   = []   # raw_data 매칭 없음
+
+    result_detail = {'new': 0, 'same_or_up': 0, 'drop': 0}
 
     for card in cards_list:
         if skip_priced and card.selling_price != 0:
@@ -562,6 +587,7 @@ def _bulk_run_view(request, cfg_key):
         if isinstance(raw, dict):
             raw = [raw]
 
+        # ── 우선순위 매칭
         matched_price = None
         for mall_name in priorities:
             for item in raw:
@@ -576,97 +602,281 @@ def _bulk_run_view(request, cfg_key):
             if matched_price:
                 break
 
-        if matched_price:
-            if min_price_floor > 0 and matched_price < min_price_floor:
-                matched_price = min_price_floor
-            card.selling_price = matched_price
-            to_update.append(card)
-        else:
-            fallback_price = None
-            if fallback_mode in ('avg', 'max'):
-                prices = []
-                for item in raw:
-                    try:
-                        p = int(float(item.get('lprice', 0)))
-                        if p > 0:
-                            prices.append(p)
-                    except (ValueError, TypeError):
-                        pass
-                if prices:
-                    raw_price = (sum(prices) / len(prices)) if fallback_mode == 'avg' else max(prices)
-                    fallback_price = round(raw_price / 100) * 100
+        # ── 폴백
+        if matched_price is None and fallback_mode in ('avg', 'max'):
+            prices = []
+            for item in raw:
+                try:
+                    p = int(float(item.get('lprice', 0)))
+                    if p > 0:
+                        prices.append(p)
+                except (ValueError, TypeError):
+                    pass
+            if prices:
+                raw_price = (sum(prices) / len(prices)) if fallback_mode == 'avg' else max(prices)
+                matched_price = round(raw_price / 100) * 100
 
-            if fallback_price:
-                if min_price_floor > 0 and fallback_price < min_price_floor:
-                    fallback_price = min_price_floor
-                card.selling_price = fallback_price
-                to_update.append(card)
-            else:
-                needs_review.append(card.id)
+        # ── 매칭 실패
+        if matched_price is None:
+            no_match.append(card.id)
+            continue
+
+        # ── 최저가 하한선
+        if min_price_floor > 0 and matched_price < min_price_floor:
+            matched_price = min_price_floor
+
+        old_selling = int(card.selling_price) if card.selling_price else 0
+
+        # modified_price는 항상 저장
+        card.modified_price = matched_price
+
+        if old_selling == 0:
+            # 신규 설정 → selling_price 바로 반영
+            card.selling_price = matched_price
+            result_detail['new'] += 1
+
+        elif overwrite or matched_price >= old_selling:
+            # 유지 또는 상승 (또는 강제 덮어쓰기) → selling_price 바로 반영
+            card.selling_price = matched_price
+            result_detail['same_or_up'] += 1
+
+        else:
+            # 하락 → selling_price 건드리지 않음, 하락 대기
+            drop_wait.append(card.id)
+            result_detail['drop'] += 1
+
+        to_update.append(card)
 
     if to_update:
-        card_model.objects.bulk_update(to_update, ['selling_price'])
+        card_model.objects.bulk_update(to_update, ['selling_price', 'modified_price'], batch_size=200)
+
+    applied_count = result_detail['new'] + result_detail['same_or_up']
 
     return JsonResponse({
         'success': True,
         'total': len(cards_list),
-        'set_count': len(to_update),
+        'set_count': applied_count,
         'skipped_count': len(skipped),
-        'needs_review_count': len(needs_review),
-        'needs_review_ids': needs_review[:100],
+        'needs_review_count': len(no_match),
+        'needs_review_ids': no_match[:100],
+        'drop_count': result_detail['drop'],
+        'drop_ids': drop_wait[:100],
+        'detail': result_detail,
+        'message': (
+            f"완료: 반영 {applied_count}개 "
+            f"(신규 {result_detail['new']} / 유지·상승 {result_detail['same_or_up']}) | "
+            f"하락 대기 {result_detail['drop']}개 | 매칭 없음 {len(no_match)}개 | 스킵 {len(skipped)}개"
+        ),
     })
 
 
 def _bulk_issues_view(request, cfg_key):
     cfg = _cfg(cfg_key)
-    card_model = cfg['card_model']
+    card_model  = cfg['card_model']
     price_model = cfg['price_model']
-    base_url = cfg['base_url']
-
-    expansion_code = request.GET.get('expansion', '')
-    selected_rarities = request.GET.getlist('rarities')
-
-    cards_qs = card_model.objects.filter(selling_price=0).select_related('expansion')
-    if expansion_code:
-        cards_qs = cards_qs.filter(expansion__code=expansion_code)
-    cards_qs = cards_qs.order_by('expansion__code', 'card_number')
-
+    base_url    = cfg['base_url']
+ 
+    mode               = request.GET.get('mode', 'drop')       # ← 신규
+    expansion_code     = request.GET.get('expansion', '')
+    selected_rarities  = request.GET.getlist('rarities')
+    sort               = request.GET.get('sort', 'drop_pct')
+ 
     all_rarities = _get_rarities(card_model, expansion_code or None)
-
-    seen = {}
+    expansions   = cfg['expansion_model'].objects.order_by('-release_date')
+ 
+    # ── 판매가 미설정 모드 ────────────────────────────
+    if mode == 'unpriced':
+        qs = card_model.objects.filter(selling_price=0).select_related('expansion')
+        if expansion_code:
+            qs = qs.filter(expansion__code=expansion_code)
+        if selected_rarities:
+            qs = qs.filter(rarity__in=selected_rarities)
+        if sort == 'name':
+            qs = qs.order_by('name')
+        else:
+            qs = qs.order_by('expansion__code', 'card_number')
+ 
+        # 사이드패널용 raw_data
+        card_ids = [c.pk for c in qs]
+        seen_raw = {}
+        for cp in (
+            price_model.objects.filter(card_id__in=card_ids)
+            .exclude(raw_data={}).exclude(raw_data=[])
+            .order_by('-collected_at')
+            .values('card_id', 'raw_data')
+        ):
+            if cp['card_id'] not in seen_raw:
+                seen_raw[cp['card_id']] = cp['raw_data']
+ 
+        return render(request, 'dashboard/bulk_issues.html', {
+            'mode':                'unpriced',
+            'cards':               qs,           # unpriced 모드는 cards 변수 사용
+            'drop_cards':          [],
+            'expansions':          expansions,
+            'expansion_code':      expansion_code,
+            'selected_expansion':  expansion_code,
+            'sort':                sort,
+            'total_count':         qs.count(),
+            'avg_drop_pct':        0,
+            'max_drop':            0,
+            'all_rarities':        all_rarities,
+            'selected_rarities':   selected_rarities,
+            'selected_rarities_json': json.dumps(selected_rarities),
+            'card_raw_json':       json.dumps(seen_raw, ensure_ascii=False),
+            'breadcrumb': [
+                ('홈', '/'),
+                (cfg['label'], f'{base_url}/expansions/'),
+                ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
+                ('판매가 미설정 목록', None),
+            ],
+            'config': {
+                'label':            cfg['label'],
+                'bulk_price_url':   f'{base_url}/bulk-price/',
+                'bulk_issues_url':  f'{base_url}/bulk-price/issues/',
+                'approve_url':      f'{base_url}/bulk-price/approve/',
+                'edit_url':         f'{base_url}/bulk-price/edit/',
+                'set_price_url_prefix': f'{base_url}/cards/',
+                'high_rarity_list': cfg.get('bulk_issues_high_rarity_list', cfg.get('high_rarity_list', '[]')),
+                'unpriced_url':     f'{base_url}/bulk-price/issues/?mode=unpriced',
+                'drop_url':         f'{base_url}/bulk-price/issues/?mode=drop',
+            },
+        })
+ 
+    # ── 하락 대기 모드 (기존 로직) ───────────────────
+    qs = card_model.objects.filter(
+        modified_price__gt=0,
+        selling_price__gt=0,
+    ).select_related('expansion')
+ 
+    if expansion_code:
+        qs = qs.filter(expansion__code=expansion_code)
+    if selected_rarities:
+        qs = qs.filter(rarity__in=selected_rarities)
+ 
+    drop_cards = []
+    for card in qs:
+        mod  = int(card.modified_price)
+        sell = int(card.selling_price)
+        if mod < sell:
+            drop_amt = sell - mod
+            drop_pct = round((drop_amt / sell) * 100, 1)
+            drop_cards.append({
+                'card':           card,
+                'modified_price': mod,
+                'selling_price':  sell,
+                'drop_amt':       drop_amt,
+                'drop_pct':       drop_pct,
+            })
+ 
+    if sort == 'drop_pct':
+        drop_cards.sort(key=lambda x: -x['drop_pct'])
+    elif sort == 'drop_amt':
+        drop_cards.sort(key=lambda x: -x['drop_amt'])
+    else:
+        drop_cards.sort(key=lambda x: getattr(x['card'], 'name_kr', None) or x['card'].name or '')
+ 
+    total_count   = len(drop_cards)
+    avg_drop_pct  = round(sum(d['drop_pct'] for d in drop_cards) / total_count, 1) if total_count else 0
+    max_drop      = max((d['drop_pct'] for d in drop_cards), default=0)
+ 
+    drop_card_ids = [d['card'].pk for d in drop_cards]
+    seen_raw = {}
     for cp in (
-        price_model.objects.filter(card__in=cards_qs)
+        price_model.objects.filter(card_id__in=drop_card_ids)
         .exclude(raw_data={}).exclude(raw_data=[])
         .order_by('-collected_at')
         .values('card_id', 'raw_data')
     ):
-        if cp['card_id'] not in seen:
-            seen[cp['card_id']] = cp['raw_data']
-
-    expansions = cfg['expansion_model'].objects.order_by('-release_date')
-
+        if cp['card_id'] not in seen_raw:
+            seen_raw[cp['card_id']] = cp['raw_data']
+ 
     return render(request, 'dashboard/bulk_issues.html', {
-        'cards': cards_qs,
-        'expansions': expansions,
-        'expansion_code': expansion_code,
-        'total': cards_qs.count(),
-        'card_raw_json': json.dumps(seen, ensure_ascii=False),
-        'all_rarities': all_rarities,
-        'selected_rarities': selected_rarities,
+        'mode':                'drop',
+        'cards':               [],
+        'drop_cards':          drop_cards,
+        'expansions':          expansions,
+        'expansion_code':      expansion_code,
+        'selected_expansion':  expansion_code,
+        'sort':                sort,
+        'total_count':         total_count,
+        'avg_drop_pct':        avg_drop_pct,
+        'max_drop':            max_drop,
+        'all_rarities':        all_rarities,
+        'selected_rarities':   selected_rarities,
         'selected_rarities_json': json.dumps(selected_rarities),
+        'card_raw_json':       json.dumps(seen_raw, ensure_ascii=False),
         'breadcrumb': [
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
             ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
-            ('2차 판매가 설정', None),
+            ('하락 대기 목록', None),
         ],
         'config': {
-            'label': cfg['label'],
-            'bulk_price_url': f'{base_url}/bulk-price/',
-            'bulk_issues_url': f'{base_url}/bulk-price/issues/',
+            'label':            cfg['label'],
+            'bulk_price_url':   f'{base_url}/bulk-price/',
+            'bulk_issues_url':  f'{base_url}/bulk-price/issues/',
+            'approve_url':      f'{base_url}/bulk-price/approve/',
+            'edit_url':         f'{base_url}/bulk-price/edit/',
             'set_price_url_prefix': f'{base_url}/cards/',
             'high_rarity_list': cfg.get('bulk_issues_high_rarity_list', cfg.get('high_rarity_list', '[]')),
+            'unpriced_url':     f'{base_url}/bulk-price/issues/?mode=unpriced',
+            'drop_url':         f'{base_url}/bulk-price/issues/?mode=drop',
         },
+    })
+
+def _bulk_approve_view(request, cfg_key):
+    """개별 카드 반영: modified_price → selling_price, modified_price 초기화"""
+    cfg = _cfg(cfg_key)
+    card_model = cfg['card_model']
+
+    try:
+        body    = json.loads(request.body)
+        card_id = int(body.get('card_id'))
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+
+    card = get_object_or_404(card_model, pk=card_id)
+    if not card.modified_price:
+        return JsonResponse({'error': 'modified_price 없음'}, status=400)
+
+    old_price          = int(card.selling_price) if card.selling_price else 0
+    card.selling_price = card.modified_price
+    card.modified_price = 0
+    card.save(update_fields=['selling_price', 'modified_price'])
+
+    return JsonResponse({
+        'success':   True,
+        'card_id':   card_id,
+        'old_price': old_price,
+        'new_price': int(card.selling_price),
+    })
+
+
+def _bulk_edit_view(request, cfg_key):
+    """개별 카드 가격 직접 편집 후 selling_price 저장, modified_price 초기화"""
+    cfg = _cfg(cfg_key)
+    card_model = cfg['card_model']
+
+    try:
+        body      = json.loads(request.body)
+        card_id   = int(body.get('card_id'))
+        new_price = int(body.get('price'))
+        if new_price <= 0:
+            raise ValueError
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+
+    card = get_object_or_404(card_model, pk=card_id)
+    old_price           = int(card.selling_price) if card.selling_price else 0
+    card.selling_price  = new_price
+    card.modified_price = 0
+    card.save(update_fields=['selling_price', 'modified_price'])
+
+    return JsonResponse({
+        'success':   True,
+        'card_id':   card_id,
+        'old_price': old_price,
+        'new_price': new_price,
     })
 
 
@@ -677,11 +887,11 @@ def _bulk_issues_view(request, cfg_key):
 @staff_required
 def pokemon_kr_expansion_list(request):
     return _expansion_list_view(request, 'pokemon_kr', {
-        'bulk_price_url': '/pokemon/kr/bulk-price/',
-        'card_search_url': '/pokemon/kr/cards/search/',
-        'bulk_issues_url': '/pokemon/kr/bulk-price/issues/',
-        'reset_prices_url_prefix': '/pokemon/kr/expansions/',
-        'reset_all_url': '/pokemon/kr/reset-all-prices/',
+        'bulk_price_url':         '/pokemon/kr/bulk-price/',
+        'card_search_url':        '/pokemon/kr/cards/search/',
+        'bulk_issues_url':        '/pokemon/kr/bulk-price/issues/',
+        'reset_prices_url_prefix':'/pokemon/kr/expansions/',
+        'reset_all_url':          '/pokemon/kr/reset-all-prices/',
     })
 
 
@@ -689,7 +899,7 @@ def pokemon_kr_expansion_list(request):
 def pokemon_kr_card_list(request, code):
     expansion = get_object_or_404(Expansion, code=code)
     return _card_list_view(request, 'pokemon_kr', code, {
-        'bulk_price_url': f'/pokemon/kr/bulk-price/?expansion={expansion.code}',
+        'bulk_price_url':   f'/pokemon/kr/bulk-price/?expansion={expansion.code}',
         'reset_prices_url': f'/pokemon/kr/expansions/{expansion.code}/reset-prices/',
     })
 
@@ -702,15 +912,15 @@ def pokemon_kr_card_detail(request, pk):
     base = '/pokemon/kr'
 
     return render(request, 'dashboard/card_detail.html', {
-        'card': card,
-        'card_type': 'pokemon_kr',
-        'latest_price_obj': latest_price_obj,
-        'market_items': market_items,
-        'market_items_json': json.dumps(market_items, ensure_ascii=False),
-        'stats': stats,
-        'set_price_url': f'{base}/cards/{pk}/set-price/',
-        'back_url': f'{base}/expansions/{card.expansion.code}/cards/',
-        'price_history_week_json': _price_history_json(card, card.prices),
+        'card':                   card,
+        'card_type':              'pokemon_kr',
+        'latest_price_obj':       latest_price_obj,
+        'market_items':           market_items,
+        'market_items_json':      json.dumps(market_items, ensure_ascii=False),
+        'stats':                  stats,
+        'set_price_url':          f'{base}/cards/{pk}/set-price/',
+        'back_url':               f'{base}/expansions/{card.expansion.code}/cards/',
+        'price_history_week_json':_price_history_json(card, card.prices),
         'breadcrumb': [
             ('홈', '/'),
             ('포켓몬 한글판', f'{base}/expansions/'),
@@ -762,18 +972,30 @@ def pokemon_kr_bulk_issues(request):
 
 
 @staff_required
+@require_POST
+def pokemon_kr_bulk_approve(request):
+    return _bulk_approve_view(request, 'pokemon_kr')
+
+
+@staff_required
+@require_POST
+def pokemon_kr_bulk_edit(request):
+    return _bulk_edit_view(request, 'pokemon_kr')
+
+
+@staff_required
 def pokemon_kr_shop_stats(request):
     raw_list = _load_raw_data(CardPrice)
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
     expansions = Expansion.objects.order_by('-release_date')
     return render(request, 'dashboard/shop_stats.html', {
-        'shop_stats_json': json.dumps(shop_stats, ensure_ascii=False),
-        'shop_stats': shop_stats,
-        'overall_avg': overall_avg,
-        'expansion': None,
-        'expansions': expansions,
-        'total_cards': Card.objects.count(),
-        'title': '포켓몬 한글판 전체',
+        'shop_stats_json':  json.dumps(shop_stats, ensure_ascii=False),
+        'shop_stats':       shop_stats,
+        'overall_avg':      overall_avg,
+        'expansion':        None,
+        'expansions':       expansions,
+        'total_cards':      Card.objects.count(),
+        'title':            '포켓몬 한글판 전체',
         'breadcrumb': [
             ('홈', '/'),
             ('포켓몬 한글판', '/pokemon/kr/expansions/'),
@@ -789,13 +1011,13 @@ def pokemon_kr_shop_stats_detail(request, code):
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
     expansions = Expansion.objects.order_by('-release_date')
     return render(request, 'dashboard/shop_stats.html', {
-        'shop_stats_json': json.dumps(shop_stats, ensure_ascii=False),
-        'shop_stats': shop_stats,
-        'overall_avg': overall_avg,
-        'expansion': expansion,
-        'expansions': expansions,
-        'total_cards': Card.objects.filter(expansion=expansion).count(),
-        'title': expansion.name,
+        'shop_stats_json':  json.dumps(shop_stats, ensure_ascii=False),
+        'shop_stats':       shop_stats,
+        'overall_avg':      overall_avg,
+        'expansion':        expansion,
+        'expansions':       expansions,
+        'total_cards':      Card.objects.filter(expansion=expansion).count(),
+        'title':            expansion.name,
         'breadcrumb': [
             ('홈', '/'),
             ('포켓몬 한글판', '/pokemon/kr/expansions/'),
@@ -833,16 +1055,18 @@ def pokemon_kr_favorites(request):
     for card in cards:
         latest = card.prices.order_by('-collected_at').first()
         card_data.append({
-            'card': card,
+            'card':         card,
             'latest_price': latest.price if latest else None,
             'collected_at': latest.collected_at if latest else None,
         })
     return render(request, 'dashboard/favorites.html', {
-        'card_data': card_data,
-        'game': 'pokemon',
-        'lang': 'kr',
-        'title': '즐겨찾기 — 포켓몬 한글판',
-        'total': len(card_data),
+        'card_data':          card_data,
+        'game':               'pokemon',
+        'lang':               'kr',
+        'title':              '즐겨찾기 — 포켓몬 한글판',
+        'total':              len(card_data),
+        'bulk_price_url':     '/pokemon/kr/bulk-price/',
+        'reset_favorites_url':'/pokemon/kr/favorites/reset-prices/',
         'breadcrumb': [
             ('홈', '/'),
             ('포켓몬 한글판', '/pokemon/kr/expansions/'),
@@ -882,11 +1106,11 @@ def pokemon_jp_card_detail(request, pk):
     stats = _calc_stats(price_values)
 
     return render(request, 'dashboard/card_detail_jp.html', {
-        'card': card,
+        'card':          card,
         'latest_prices': latest_prices,
-        'stats': stats,
+        'stats':         stats,
         'set_price_url': f'{base}/cards/{pk}/set-price/',
-        'back_url': f'{base}/expansions/{card.expansion.code}/cards/',
+        'back_url':      f'{base}/expansions/{card.expansion.code}/cards/',
         'breadcrumb': [
             ('홈', '/'),
             ('포켓몬 일본판', f'{base}/expansions/'),
@@ -909,11 +1133,11 @@ def pokemon_jp_set_price(request, pk):
 @staff_required
 def onepiece_kr_expansion_list(request):
     return _expansion_list_view(request, 'onepiece_kr', {
-        'bulk_price_url': '/onepiece/kr/bulk-price/',
-        'card_search_url': '/onepiece/kr/cards/search/',
-        'bulk_issues_url': '/onepiece/kr/bulk-price/issues/',
+        'bulk_price_url':          '/onepiece/kr/bulk-price/',
+        'card_search_url':         '/onepiece/kr/cards/search/',
+        'bulk_issues_url':         '/onepiece/kr/bulk-price/issues/',
         'reset_prices_url_prefix': '/onepiece/kr/expansions/',
-        'reset_all_url': '/onepiece/kr/reset-all-prices/',
+        'reset_all_url':           '/onepiece/kr/reset-all-prices/',
     })
 
 
@@ -921,7 +1145,7 @@ def onepiece_kr_expansion_list(request):
 def onepiece_kr_card_list(request, code):
     expansion = get_object_or_404(OnePieceExpansion, code=code)
     return _card_list_view(request, 'onepiece_kr', code, {
-        'bulk_price_url': f'/onepiece/kr/bulk-price/?expansion={expansion.code}',
+        'bulk_price_url':   f'/onepiece/kr/bulk-price/?expansion={expansion.code}',
         'reset_prices_url': f'/onepiece/kr/expansions/{expansion.code}/reset-prices/',
     })
 
@@ -934,14 +1158,14 @@ def onepiece_kr_card_detail(request, pk):
     base = '/onepiece/kr'
 
     return render(request, 'dashboard/card_detail.html', {
-        'card': card,
-        'card_type': 'onepiece_kr',
-        'latest_price_obj': latest_price_obj,
-        'market_items': market_items,
-        'market_items_json': json.dumps(market_items, ensure_ascii=False),
-        'stats': stats,
-        'set_price_url': f'{base}/cards/{pk}/set-price/',
-        'back_url': f'{base}/expansions/{card.expansion.code}/cards/',
+        'card':                    card,
+        'card_type':               'onepiece_kr',
+        'latest_price_obj':        latest_price_obj,
+        'market_items':            market_items,
+        'market_items_json':       json.dumps(market_items, ensure_ascii=False),
+        'stats':                   stats,
+        'set_price_url':           f'{base}/cards/{pk}/set-price/',
+        'back_url':                f'{base}/expansions/{card.expansion.code}/cards/',
         'price_history_week_json': _price_history_json(card, card.prices),
         'breadcrumb': [
             ('홈', '/'),
@@ -989,6 +1213,18 @@ def onepiece_kr_bulk_issues(request):
 
 
 @staff_required
+@require_POST
+def onepiece_kr_bulk_approve(request):
+    return _bulk_approve_view(request, 'onepiece_kr')
+
+
+@staff_required
+@require_POST
+def onepiece_kr_bulk_edit(request):
+    return _bulk_edit_view(request, 'onepiece_kr')
+
+
+@staff_required
 def onepiece_kr_card_search(request):
     return _card_search_view(request, OnePieceCard)
 
@@ -1021,19 +1257,39 @@ def onepiece_kr_favorites(request):
     for card in cards:
         latest = card.prices.order_by('-collected_at').first()
         card_data.append({
-            'card': card,
+            'card':         card,
             'latest_price': latest.price if latest else None,
             'collected_at': latest.collected_at if latest else None,
         })
     return render(request, 'dashboard/favorites.html', {
-        'card_data': card_data,
-        'game': 'onepiece',
-        'lang': 'kr',
-        'title': '즐겨찾기 — 원피스 한글판',
-        'total': len(card_data),
+        'card_data':           card_data,
+        'game':                'onepiece',
+        'lang':                'kr',
+        'title':               '즐겨찾기 — 원피스 한글판',
+        'total':               len(card_data),
+        'bulk_price_url':      '/onepiece/kr/bulk-price/',
+        'reset_favorites_url': '/onepiece/kr/favorites/reset-prices/',
         'breadcrumb': [
             ('홈', '/'),
             ('원피스 한글판', '/onepiece/kr/expansions/'),
             ('즐겨찾기', None),
         ],
     })
+
+
+# ════════════════════════════════════════════════════════════════
+# 즐겨찾기 판매가 초기화
+# ════════════════════════════════════════════════════════════════
+
+@staff_required
+@require_POST
+def pokemon_kr_reset_favorite_prices(request):
+    count = Card.objects.filter(is_favorite=True).update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
+
+@staff_required
+@require_POST
+def onepiece_kr_reset_favorite_prices(request):
+    count = OnePieceCard.objects.filter(is_favorite=True).update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})

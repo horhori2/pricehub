@@ -1,0 +1,1092 @@
+/* ================================================================
+   dashboard.js — 대시보드 공통 유틸리티
+   사용: card_list.html, favorites.html
+   ================================================================ */
+
+/* ── CSRF 헬퍼 ── */
+function getCsrf() {
+  return document.querySelector('meta[name="csrf-token"]').content;
+}
+
+/* ── 토스트 ── */
+function showToast(msg) {
+  const t = document.getElementById('fav-toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+/* ── 모달 헬퍼 ── */
+function showModal(icon, title, desc, btnsHtml) {
+  document.getElementById('modalIcon').textContent  = icon;
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalDesc').innerHTML    = desc;
+  document.getElementById('modalBtns').innerHTML    = btnsHtml;
+  document.getElementById('resetModal').classList.add('show');
+}
+function hideModal() {
+  document.getElementById('resetModal').classList.remove('show');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideModal(); });
+
+/* ── 즐겨찾기 토글 (card_list용) ──
+   btn: .star-toggle 버튼 엘리먼트
+   TOGGLE_FAV_BASE: 각 페이지에서 const로 선언 */
+async function toggleFavorite(btn) {
+  const cardId = btn.dataset.cardId;
+  btn.classList.add('popping');
+  btn.addEventListener('animationend', () => btn.classList.remove('popping'), { once: true });
+
+  try {
+    const res  = await fetch(`${TOGGLE_FAV_BASE}${cardId}/favorite/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    const nowFav         = data.is_favorite;
+    btn.textContent      = nowFav ? '⭐' : '☆';
+    btn.dataset.favorite = nowFav ? 'true' : 'false';
+    btn.title            = nowFav ? '즐겨찾기 해제' : '즐겨찾기 추가';
+    btn.classList.toggle('active', nowFav);
+
+    const badge = document.getElementById('favCountBadge');
+    if (badge) {
+      badge.textContent = Math.max(0, (parseInt(badge.textContent) || 0) + (nowFav ? 1 : -1));
+    }
+    showToast(nowFav ? '⭐ 즐겨찾기에 추가했어요' : '☆ 즐겨찾기에서 제거했어요');
+  } catch (err) {
+    console.error(err);
+    showToast('오류가 발생했어요');
+  }
+}
+
+/* ── 즐겨찾기 해제 + 행 제거 (favorites용) ── */
+async function removeFavorite(btn) {
+  const cardId = btn.dataset.cardId;
+  btn.classList.add('popping');
+  btn.addEventListener('animationend', () => btn.classList.remove('popping'), { once: true });
+
+  try {
+    const res  = await fetch(`${TOGGLE_FAV_BASE}${cardId}/favorite/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+
+    if (!data.is_favorite) {
+      const row = document.getElementById(`fav-row-${cardId}`);
+      row.style.transition = 'max-height 0.25s ease, opacity 0.25s ease';
+      row.style.maxHeight  = row.offsetHeight + 'px';
+      row.style.overflow   = 'hidden';
+      requestAnimationFrame(() => { row.style.maxHeight = '0'; row.style.opacity = '0'; });
+      setTimeout(() => row.remove(), 260);
+
+      const countEl = document.getElementById('favCount');
+      if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent) || 0) - 1) + '개';
+      showToast('즐겨찾기에서 제거했어요');
+    }
+  } catch {
+    showToast('오류가 발생했어요');
+  }
+}
+
+/* ── 인라인 판매가 편집 (favorites용) ── */
+function startEdit(cardId) {
+  document.getElementById(`price-display-${cardId}`).classList.add('hidden');
+  document.getElementById(`price-edit-${cardId}`).classList.add('show');
+  const input = document.getElementById(`price-val-${cardId}`);
+  input.focus();
+  input.select();
+}
+function cancelEdit(cardId) {
+  document.getElementById(`price-display-${cardId}`).classList.remove('hidden');
+  document.getElementById(`price-edit-${cardId}`).classList.remove('show');
+}
+async function savePrice(cardId) {
+  const price = parseInt(document.getElementById(`price-val-${cardId}`).value) || 0;
+  try {
+    const res  = await fetch(`${SET_PRICE_BASE}${cardId}/set-price/`, {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrf(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ selling_price: price }),
+    });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    document.getElementById(`price-display-${cardId}`).innerHTML = price > 0
+      ? `<span class="price-set">${price.toLocaleString()}원</span>`
+      : `<span class="price-unset">미설정</span>`;
+    cancelEdit(cardId);
+    showToast('판매가를 저장했어요');
+  } catch { showToast('저장 중 오류가 발생했어요'); }
+}
+
+/* ── 판매가 초기화 모달 공통 ── */
+function showResetModal() {
+  showModal(
+    '⚠️', '판매가 초기화',
+    document.getElementById('resetModalDesc')?.innerHTML
+      || '판매가를 초기화하시겠습니까?<br>설정된 판매가가 전부 미설정(0)으로 변경됩니다.',
+    `<button class="modal-cancel" onclick="hideModal()">취소</button>
+     <button class="modal-confirm" id="confirmBtn" onclick="doReset()">초기화</button>`
+  );
+}
+async function doReset() {
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true;
+  btn.textContent = '초기화 중...';
+  try {
+    const res  = await fetch(RESET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+    });
+    const data = await res.json();
+    if (data.success) {
+      showModal('✅', '초기화 완료',
+        `<strong>${data.count}개</strong> 카드의 판매가가 초기화됐습니다.`,
+        `<button class="modal-confirm" onclick="location.reload()" style="background:var(--success);">확인</button>`
+      );
+    } else { throw new Error(data.error); }
+  } catch (err) {
+    showModal('❌', '오류 발생',
+      err.message || '알 수 없는 오류가 발생했습니다.',
+      `<button class="modal-cancel" onclick="hideModal()">닫기</button>`
+    );
+  }
+}
+
+
+/* ================================================================
+   expansion_list.js — 확장팩 목록 페이지 전용
+   ================================================================ */
+
+let _searchTimer = null;
+
+function onSearchInput(val) {
+  document.getElementById('searchClear').style.display = val ? 'block' : 'none';
+  clearTimeout(_searchTimer);
+  if (!val.trim()) { clearSearch(); return; }
+  _searchTimer = setTimeout(() => searchCards(), 400);
+}
+
+function clearSearch() {
+  document.getElementById('cardSearchInput').value = '';
+  document.getElementById('searchClear').style.display = 'none';
+  document.getElementById('searchResults').classList.remove('show');
+}
+
+async function searchCards() {
+  const q = document.getElementById('cardSearchInput').value.trim();
+  if (!q) return;
+  const results = document.getElementById('searchResults');
+  const body    = document.getElementById('searchResultsBody');
+  const title   = document.getElementById('searchResultsTitle');
+  const count   = document.getElementById('searchResultsCount');
+  results.classList.add('show');
+  title.textContent = `"${q}" 검색 결과`;
+  body.innerHTML = '<div class="search-loading"><span class="spinner"></span>검색 중...</div>';
+  count.textContent = '';
+  try {
+    const res   = await fetch(`${CARD_SEARCH_URL}?name=${encodeURIComponent(q)}&page_size=30`);
+    const data  = await res.json();
+    const cards = data.results || data;
+    if (!cards.length) {
+      body.innerHTML = `<div class="search-empty">검색 결과가 없습니다.</div>`;
+      count.textContent = '0개';
+      return;
+    }
+    count.textContent = `${cards.length}개`;
+    body.innerHTML = cards.map(item => {
+      const sellingPrice = item.selling_price && item.selling_price > 0
+        ? `<div class="result-selling-price">${parseInt(item.selling_price).toLocaleString()}원</div>`
+        : `<div class="result-selling-price unset">미설정</div>`;
+      const latestPrice = item.latest_price
+        ? `<div class="result-market-price">시장가 ${parseInt(item.latest_price).toLocaleString()}원</div>`
+        : '';
+      return `<a href="${CARD_DETAIL_BASE_URL}${item.id}/" class="search-result-item">
+        ${item.image_url
+          ? `<img src="${item.image_url}" class="result-thumb" loading="lazy">`
+          : `<div class="result-thumb" style="display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>`}
+        <div class="result-info">
+          <div class="result-name">${item.name}</div>
+          <div class="result-meta">
+            <span class="result-rarity">${item.rarity}</span>
+            ${item.expansion?.name || ''} · No.${item.card_number}
+          </div>
+        </div>
+        <div class="result-price">${sellingPrice}${latestPrice}</div>
+      </a>`;
+    }).join('');
+  } catch {
+    body.innerHTML = `<div class="search-empty">검색 중 오류가 발생했습니다.</div>`;
+  }
+}
+
+let _pendingCode = null;
+
+function showResetModal(code, name) {
+  _pendingCode = code;
+  showModal(
+    '⚠️', '판매가 초기화',
+    `<strong>${name}</strong>의 모든 카드 판매가를 초기화하시겠습니까?<br>설정된 판매가가 전부 미설정(0)으로 변경됩니다.`,
+    `<button class="modal-cancel" onclick="hideModal()">취소</button>
+     <button class="modal-confirm" id="confirmBtn" onclick="doResetExpansion()">초기화</button>`
+  );
+}
+
+async function doResetExpansion() {
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true; btn.textContent = '초기화 중...';
+  try {
+    const res  = await fetch(`${RESET_URL_PREFIX}${_pendingCode}/reset-prices/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+    });
+    const data = await res.json();
+    if (data.success) {
+      showModal('✅', '초기화 완료',
+        `<strong>${data.count}개</strong> 카드의 판매가가 초기화됐습니다.`,
+        `<button class="modal-confirm" onclick="location.reload()" style="background:var(--success);">확인</button>`
+      );
+    } else { throw new Error(data.error); }
+  } catch (err) {
+    showModal('❌', '오류 발생', err.message || '알 수 없는 오류',
+      `<button class="modal-cancel" onclick="hideModal()">닫기</button>`);
+  }
+}
+
+function showResetAllModal() {
+  showModal(
+    '⚠️', '전체 판매가 초기화',
+    `<strong>전체</strong> 확장팩의 모든 카드 판매가를 초기화하시겠습니까?<br>
+     <span style="color:var(--danger);font-weight:700;">이 작업은 되돌릴 수 없습니다.</span>`,
+    `<button class="modal-cancel" onclick="hideModal()">취소</button>
+     <button class="modal-confirm" id="confirmBtn" onclick="doResetAll()">전체 초기화</button>`
+  );
+}
+
+async function doResetAll() {
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true; btn.textContent = '초기화 중...';
+  try {
+    const res  = await fetch(RESET_ALL_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+    });
+    const data = await res.json();
+    if (data.success) {
+      showModal('✅', '초기화 완료',
+        `<strong>${data.count}개</strong> 카드의 판매가가 초기화됐습니다.`,
+        `<button class="modal-confirm" onclick="location.reload()" style="background:var(--success);">확인</button>`
+      );
+    } else { throw new Error(data.error); }
+  } catch (err) {
+    showModal('❌', '오류 발생', err.message || '알 수 없는 오류',
+      `<button class="modal-cancel" onclick="hideModal()">닫기</button>`);
+  }
+}
+
+
+/* ================================================================
+   card_detail.js — 카드 상세 페이지 전용
+   ================================================================ */
+
+function setPrice(price) {
+  document.getElementById('sellingPriceInput').value = price;
+}
+
+async function savePriceDetail() {
+  const input    = document.getElementById('sellingPriceInput');
+  const resultEl = document.getElementById('saveResult');
+  const price    = parseInt(input.value) || 0;
+  try {
+    const res  = await fetch(SET_PRICE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ selling_price: price }),
+    });
+    const data = await res.json();
+    resultEl.style.display = 'block';
+    if (data.success) {
+      resultEl.className   = 'save-result success';
+      resultEl.textContent = `✅ 저장 완료: ${data.selling_price ? data.selling_price.toLocaleString() + '원' : '미설정으로 변경'}`;
+    } else {
+      resultEl.className   = 'save-result error';
+      resultEl.textContent = '❌ ' + data.error;
+    }
+    setTimeout(() => { resultEl.style.display = 'none'; }, 3000);
+  } catch {
+    resultEl.style.display = 'block';
+    resultEl.className     = 'save-result error';
+    resultEl.textContent   = '❌ 네트워크 오류';
+  }
+}
+
+function initPriceChart(marketItems) {
+  if (!marketItems.length) return;
+  const ctx    = document.getElementById('priceChart').getContext('2d');
+  const labels = marketItems.map(i => i.mallName);
+  const prices = marketItems.map(i => i.price_int);
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: '판매가 (원)',
+        data: prices,
+        backgroundColor: prices.map((_, i) => i === 0 ? 'rgba(74,222,128,0.8)' : 'rgba(108,99,255,0.7)'),
+        borderColor:     prices.map((_, i) => i === 0 ? '#4ade80' : '#6c63ff'),
+        borderWidth: 1, borderRadius: 6,
+      }]
+    },
+    options: {
+      responsive: true,
+      onClick: (event, elements) => {
+        if (elements.length > 0) setPrice(prices[elements[0].index]);
+      },
+      onHover: (event, elements) => {
+        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => `${ctx.parsed.y.toLocaleString()}원` } },
+      },
+      scales: {
+        x: { ticks: { color: '#6b6f85', font: { size: 11 } }, grid: { color: 'rgba(42,45,58,0.5)' } },
+        y: {
+          ticks: { color: '#6b6f85', font: { size: 11 }, callback: v => v.toLocaleString() + '원' },
+          grid: { color: 'rgba(42,45,58,0.8)' }
+        }
+      },
+    }
+  });
+}
+
+function initWeeklyChart(historyData) {
+  if (!historyData || !historyData.length) {
+    document.getElementById('weeklyChartEmpty').style.display = 'block';
+    document.getElementById('weeklyChart').style.display = 'none';
+    return;
+  }
+  const PALETTE = [
+    '#6c63ff','#4ade80','#fbbf24','#f87171','#60a5fa',
+    '#a78bfa','#34d399','#fb923c','#e879f9','#38bdf8',
+    '#facc15','#f472b6','#818cf8','#2dd4bf','#c084fc',
+  ];
+  const shopSet = new Set();
+  historyData.forEach(p => (p.raw_data || []).forEach(i => { if (i.mallName) shopSet.add(i.mallName); }));
+  const allShops = [...shopSet];
+  const labels   = historyData.map(p => p.date);
+  const datasets = allShops.map((shop, idx) => {
+    const color = PALETTE[idx % PALETTE.length];
+    return {
+      label: shop,
+      data: historyData.map(p => {
+        const item = (p.raw_data || []).find(i => i.mallName === shop);
+        return item ? parseInt(item.lprice) : null;
+      }),
+      borderColor: color, backgroundColor: color + '22',
+      pointBackgroundColor: color, pointRadius: 4, pointHoverRadius: 6,
+      borderWidth: 2, tension: 0.3, spanGaps: true,
+    };
+  });
+
+  const hiddenShops  = new Set();
+  const filterWrap   = document.getElementById('shopFilterWrap');
+
+  function renderFilterBtns(chart) {
+    filterWrap.innerHTML = '';
+    const allBtn = document.createElement('button');
+    allBtn.textContent = '전체';
+    allBtn.style.cssText = `padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;border:1px solid var(--border2);background:var(--accent2);color:#fff;cursor:pointer;font-family:inherit;`;
+    allBtn.onclick = () => {
+      hiddenShops.clear();
+      chart.data.datasets.forEach((_, i) => chart.setDatasetVisibility(i, true));
+      chart.update(); renderFilterBtns(chart);
+    };
+    filterWrap.appendChild(allBtn);
+    allShops.forEach((shop, idx) => {
+      const color  = PALETTE[idx % PALETTE.length];
+      const hidden = hiddenShops.has(shop);
+      const btn    = document.createElement('button');
+      btn.textContent = shop;
+      btn.style.cssText = `padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;
+        border:1px solid ${color};background:${hidden ? 'none' : color + '22'};
+        color:${hidden ? 'var(--text-muted)' : color};cursor:pointer;font-family:inherit;transition:all 0.15s;`;
+      btn.onclick = () => {
+        if (hiddenShops.has(shop)) { hiddenShops.delete(shop); chart.setDatasetVisibility(idx, true); }
+        else { hiddenShops.add(shop); chart.setDatasetVisibility(idx, false); }
+        chart.update(); renderFilterBtns(chart);
+      };
+      filterWrap.appendChild(btn);
+    });
+  }
+
+  const weeklyChart = new Chart(document.getElementById('weeklyChart').getContext('2d'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27', borderColor: '#2a2d3a', borderWidth: 1,
+          titleColor: '#e8e9f0', bodyColor: '#9ca3af', padding: 12,
+          callbacks: { label: ctx => ctx.parsed.y === null ? null : `  ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}원` }
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#6b6f85', font: { size: 10 }, maxRotation: 30 }, grid: { color: 'rgba(42,45,58,0.6)' } },
+        y: { ticks: { color: '#6b6f85', font: { size: 11 }, callback: v => v.toLocaleString() + '원' }, grid: { color: 'rgba(42,45,58,0.8)' } }
+      },
+    }
+  });
+  renderFilterBtns(weeklyChart);
+}
+
+
+/* ================================================================
+   bulk_price.js — 일괄 판매가 설정 페이지 전용
+   ================================================================ */
+
+function toggleRarityChip(rarity, checkbox) {
+  const label = checkbox.closest('.rarity-chip');
+  if (checkbox.checked) { selectedRarities.add(rarity); label.classList.add('active'); }
+  else { selectedRarities.delete(rarity); label.classList.remove('active'); }
+  if (typeof updateRarityDisplay === 'function') updateRarityDisplay();
+  if (typeof applyRarityFilter  === 'function') applyRarityFilter();
+}
+
+function selectRaritiesChips(rarities) {
+  selectedRarities = new Set(rarities);
+  document.querySelectorAll('.rarity-chip').forEach(chip => {
+    const val = chip.querySelector('input').value, active = selectedRarities.has(val);
+    chip.classList.toggle('active', active); chip.querySelector('input').checked = active;
+  });
+  if (typeof updateRarityDisplay === 'function') updateRarityDisplay();
+  if (typeof applyRarityFilter  === 'function') applyRarityFilter();
+}
+
+function submitBulkFilter() {
+  const expansion = document.querySelector('select[name="expansion"]').value;
+  const params = new URLSearchParams();
+  if (expansion) params.append('expansion', expansion);
+  selectedRarities.forEach(r => params.append('rarities', r));
+  location.href = BULK_PRICE_URL + '?' + params.toString();
+}
+
+function updateBulkRarityDisplay() {
+  const el = document.getElementById('selectedRaritiesDisplay');
+  if (el) el.textContent = selectedRarities.size > 0 ? `레어도 필터: ${[...selectedRarities].join(', ')}` : '';
+}
+
+let _currentRankFilter = 'all';
+function filterShops(f, btn) {
+  _currentRankFilter = f;
+  document.querySelectorAll('.rank-filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderRankTable();
+}
+function renderRankTable() {
+  let shops = SHOPS;
+  if (_currentRankFilter === 'cheap') shops = shops.filter(s => s.cheaper);
+  if (_currentRankFilter === 'exp')   shops = shops.filter(s => !s.cheaper);
+  document.getElementById('rankBody').innerHTML = shops.map(s => {
+    const rank = SHOPS.indexOf(s) + 1;
+    const rc   = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : 'rn';
+    const bw   = Math.round((s.count / MAX_COUNT) * 60);
+    const dc   = s.diff < 0 ? 'diff-cheap' : s.diff > 0 ? 'diff-exp' : 'diff-same';
+    const dl   = s.diff < 0 ? '▼' : s.diff > 0 ? '▲' : '=';
+    return `<tr class="clickable" onclick="addToPriority('${s.name.replace(/'/g, "\\'")}')">
+      <td><span class="rank-badge-sm ${rc}">${rank}</span></td>
+      <td style="font-weight:600;">${s.name}</td>
+      <td><div class="count-bar-wrap"><div class="count-bar" style="width:${bw}px"></div><span class="count-val">${s.count}</span></div></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;">${s.avg.toLocaleString()}원</td>
+      <td><span class="diff-badge ${dc}">${dl} ${Math.abs(s.diff_pct)}%</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function addToPriority(name) {
+  for (let i = 1; i <= 5; i++) {
+    if (document.getElementById(`p${i}`).value.trim() === name) { highlightPriorityInput(i); return; }
+  }
+  for (let i = 1; i <= 5; i++) {
+    if (!document.getElementById(`p${i}`).value.trim()) { document.getElementById(`p${i}`).value = name; highlightPriorityInput(i); return; }
+  }
+  document.getElementById('p5').value = name; highlightPriorityInput(5);
+}
+function highlightPriorityInput(idx) {
+  const input = document.getElementById(`p${idx}`);
+  input.style.borderColor = 'var(--accent2)'; input.style.background = 'rgba(124,107,255,0.06)';
+  setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 800);
+}
+function clearPriority(idx) { document.getElementById(`p${idx}`).value = ''; }
+
+function showAutocomplete(idx, val) {
+  const list = document.getElementById(`ac${idx}`), q = val.trim();
+  const matches = q ? allMalls.filter(m => m.name.includes(q)).slice(0, 8) : allMalls.slice(0, 8);
+  if (!matches.length) { list.style.display = 'none'; return; }
+  list.innerHTML = matches.map(m =>
+    `<div class="autocomplete-item" onmousedown="pickAutocomplete(${idx},'${m.name.replace(/'/g, "\\'")}')">
+      <span>${m.name}</span><span class="autocomplete-count">${m.count}</span>
+    </div>`
+  ).join('');
+  list.style.display = 'block';
+}
+function hideAutocomplete(idx) {
+  setTimeout(() => { const el = document.getElementById(`ac${idx}`); if (el) el.style.display = 'none'; }, 150);
+}
+function pickAutocomplete(idx, name) {
+  document.getElementById(`p${idx}`).value = name;
+  document.getElementById(`ac${idx}`).style.display = 'none';
+}
+function getBulkPriorities() {
+  return [1, 2, 3, 4, 5].map(i => document.getElementById(`p${i}`).value.trim()).filter(Boolean);
+}
+
+let _fallbackMode = '';
+function setFallback(mode) {
+  _fallbackMode = mode;
+  const map = { avg: 'btnFallbackAvg', max: 'btnFallbackMax', '': 'btnFallbackNone' };
+  Object.values(map).forEach(id => {
+    const btn = document.getElementById(id), active = map[mode] === id;
+    btn.style.borderColor = active ? 'var(--accent2)' : 'var(--border2)';
+    btn.style.background  = active ? 'rgba(124,107,255,0.1)' : 'none';
+    btn.style.color       = active ? 'var(--accent2)' : 'var(--text-muted)';
+  });
+}
+
+async function runBulk() {
+  const priorities = getBulkPriorities();
+  if (!priorities.length) { alert('판매처 우선순위를 1개 이상 입력해주세요.'); return; }
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>적용 중...';
+  try {
+    const res = await fetch(BULK_RUN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({
+        priorities,
+        expansion_code: document.getElementById('expansionSelect').value,
+        skip_priced:    document.getElementById('skipPriced').checked,
+        rarities:       [...selectedRarities],
+        min_price:      parseInt(document.getElementById('minPrice').value) || 0,
+        fallback_mode:  _fallbackMode,
+      }),
+    });
+    const data = await res.json();
+    if (!data.success) { alert(data.error || '오류 발생'); return; }
+    document.getElementById('rSet').textContent    = data.set_count.toLocaleString();
+    document.getElementById('rReview').textContent = data.needs_review_count.toLocaleString();
+    document.getElementById('rSkip').textContent   = data.skipped_count.toLocaleString();
+    /* 하락 대기 카운트 표시 (신규) */
+    const rDrop = document.getElementById('rDrop');
+    if (rDrop) rDrop.textContent = (data.drop_count || 0).toLocaleString();
+    const expCode = document.getElementById('expansionSelect').value;
+    document.getElementById('btnIssues').href =
+      expCode ? `${BULK_ISSUES_URL}?expansion=${expCode}` : BULK_ISSUES_URL;
+    if (data.needs_review_count === 0 && (data.drop_count || 0) === 0) {
+      document.getElementById('btnIssues').style.display = 'none';
+    }
+    document.getElementById('resultBox').classList.add('show');
+  } catch (e) { alert('오류: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '⚡ 일괄 판매가 설정 실행'; }
+}
+function resetBulkResult() {
+  document.getElementById('resultBox').classList.remove('show');
+  document.getElementById('btnIssues').style.display = '';
+}
+
+
+/* ================================================================
+   bulk_issues.js — 하락 대기 카드 목록 페이지 전용
+   ================================================================ */
+
+/* 페이지에서 선언해야 하는 변수:
+   const APPROVE_URL, EDIT_URL, SET_PRICE_URL_PREFIX, CARD_RAW
+   let   selectedRarities (Set)
+   _issuesRemainCount, _activeCardId 는 이 파일에서 선언 */
+
+let _issuesRemainCount = 0;
+let _activeCardId      = null;
+
+/* ── 토스트 ── */
+function showIssueToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type}`; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3000);
+}
+
+/* ── 하락 바 색상 ── */
+function initDropBarColors() {
+  document.querySelectorAll('.drop-bar-fill').forEach(bar => {
+    const pct = parseFloat(bar.dataset.pct);
+    if      (pct < 10) bar.style.background = 'linear-gradient(90deg,#f5a623,#f06060)';
+    else if (pct < 30) bar.style.background = 'linear-gradient(90deg,#f06060,#c43c3c)';
+    else               bar.style.background = 'linear-gradient(90deg,#c43c3c,#9b1f1f)';
+  });
+}
+
+/* ── 필터/정렬 ── */
+function submitIssuesFilter() {
+  const form = document.getElementById('filterForm');
+  form.querySelectorAll('input[name="rarities"]').forEach(el => el.remove());
+  selectedRarities.forEach(r => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'rarities'; inp.value = r;
+    form.appendChild(inp);
+  });
+  form.submit();
+}
+/* bulk_price.js의 toggleRarityChip/selectRaritiesChips가 호출하는 훅 */
+function applyRarityFilter()          { submitIssuesFilter(); }
+function submitIssuesExpansionFilter() { submitIssuesFilter(); }
+
+function changeSort(val) {
+  document.getElementById('sortInput').value = val;
+  submitIssuesFilter();
+}
+
+/* ── 체크박스 ── */
+function toggleAllIssues(cb) {
+  document.querySelectorAll('#cardTableBody tr:not(.resolved) .row-check')
+    .forEach(c => c.checked = cb.checked);
+}
+
+/* ── 사이드 패널 ── */
+function showIssuesSidePanel(cardId) {
+  if (_activeCardId) {
+    document.getElementById(`row-${_activeCardId}`)?.classList.remove('active-row');
+  }
+  _activeCardId = cardId;
+
+  const row = document.getElementById(`row-${cardId}`);
+  row.classList.add('active-row');
+
+  /* 이미지 */
+  const imgEl = document.getElementById('sideCardImage');
+  const imgSrc = row.dataset.image;
+  if (imgSrc) { imgEl.src = imgSrc; imgEl.style.display = 'block'; }
+  else          imgEl.style.display = 'none';
+
+  /* 카드명·정보 */
+  document.getElementById('sideCardName').textContent = row.dataset.name;
+  document.getElementById('sideCardName').style.color = 'var(--text)';
+  document.getElementById('sideCardInfo').textContent =
+    `${row.dataset.number} · ${row.dataset.rarity}`;
+
+  /* 하락 요약 */
+  const selling  = parseInt(row.dataset.selling);
+  const modified = parseInt(row.dataset.modified);
+  const dropAmt  = selling - modified;
+  const dropPct  = ((dropAmt / selling) * 100).toFixed(1);
+  document.getElementById('sideOldPrice').textContent = selling.toLocaleString() + '원';
+  document.getElementById('sideNewPrice').textContent = modified.toLocaleString() + '원';
+  document.getElementById('sideDropPct').textContent  = `-${dropPct}%`;
+  document.getElementById('sideDropAmt').textContent  = `▼ ${dropAmt.toLocaleString()}원`;
+  const sideBar = document.getElementById('sideDropBar');
+  sideBar.style.width = Math.min(parseFloat(dropPct), 100) + '%';
+  const pct = parseFloat(dropPct);
+  sideBar.style.background = pct < 10
+    ? 'linear-gradient(90deg,#f5a623,#f06060)'
+    : pct < 30
+      ? 'linear-gradient(90deg,#f06060,#c43c3c)'
+      : 'linear-gradient(90deg,#c43c3c,#9b1f1f)';
+  document.getElementById('sidePriceSummary').style.display = 'block';
+
+  /* 판매처 목록 (JSON key는 항상 문자열) */
+  const raw   = (typeof CARD_RAW !== 'undefined') ? CARD_RAW[String(cardId)] : null;
+  const empty = document.getElementById('sideEmpty');
+  const list  = document.getElementById('sideStoreList');
+
+  if (!raw || !Array.isArray(raw) || !raw.length) {
+    document.getElementById('sideEmptyText').textContent = '판매처 데이터가 없습니다.';
+    empty.style.display = 'flex'; list.style.display = 'none';
+  } else {
+    const sorted = [...raw].sort((a, b) => parseInt(a.lprice) - parseInt(b.lprice));
+    list.innerHTML = sorted.map((item, idx) => {
+      const price    = parseInt(item.lprice);
+      const mall     = item.mallName || '알 수 없음';
+      const thumbSrc = item.image || '';
+      const title    = (item.title || '').replace(/<[^>]+>/g, '');
+      return `
+        <div class="side-store-row${idx === 0 ? ' cheapest' : ''}"
+             onclick="fillIssuePrice(${cardId}, ${price})">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+            ${thumbSrc
+              ? `<img src="${thumbSrc}" alt="" style="width:48px;height:48px;object-fit:contain;
+                   border-radius:6px;background:var(--surface2);border:1px solid var(--border);flex-shrink:0;">`
+              : `<div style="width:48px;height:48px;border-radius:6px;background:var(--surface2);
+                   border:1px solid var(--border);flex-shrink:0;"></div>`}
+            <div style="min-width:0;">
+              <div class="side-store-name">${mall}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;
+                   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                   title="${title}">${title}</div>
+              <div class="side-store-price${idx === 0 ? ' cheapest' : ''}" style="margin-top:3px;">
+                ${price.toLocaleString()}원
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+    empty.style.display = 'none'; list.style.display = 'block';
+  }
+
+  const input = document.getElementById(`input-${cardId}`);
+  if (input && !input.disabled) setTimeout(() => input.focus(), 50);
+}
+
+/* ── 판매처 클릭 → 가격 입력창 채우기 ── */
+function fillIssuePrice(cardId, price) {
+  const input = document.getElementById(`input-${cardId}`);
+  if (!input) return;
+  input.value = price; input.classList.add('prefilled'); input.focus();
+  document.getElementById(`row-${cardId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ── edit: 직접 입력한 가격으로 저장 ── */
+async function saveIssueEdit(cardId) {
+  const input = document.getElementById(`input-${cardId}`);
+  const price = parseInt(input?.value);
+  if (!price || price <= 0) {
+    input.style.borderColor = 'var(--danger)';
+    setTimeout(() => input.style.borderColor = '', 800);
+    return;
+  }
+  try {
+    const res  = await fetch(EDIT_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body:    JSON.stringify({ card_id: cardId, price }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      markIssueDone(cardId);
+      showIssueToast(`💾 저장 완료 (${data.new_price.toLocaleString()}원)`, 'ok');
+    } else {
+      showIssueToast('❌ ' + (data.error || '오류'), 'err');
+    }
+  } catch {
+    showIssueToast('❌ 네트워크 오류', 'err');
+  }
+}
+
+/* ── 체크된 카드 저장 ── */
+async function approveChecked() {
+  const ids = [...document.querySelectorAll('.row-check:checked')]
+    .map(cb => parseInt(cb.dataset.id));
+  if (!ids.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
+  if (!confirm(`${ids.length}개 카드를 저장할까요?`)) return;
+  const btn = document.getElementById('saveAllBtn');
+  btn.disabled = true;
+  for (let i = 0; i < ids.length; i++) {
+    btn.textContent = `처리 중... (${i + 1}/${ids.length})`;
+    await saveIssueEdit(ids[i]);
+  }
+  btn.disabled = false; btn.textContent = '💾 체크된 카드 저장';
+}
+
+/* ── 전체 저장 ── */
+async function approveAll() {
+  const ids = [...document.querySelectorAll('#cardTableBody tr:not(.resolved) .row-check')]
+    .map(cb => parseInt(cb.dataset.id));
+  if (!ids.length) return;
+  if (!confirm(`전체 ${ids.length}개 카드를 저장할까요?`)) return;
+  for (const id of ids) await saveIssueEdit(id);
+}
+
+/* ── 행 완료 처리 ── */
+function markIssueDone(cardId) {
+  const row   = document.getElementById(`row-${cardId}`);
+  const input = document.getElementById(`input-${cardId}`);
+  const badge = document.getElementById(`badge-${cardId}`);
+  if (!row) return;
+
+  row.classList.add('done');
+  setTimeout(() => {
+    row.classList.add('resolved');
+    setTimeout(() => row.remove(), 400);
+  }, 600);
+
+  if (input) { input.classList.add('saved'); input.disabled = true; }
+  if (badge) badge.classList.add('show');
+  const cb = row.querySelector('.row-check'); if (cb) cb.checked = false;
+  _issuesRemainCount = Math.max(0, _issuesRemainCount - 1);
+  document.getElementById('remainCount').textContent = `${_issuesRemainCount}개`;
+}
+
+/* ── (구) bulk_issues 함수들 — 레거시 2차 판매가 설정 페이지 호환용 ── */
+function applyIssuesRarityFilter() {
+  let visible = 0;
+  document.querySelectorAll('#cardTableBody tr').forEach(row => {
+    const show = selectedRarities.size === 0 || selectedRarities.has(row.dataset.rarity);
+    row.classList.toggle('hidden', !show);
+    if (show) visible++;
+  });
+  const el = document.getElementById('filteredCount');
+  if (el) el.textContent = selectedRarities.size > 0 ? `(필터: ${visible}개)` : '';
+  document.getElementById('checkAll').checked = false;
+}
+function applyIssuesBulkPrice(mode) {
+  const minFloor = parseInt(document.getElementById('bulkMinPrice').value) || 0;
+  let applied = 0;
+  document.querySelectorAll('#cardTableBody tr:not(.hidden):not(.done)').forEach(row => {
+    const cardId = row.dataset.id, raw = CARD_RAW[cardId];
+    const input  = document.getElementById(`input-${cardId}`);
+    if (!input || input.disabled) return;
+    const prices = Array.isArray(raw) ? raw.map(i => parseInt(i.lprice)).filter(p => p > 0) : [];
+    if (!prices.length) return;
+    let price = mode === 'avg'
+      ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length)
+      : Math.max(...prices);
+    price = Math.round(price / 100) * 100;
+    if (minFloor > 0 && price < minFloor) price = minFloor;
+    input.value = price; input.classList.add('prefilled');
+    const cb = row.querySelector('.row-check'); if (cb) cb.checked = true;
+    applied++;
+  });
+  showIssueToast(`✅ ${applied}개 카드에 ${mode === 'avg' ? '평균가' : '최고가'} 반영됐어요.`, 'ok');
+}
+function applyIssuesMinPrice() {
+  const minFloor = parseInt(document.getElementById('bulkMinPrice').value) || 0;
+  if (!minFloor) { showIssueToast('희망 최저가를 입력해주세요.', 'err'); return; }
+  let applied = 0;
+  document.querySelectorAll('#cardTableBody tr:not(.hidden):not(.done)').forEach(row => {
+    const input = document.getElementById(`input-${row.dataset.id}`);
+    if (!input || input.disabled) return;
+    input.value = minFloor; input.classList.add('prefilled');
+    const cb = row.querySelector('.row-check'); if (cb) cb.checked = true;
+    applied++;
+  });
+  showIssueToast(`✅ ${applied}개 카드에 ${minFloor.toLocaleString()}원 반영됐어요.`, 'ok');
+}
+async function saveAllIssues() {
+  const checked = [...document.querySelectorAll('.row-check:checked')];
+  if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
+  const targets = checked
+    .map(cb => ({ cardId: cb.dataset.id, input: document.getElementById(`input-${cb.dataset.id}`) }))
+    .filter(t => t.input && !t.input.disabled && t.input.value && parseInt(t.input.value) > 0);
+  if (!targets.length) { showIssueToast('입력된 가격이 없습니다.', 'err'); return; }
+  const btn = document.getElementById('saveAllBtn');
+  btn.disabled = true;
+  let saved = 0, failed = 0;
+  for (let i = 0; i < targets.length; i += 10) {
+    const chunk = targets.slice(i, i + 10);
+    await Promise.all(chunk.map(async ({ cardId, input }) => {
+      const price = parseInt(input.value);
+      try {
+        const res  = await fetch(`${SET_PRICE_URL_PREFIX}${cardId}/set-price/`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+          body: JSON.stringify({ selling_price: price }),
+        });
+        const data = await res.json();
+        if (data.success) { markIssueDone(cardId); saved++; } else failed++;
+      } catch { failed++; }
+    }));
+    btn.textContent = `저장 중... (${saved}/${targets.length})`;
+  }
+  btn.disabled = false; btn.textContent = '⚡ 체크된 카드 저장';
+  showIssueToast(
+    failed === 0 ? `✅ ${saved}개 저장 완료!` : `✅ ${saved}개 완료 / ❌ ${failed}개 실패`,
+    failed === 0 ? 'ok' : 'err'
+  );
+}
+function renderIssuesStats(cardRaw) {
+  for (const [cardId, raw] of Object.entries(cardRaw)) {
+    const prices = Array.isArray(raw) ? raw.map(i => parseInt(i.lprice)).filter(p => p > 0) : [];
+    const el = document.getElementById(`stats-${cardId}`);
+    if (!el) continue;
+ 
+    if (!prices.length) {
+      el.innerHTML = `<span class="stat-no-data">데이터 없음</span>`;
+      continue;
+    }
+ 
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+ 
+    el.innerHTML = `
+      <div class="market-stats-row">
+        <span class="stat-count">${prices.length}개</span>
+        <div class="market-pills">
+          <span class="stat-pill stat-min"
+                onclick="event.stopPropagation();fillIssuePrice(${cardId},${min})"
+                title="최저가 클릭 시 입력">
+            <span class="pill-label">최저</span>${min.toLocaleString()}
+          </span>
+          <span class="stat-pill stat-avg"
+                onclick="event.stopPropagation();fillIssuePrice(${cardId},${avg})"
+                title="평균가 클릭 시 입력">
+            <span class="pill-label">평균</span>${avg.toLocaleString()}
+          </span>
+          <span class="stat-pill stat-max"
+                onclick="event.stopPropagation();fillIssuePrice(${cardId},${max})"
+                title="최고가 클릭 시 입력">
+            <span class="pill-label">최고</span>${max.toLocaleString()}
+          </span>
+        </div>
+      </div>`;
+  }
+}
+async function saveIssuePrice(cardId) {
+  const input = document.getElementById(`input-${cardId}`);
+  const price = parseInt(input.value);
+  if (!price || price <= 0) {
+    input.style.borderColor = 'var(--danger)';
+    setTimeout(() => input.style.borderColor = '', 800); return;
+  }
+  try {
+    const res  = await fetch(`${SET_PRICE_URL_PREFIX}${cardId}/set-price/`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ selling_price: price }),
+    });
+    const data = await res.json();
+    if (data.success) { markIssueDone(cardId); showIssueToast(`✅ ${price.toLocaleString()}원 저장됐어요.`, 'ok'); }
+    else showIssueToast('❌ ' + (data.error || '오류'), 'err');
+  } catch { showIssueToast('❌ 네트워크 오류', 'err'); }
+}
+
+
+/* ================================================================
+   shop_stats.js — 경쟁 샵 랭킹 페이지 전용
+   ================================================================ */
+
+function initShopCharts(shops, overallAvg) {
+  const TOP = shops.slice(0, 15);
+  const chartBase = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { backgroundColor: '#1a1e2a', borderColor: '#2f3650', borderWidth: 1, titleColor: '#dde2f0', bodyColor: '#9aa0c0' },
+    },
+    scales: {
+      x: { ticks: { color: '#5a6080', font: { size: 10 }, maxRotation: 35 }, grid: { color: 'rgba(37,42,58,0.8)' } },
+      y: { ticks: { color: '#5a6080', font: { size: 10, family: 'JetBrains Mono' } }, grid: { color: 'rgba(37,42,58,0.8)' } },
+    },
+  };
+  const countEl = document.getElementById('countChart');
+  if (countEl && TOP.length) {
+    new Chart(countEl, {
+      type: 'bar',
+      data: {
+        labels: TOP.map(s => s.name),
+        datasets: [{
+          data: TOP.map(s => s.count),
+          backgroundColor: TOP.map((_, i) => i === 0 ? 'rgba(245,166,35,0.75)' : i < 3 ? 'rgba(124,107,255,0.65)' : 'rgba(91,141,239,0.45)'),
+          borderColor:     TOP.map((_, i) => i === 0 ? '#f5a623' : i < 3 ? '#7c6bff' : '#5b8def'),
+          borderWidth: 1, borderRadius: 5,
+        }],
+      },
+      options: { ...chartBase,
+        plugins: { ...chartBase.plugins, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  상품 ${c.parsed.y}개` } } },
+        scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v + '개' } } },
+      },
+    });
+  }
+  const avgEl = document.getElementById('avgChart');
+  if (avgEl && TOP.length) {
+    new Chart(avgEl, {
+      type: 'bar',
+      data: {
+        labels: TOP.map(s => s.name),
+        datasets: [
+          { label: '샵 평균가', data: TOP.map(s => s.avg),
+            backgroundColor: TOP.map(s => s.cheaper ? 'rgba(61,214,140,0.6)' : 'rgba(240,96,96,0.6)'),
+            borderColor:     TOP.map(s => s.cheaper ? '#3dd68c' : '#f06060'), borderWidth: 1, borderRadius: 5 },
+          { label: '전체 평균', data: TOP.map(() => overallAvg), type: 'line',
+            borderColor: 'rgba(245,166,35,0.7)', borderWidth: 2, borderDash: [5, 4], pointRadius: 0, fill: false },
+        ],
+      },
+      options: { ...chartBase,
+        plugins: { ...chartBase.plugins,
+          legend: { display: true, labels: { color: '#5a6080', font: { size: 10 } } },
+          tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  ${c.dataset.label}: ${c.parsed.y.toLocaleString()}원` } },
+        },
+        scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v.toLocaleString() + '원' } } },
+      },
+    });
+  }
+}
+
+let _shopFilter = 'all';
+function filterShopStats(f, btn) {
+  _shopFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderShopRank();
+}
+function renderShopRank() {
+  let shops = SHOPS;
+  if (_shopFilter === 'cheap') shops = shops.filter(s => s.cheaper);
+  if (_shopFilter === 'exp')   shops = shops.filter(s => !s.cheaper);
+  document.getElementById('rankBody').innerHTML = shops.map(s => {
+    const rank = SHOPS.indexOf(s) + 1;
+    const rc   = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : 'rn';
+    const bw   = Math.round((s.count / MAX_COUNT) * 70);
+    const dc   = s.diff < 0 ? 'diff-cheap' : s.diff > 0 ? 'diff-exp' : 'diff-same';
+    const dl   = s.diff < 0 ? '▼' : s.diff > 0 ? '▲' : '=';
+    return `<tr class="clickable" onclick="addShopToPriority('${s.name.replace(/'/g, "\\'")}')">
+      <td><span class="rank-badge ${rc}">${rank}</span></td>
+      <td style="font-weight:600;font-size:13px;">${s.name}</td>
+      <td><div class="count-bar-wrap"><div class="count-bar" style="width:${bw}px"></div><span class="count-val">${s.count}</span></div></td>
+      <td style="font-family:'JetBrains Mono',monospace;font-size:12px;">${s.avg.toLocaleString()}원</td>
+      <td><span class="diff-badge ${dc}">${dl} ${Math.abs(s.diff_pct)}%</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function addShopToPriority(name) {
+  for (let i = 1; i <= 5; i++) {
+    if (document.getElementById(`p${i}`).value.trim() === name) { highlightShopInput(i); return; }
+  }
+  for (let i = 1; i <= 5; i++) {
+    if (!document.getElementById(`p${i}`).value.trim()) { document.getElementById(`p${i}`).value = name; highlightShopInput(i); return; }
+  }
+  document.getElementById('p5').value = name; highlightShopInput(5);
+}
+function highlightShopInput(idx) {
+  const input = document.getElementById(`p${idx}`);
+  input.style.borderColor = 'var(--accent2)'; input.style.background = 'rgba(124,107,255,0.06)';
+  setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 800);
+  input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function clearShopP(idx) { document.getElementById(`p${idx}`).value = ''; }
+
+async function runShopBulk() {
+  const priorities = [1, 2, 3, 4, 5].map(i => document.getElementById(`p${i}`).value.trim()).filter(Boolean);
+  if (!priorities.length) { showShopToast('우선순위를 1개 이상 입력해주세요.', 'err'); return; }
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>적용 중...';
+  try {
+    const res  = await fetch(BULK_RUN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({
+        priorities,
+        expansion_code: document.getElementById('expSelect').value,
+        skip_priced:    document.getElementById('skipPriced').checked,
+      }),
+    });
+    const data = await res.json();
+    if (!data.success) { showShopToast(data.error || '오류 발생', 'err'); return; }
+    document.getElementById('rSet').textContent    = data.set_count.toLocaleString();
+    document.getElementById('rReview').textContent = data.needs_review_count.toLocaleString();
+    document.getElementById('resultBox').classList.add('show');
+    if (data.needs_review_count === 0) document.getElementById('issuesLink').style.display = 'none';
+    showShopToast(`✅ ${data.set_count.toLocaleString()}개 판매가 적용 완료!`, 'ok');
+  } catch { showShopToast('네트워크 오류', 'err'); }
+  finally { btn.disabled = false; btn.textContent = '⚡ 일괄 판매가 설정'; }
+}
+
+function showShopToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type}`; t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3500);
+}

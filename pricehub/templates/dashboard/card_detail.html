@@ -1,147 +1,34 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ card.name }} · 판매가 설정</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>{{ card.name }} · {% if card_type == 'pokemon_jp' %}일본판 {% endif %}판매가 설정</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
+{% if card_type != 'pokemon_jp' %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0f1117; --surface: #1a1d27; --surface2: #20232f;
-    --border: #2a2d3a; --accent: #6c63ff; --accent2: #a78bfa;
-    --text: #e8e9f0; --text-muted: #6b6f85;
-    --success: #4ade80; --warning: #fbbf24; --danger: #f87171;
-  }
-  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); }
-
-  header {
-    background: var(--surface); border-bottom: 1px solid var(--border);
-    padding: 0 32px; height: 60px; display: flex; align-items: center;
-    justify-content: space-between; position: sticky; top: 0; z-index: 10;
-  }
-  .header-left { display: flex; align-items: center; gap: 16px; }
-  .back-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 13px; padding: 6px 14px; cursor: pointer; text-decoration: none; display: inline-block; transition: all 0.2s; }
-  .back-btn:hover { border-color: var(--accent); color: var(--text); }
-  .breadcrumb { font-size: 14px; color: var(--text-muted); }
-  .breadcrumb a { color: var(--text-muted); text-decoration: none; }
-  .breadcrumb a:hover { color: var(--accent); }
-  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 13px; padding: 6px 14px; cursor: pointer; text-decoration: none; display: inline-block; }
-
-  main { max-width: 1200px; margin: 0 auto; padding: 40px 32px; }
-
-  /* 카드 헤더 */
-  .card-header { display: flex; gap: 28px; margin-bottom: 40px; align-items: flex-start; }
-  .card-image-wrap { flex-shrink: 0; }
-  .card-image { width: 140px; height: 195px; object-fit: contain; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); }
-  .card-image-placeholder { width: 140px; height: 195px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 40px; }
-  .card-info { flex: 1; }
-  .card-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; }
-  .badge-rarity { background: rgba(108,99,255,0.15); color: var(--accent); }
-  .badge-code { background: var(--surface2); color: var(--text-muted); }
-  .card-name-title { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
-  .card-expansion { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
-
-  /* 통계 박스 */
-  .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-  .stat-box {
-    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
-    padding: 14px 20px; min-width: 110px;
-  }
-  .stat-box-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-  .stat-box-value { font-size: 20px; font-weight: 700; }
-  .stat-box-value.green { color: var(--success); }
-  .stat-box-value.yellow { color: var(--warning); }
-  .stat-box-value.purple { color: var(--accent2); }
-
-  /* 판매가 설정 박스 */
-  .price-setter {
-    background: var(--surface); border: 1px solid var(--accent);
-    border-radius: 12px; padding: 24px; margin-top: 16px;
-  }
-  .price-setter h3 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
-  .price-input-row { display: flex; gap: 10px; align-items: center; }
-  .price-input {
-    flex: 1; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border);
-    border-radius: 8px; color: var(--text); font-family: inherit; font-size: 18px;
-    font-weight: 600; outline: none; transition: border-color 0.2s;
-  }
-  .price-input:focus { border-color: var(--accent); }
-  .price-unit { font-size: 15px; color: var(--text-muted); }
-  .save-btn {
-    padding: 12px 28px; background: var(--accent); border: none; border-radius: 8px;
-    color: #fff; font-family: inherit; font-size: 14px; font-weight: 600;
-    cursor: pointer; transition: all 0.2s; white-space: nowrap;
-  }
-  .save-btn:hover { background: #7c74ff; }
-  .save-btn:active { transform: scale(0.98); }
-
-  .quick-prices { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
-  .quick-btn {
-    padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
-    border: 1px solid var(--border); color: var(--text-muted); background: none;
-    cursor: pointer; font-family: inherit; transition: all 0.2s;
-  }
-  .quick-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .quick-label { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; }
-
-  .save-result { margin-top: 10px; font-size: 13px; display: none; }
-  .save-result.success { color: var(--success); }
-  .save-result.error { color: var(--danger); }
-
-  /* 레이아웃 */
-  .content-grid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
-
-  /* 차트 영역 */
-  .section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
-  .section h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
-
-  /* 스토어 목록 */
-  .store-list { display: flex; flex-direction: column; gap: 10px; }
-  .store-item {
-    display: flex; align-items: center; gap: 14px;
-    padding: 12px; background: var(--surface2); border-radius: 8px;
-    border: 1px solid var(--border);
-  }
-  .store-thumb { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: var(--bg); flex-shrink: 0; }
-  .store-thumb-placeholder { width: 48px; height: 48px; border-radius: 6px; background: var(--bg); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-  .store-info { flex: 1; min-width: 0; }
-  .store-name { font-size: 13px; font-weight: 600; margin-bottom: 2px; }
-  .store-title { font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .store-price { font-size: 16px; font-weight: 700; color: var(--success); white-space: nowrap; }
-  .store-price.lowest { color: var(--success); }
-  .store-link { font-size: 11px; color: var(--accent); text-decoration: none; margin-top: 2px; display: inline-block; }
-  .store-link:hover { text-decoration: underline; }
-  .rank-badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
-  .rank-1 { background: rgba(251,191,36,0.2); color: var(--warning); }
-  .rank-2 { background: rgba(156,163,175,0.2); color: #9ca3af; }
-  .rank-3 { background: rgba(180,83,9,0.2); color: #cd7c3a; }
-  .rank-n { background: var(--border); color: var(--text-muted); }
-
-  /* 가격 이력 테이블 */
-  .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  .history-table th { text-align: left; padding: 8px 12px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
-  .history-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
-  .history-table tr:last-child td { border-bottom: none; }
-
-  canvas { max-height: 280px; }
-</style>
+{% endif %}
 </head>
 <body>
+
 <header>
   <div class="header-left">
-    <a href="/expansions/{{ card.expansion.code }}/" class="back-btn">← 목록</a>
+    <a href="{{ back_url }}" class="back-btn">← 목록</a>
     <div class="breadcrumb">
-      <a href="/">홈</a> / <a href="/expansions/{{ card.expansion.code }}/">{{ card.expansion.name }}</a> / {{ card.name }}
+      {% for crumb in breadcrumb %}
+        {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
+        {% if not forloop.last %}<span>/</span>{% endif %}
+      {% endfor %}
     </div>
   </div>
   <a href="/logout/" class="logout-btn">로그아웃</a>
 </header>
 
 <main>
-  <!-- 카드 헤더 -->
+  <!-- ── 카드 헤더 ── -->
   <div class="card-header">
     <div class="card-image-wrap">
       {% if card.image_url %}
@@ -155,33 +42,21 @@
         <span class="badge badge-rarity">{{ card.rarity }}</span>
         <span class="badge badge-code">No.{{ card.card_number }}</span>
         <span class="badge badge-code">{{ card.expansion.code }}</span>
+        {% if card_type == 'pokemon_jp' and card.is_mirror %}
+        <span class="badge badge-mirror">미러</span>
+        {% endif %}
       </div>
       <div class="card-name-title">{{ card.name }}</div>
       <div class="card-expansion">{{ card.expansion.name }}</div>
 
-      <!-- 통계 -->
-      {% if stats %}
+      <!-- 통계 (한글판만) -->
+      {% if card_type != 'pokemon_jp' and stats %}
       <div class="stats-row">
-        <div class="stat-box">
-          <div class="stat-box-label">최저가</div>
-          <div class="stat-box-value green">{{ stats.min|floatformat:0 }}원</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-label">평균가</div>
-          <div class="stat-box-value yellow">{{ stats.avg|floatformat:0 }}원</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-label">중간값</div>
-          <div class="stat-box-value purple">{{ stats.median|floatformat:0 }}원</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-label">최고가</div>
-          <div class="stat-box-value">{{ stats.max|floatformat:0 }}원</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-box-label">유효 상품</div>
-          <div class="stat-box-value">{{ stats.count }}개</div>
-        </div>
+        <div class="stat-box"><div class="stat-box-label">최저가</div><div class="stat-box-value green">{{ stats.min|floatformat:0 }}원</div></div>
+        <div class="stat-box"><div class="stat-box-label">평균가</div><div class="stat-box-value yellow">{{ stats.avg|floatformat:0 }}원</div></div>
+        <div class="stat-box"><div class="stat-box-label">중간값</div><div class="stat-box-value purple">{{ stats.median|floatformat:0 }}원</div></div>
+        <div class="stat-box"><div class="stat-box-label">최고가</div><div class="stat-box-value">{{ stats.max|floatformat:0 }}원</div></div>
+        <div class="stat-box"><div class="stat-box-label">유효 상품</div><div class="stat-box-value">{{ stats.count }}개</div></div>
       </div>
       {% endif %}
 
@@ -189,21 +64,25 @@
       <div class="price-setter">
         <h3>🏷️ 판매가 설정
           {% if card.selling_price %}
-            <span style="color:var(--success); font-size:14px; margin-left:8px;">현재: {{ card.selling_price|floatformat:0 }}원</span>
+          <span style="color:var(--success);font-size:14px;margin-left:8px;">현재: {{ card.selling_price|floatformat:0 }}원</span>
           {% endif %}
         </h3>
         <div class="price-input-row">
           <input type="number" class="price-input" id="sellingPriceInput"
-                 value="{{ card.selling_price|default:'' }}" placeholder="0" min="0">
+                 value="{{ card.selling_price|default:'' }}" placeholder="0" min="0"
+                 onkeydown="if(event.key==='Enter') savePriceDetail()">
           <span class="price-unit">원</span>
-          <button class="save-btn" onclick="savePrice()">저장</button>
+          <button class="save-btn" onclick="savePriceDetail()">저장</button>
         </div>
+        <!-- 빠른 설정: 한글판은 min/avg/median, 일본판은 stats의 min/avg -->
         {% if stats %}
         <div class="quick-prices">
           <span class="quick-label">빠른 설정:</span>
           <button class="quick-btn" onclick="setPrice({{ stats.min }})">최저 {{ stats.min|floatformat:0 }}원</button>
           <button class="quick-btn" onclick="setPrice({{ stats.avg }})">평균 {{ stats.avg|floatformat:0 }}원</button>
+          {% if card_type != 'pokemon_jp' %}
           <button class="quick-btn" onclick="setPrice({{ stats.median }})">중간 {{ stats.median|floatformat:0 }}원</button>
+          {% endif %}
         </div>
         {% endif %}
         <div class="save-result" id="saveResult"></div>
@@ -211,10 +90,13 @@
     </div>
   </div>
 
-  <!-- 콘텐츠 그리드 -->
+  <!-- ════════════════════════════════
+       한글판 전용 콘텐츠
+  ════════════════════════════════ -->
+  {% if card_type != 'pokemon_jp' %}
+
   <div class="content-grid">
     <div>
-      <!-- 가격 분포 차트 -->
       {% if market_items %}
       <div class="section">
         <h2>📊 판매처별 가격 분포</h2>
@@ -222,18 +104,12 @@
       </div>
       {% endif %}
 
-      <!-- 수집 이력 -->
       {% if price_history %}
       <div class="section">
         <h2>📈 수집 이력 (최근 30건)</h2>
         <table class="history-table">
           <thead>
-            <tr>
-              <th>수집 일시</th>
-              <th>판매처</th>
-              <th>가격</th>
-              <th>유효 상품 수</th>
-            </tr>
+            <tr><th>수집 일시</th><th>판매처</th><th>가격</th><th>유효 상품 수</th></tr>
           </thead>
           <tbody>
             {% for ph in price_history %}
@@ -241,11 +117,7 @@
               <td>{{ ph.collected_at|date:"Y.m.d H:i" }}</td>
               <td>{{ ph.source }}</td>
               <td style="font-weight:600;">{{ ph.price|floatformat:0 }}원</td>
-              <td style="color:var(--text-muted);">
-                {% if ph.raw_data %}
-                  {% if ph.raw_data|length %}{{ ph.raw_data|length }}개{% endif %}
-                {% endif %}
-              </td>
+              <td style="color:var(--text-muted);">{% if ph.raw_data %}{% if ph.raw_data|length %}{{ ph.raw_data|length }}개{% endif %}{% endif %}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -254,49 +126,35 @@
       {% endif %}
     </div>
 
-    <!-- 스토어 목록 -->
     <div>
-      {% if market_items %}
       <div class="section">
         <h2>🏪 판매처 목록</h2>
+        {% if market_items %}
         <div class="store-list">
           {% for item in market_items %}
           <div class="store-item">
             <div class="rank-badge {% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% else %}rank-n{% endif %}">
               {{ forloop.counter }}
             </div>
-            {% if item.image %}
-            <img src="{{ item.image }}" alt="{{ item.clean_title }}" class="store-thumb">
-            {% else %}
-            <div class="store-thumb-placeholder">🃏</div>
-            {% endif %}
+            {% if item.image %}<img src="{{ item.image }}" alt="{{ item.clean_title }}" class="store-thumb">
+            {% else %}<div class="store-thumb-placeholder">🃏</div>{% endif %}
             <div class="store-info">
               <div class="store-name">{{ item.mallName }}</div>
               <div class="store-title">{{ item.clean_title }}</div>
-              {% if item.link %}
-              <a href="{{ item.link }}" target="_blank" class="store-link">상품 보기 →</a>
-              {% endif %}
+              {% if item.link %}<a href="{{ item.link }}" target="_blank" class="store-link">상품 보기 →</a>{% endif %}
             </div>
-            <div class="store-price {% if forloop.first %}lowest{% endif %}">
-              {{ item.price_int|floatformat:0 }}원
-            </div>
+            <div class="store-price {% if forloop.first %}lowest{% endif %}">{{ item.price_int|floatformat:0 }}원</div>
           </div>
           {% endfor %}
         </div>
+        {% else %}
+        <p style="color:var(--text-muted);font-size:14px;text-align:center;padding:40px 0;">수집된 가격 데이터가 없습니다.</p>
+        {% endif %}
       </div>
-      {% else %}
-      <div class="section">
-        <h2>🏪 판매처 목록</h2>
-        <p style="color:var(--text-muted); font-size:14px; text-align:center; padding:40px 0;">
-          수집된 가격 데이터가 없습니다.
-        </p>
-      </div>
-      {% endif %}
     </div>
   </div>
 
-  <!-- ── 최근 1주일 샵별 가격 변화 차트 ── -->
-  <div class="section" style="margin-top:0;" id="weeklyChartSection">
+  <div class="section" style="margin-top:0;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <h2 style="margin:0;">📈 최근 1주일 샵별 가격 변화</h2>
       <div style="display:flex;gap:8px;align-items:center;" id="shopFilterWrap"></div>
@@ -306,272 +164,45 @@
     </div>
     <canvas id="weeklyChart" style="max-height:320px;"></canvas>
   </div>
+
+  <!-- ════════════════════════════════
+       일본판 전용 콘텐츠
+  ════════════════════════════════ -->
+  {% else %}
+
+  <div class="section">
+    <div class="section-title"><span class="section-dot"></span>출처별 최신 가격 (클릭하면 판매가에 적용)</div>
+    {% if latest_prices %}
+    <div class="jp-price-grid">
+      {% for key, price in latest_prices.items %}
+      <div class="jp-price-item" onclick="setPrice({{ price.price|floatformat:0 }})">
+        <div class="jp-price-source">{{ price.source }}</div>
+        <div class="jp-price-condition cond-{% if price.condition == 'A-' %}Am{% else %}{{ price.condition }}{% endif %}">
+          {{ price.condition }}급
+        </div>
+        <div class="jp-price-value">{{ price.price|floatformat:0 }}엔</div>
+        <div class="jp-price-hint">↑ 클릭해서 적용</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:var(--text-muted);font-size:14px;text-align:center;padding:40px 0;">수집된 가격 데이터가 없습니다.</p>
+    {% endif %}
+  </div>
+
+  {% endif %}
 </main>
 
+<script src="{% static 'dashboard/dashboard.js' %}"></script>
 <script>
-const CARD_ID = {{ card.id }};
-const CSRF_TOKEN = '{{ csrf_token }}';
-const marketItems = {{ market_items_json|safe }};
+const SET_PRICE_URL = '{{ set_price_url }}';
 
-// ── 차트 ──────────────────────────────────────────────────
-if (marketItems.length > 0) {
-  const ctx = document.getElementById('priceChart').getContext('2d');
-  const labels = marketItems.map(i => i.mallName);
-  const prices = marketItems.map(i => i.price_int);
-  const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
-
-  const colors = prices.map((p, idx) =>
-    idx === 0 ? 'rgba(74, 222, 128, 0.8)' : 'rgba(108, 99, 255, 0.7)'
-  );
-  const borderColors = prices.map((p, idx) =>
-    idx === 0 ? '#4ade80' : '#6c63ff'
-  );
-
-  new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: '판매가 (원)',
-          data: prices,
-          backgroundColor: colors,
-          borderColor: borderColors,
-          borderWidth: 1,
-          borderRadius: 6,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      onClick: (event, elements) => {
-        if (elements.length > 0) {
-          const idx = elements[0].index;
-          const price = prices[idx];
-          setPrice(price);  // 또는 setQ(price)
-        }
-      },
-      onHover: (event, elements) => {
-        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: ctx => `${ctx.parsed.y.toLocaleString()}원`
-          }
-        },
-        annotation: {
-          annotations: {
-            avgLine: {
-              type: 'line',
-              yMin: avgPrice,
-              yMax: avgPrice,
-              borderColor: 'rgba(251,191,36,0.7)',
-              borderWidth: 1,
-              borderDash: [4, 4],
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          ticks: { color: '#6b6f85', font: { size: 11 } },
-          grid: { color: 'rgba(42,45,58,0.5)' }
-        },
-        y: {
-          ticks: {
-            color: '#6b6f85',
-            font: { size: 11 },
-            callback: val => val.toLocaleString() + '원'
-          },
-          grid: { color: 'rgba(42,45,58,0.8)' }
-        }
-      },
-    }
-  });
-}
-
-// ── 판매가 저장 ───────────────────────────────────────────
-function setPrice(price) {
-  document.getElementById('sellingPriceInput').value = price;
-}
-
-async function savePrice() {
-  const input = document.getElementById('sellingPriceInput');
-  const resultEl = document.getElementById('saveResult');
-  const price = parseInt(input.value) || 0;
-
-  try {
-    const res = await fetch(`/pokemon/kr/cards/${CARD_ID}/set-price/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': CSRF_TOKEN,
-      },
-      body: JSON.stringify({ selling_price: price }),
-    });
-    const data = await res.json();
-
-    resultEl.style.display = 'block';
-    if (data.success) {
-      resultEl.className = 'save-result success';
-      resultEl.textContent = `✅ 저장 완료: ${data.selling_price ? data.selling_price.toLocaleString() + '원' : '미설정으로 변경'}`;
-    } else {
-      resultEl.className = 'save-result error';
-      resultEl.textContent = '❌ ' + data.error;
-    }
-    setTimeout(() => { resultEl.style.display = 'none'; }, 3000);
-  } catch (e) {
-    resultEl.style.display = 'block';
-    resultEl.className = 'save-result error';
-    resultEl.textContent = '❌ 네트워크 오류';
-  }
-}
-
-// Enter 키로 저장
-document.getElementById('sellingPriceInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') savePrice();
-});
-
-
-// ── 1주일 차트 데이터 ─────────────────────────────────────
+{% if card_type != 'pokemon_jp' %}
+const marketItems        = {{ market_items_json|safe }};
 const PRICE_HISTORY_WEEK = {{ price_history_week_json|safe }};
- 
-(function() {
-  if (!PRICE_HISTORY_WEEK || !PRICE_HISTORY_WEEK.length) {
-    document.getElementById('weeklyChartEmpty').style.display = 'block';
-    document.getElementById('weeklyChart').style.display = 'none';
-    return;
-  }
- 
-  // 전체 샵 목록 추출
-  const shopSet = new Set();
-  PRICE_HISTORY_WEEK.forEach(p => {
-    (p.raw_data || []).forEach(item => {
-      if (item.mallName) shopSet.add(item.mallName);
-    });
-  });
-  const allShops = [...shopSet];
- 
-  // 색상 팔레트
-  const PALETTE = [
-    '#6c63ff','#4ade80','#fbbf24','#f87171','#60a5fa',
-    '#a78bfa','#34d399','#fb923c','#e879f9','#38bdf8',
-    '#facc15','#f472b6','#818cf8','#2dd4bf','#c084fc',
-  ];
- 
-  // 날짜 라벨
-  const labels = PRICE_HISTORY_WEEK.map(p => p.date);
- 
-  // 샵별 데이터셋 생성
-  const datasets = allShops.map((shop, idx) => {
-    const color = PALETTE[idx % PALETTE.length];
-    const data = PRICE_HISTORY_WEEK.map(p => {
-      const item = (p.raw_data || []).find(i => i.mallName === shop);
-      return item ? parseInt(item.lprice) : null;
-    });
-    return {
-      label: shop,
-      data,
-      borderColor: color,
-      backgroundColor: color + '22',
-      pointBackgroundColor: color,
-      pointRadius: 4,
-      pointHoverRadius: 6,
-      borderWidth: 2,
-      tension: 0.3,
-      spanGaps: true,  // 데이터 없는 구간 연결
-    };
-  });
- 
-  // 샵 토글 버튼
-  const filterWrap = document.getElementById('shopFilterWrap');
-  const hiddenShops = new Set();
- 
-  function renderFilterBtns(chart) {
-    filterWrap.innerHTML = '';
- 
-    // 전체 토글
-    const allBtn = document.createElement('button');
-    allBtn.textContent = '전체';
-    allBtn.style.cssText = `padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;border:1px solid var(--border2);background:var(--accent2);color:#fff;cursor:pointer;font-family:inherit;`;
-    allBtn.onclick = () => {
-      hiddenShops.clear();
-      chart.data.datasets.forEach((_, i) => chart.setDatasetVisibility(i, true));
-      chart.update();
-      renderFilterBtns(chart);
-    };
-    filterWrap.appendChild(allBtn);
- 
-    allShops.forEach((shop, idx) => {
-      const color = PALETTE[idx % PALETTE.length];
-      const btn = document.createElement('button');
-      btn.textContent = shop;
-      const hidden = hiddenShops.has(shop);
-      btn.style.cssText = `padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;
-        border:1px solid ${color};
-        background:${hidden ? 'none' : color + '22'};
-        color:${hidden ? 'var(--text-muted)' : color};
-        cursor:pointer;font-family:inherit;transition:all 0.15s;`;
-      btn.onclick = () => {
-        if (hiddenShops.has(shop)) {
-          hiddenShops.delete(shop);
-          chart.setDatasetVisibility(idx, true);
-        } else {
-          hiddenShops.add(shop);
-          chart.setDatasetVisibility(idx, false);
-        }
-        chart.update();
-        renderFilterBtns(chart);
-      };
-      filterWrap.appendChild(btn);
-    });
-  }
- 
-  const ctx = document.getElementById('weeklyChart').getContext('2d');
-  const weeklyChart = new Chart(ctx, {
-    type: 'line',
-    data: { labels, datasets },
-    options: {
-      responsive: true,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#1a1d27',
-          borderColor: '#2a2d3a',
-          borderWidth: 1,
-          titleColor: '#e8e9f0',
-          bodyColor: '#9ca3af',
-          padding: 12,
-          callbacks: {
-            label: ctx => {
-              if (ctx.parsed.y === null) return null;
-              return `  ${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()}원`;
-            }
-          }
-        },
-      },
-      scales: {
-        x: {
-          ticks: { color: '#6b6f85', font: { size: 10 }, maxRotation: 30 },
-          grid: { color: 'rgba(42,45,58,0.6)' },
-        },
-        y: {
-          ticks: {
-            color: '#6b6f85',
-            font: { size: 11 },
-            callback: v => v.toLocaleString() + '원',
-          },
-          grid: { color: 'rgba(42,45,58,0.8)' },
-        }
-      },
-    }
-  });
- 
-  renderFilterBtns(weeklyChart);
-})();
+initPriceChart(marketItems);
+initWeeklyChart(PRICE_HISTORY_WEEK);
+{% endif %}
 </script>
 </body>
 </html>

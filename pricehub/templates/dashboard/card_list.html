@@ -1,151 +1,13 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
 <title>{{ expansion.name }} · 카드 목록</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  :root {
-    --bg: #0a0c12; --surface: #13161f; --surface2: #1a1e2a; --surface3: #20263a;
-    --border: #252a3a; --border2: #2f3650;
-    --accent: #5b8def; --accent2: #7c6bff;
-    --success: #3dd68c; --warning: #f5a623; --danger: #f06060;
-    --text: #dde2f0; --text-muted: #5a6080; --text-dim: #3a4060;
-  }
-  body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); }
-
-  header { background: rgba(19,22,31,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-  .header-left { display: flex; align-items: center; gap: 14px; }
-  .back-btn { display: inline-flex; align-items: center; gap: 6px; background: none; border: 1px solid var(--border2); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 13px; padding: 5px 12px; text-decoration: none; transition: all 0.15s; }
-  .back-btn:hover { border-color: var(--accent); color: var(--text); }
-  .breadcrumb { font-size: 13px; color: var(--text-muted); }
-  .breadcrumb a { color: var(--text-muted); text-decoration: none; }
-  .breadcrumb a:hover { color: var(--accent); }
-  .breadcrumb span { margin: 0 5px; color: var(--text-dim); }
-  .logout-btn { background: none; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-family: inherit; font-size: 12px; padding: 5px 12px; text-decoration: none; }
-
-  main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
-  .page-code { font-size: 11px; color: var(--accent2); font-weight: 700; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; }
-  .page-title { font-size: 24px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 24px; }
-
-  /* ─── 액션 바 ─── */
-  .action-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .filter-tabs { display: flex; gap: 8px; }
-  .filter-tab { padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; text-decoration: none; color: var(--text-muted); background: var(--surface); border: 1px solid var(--border); transition: all 0.15s; }
-  .filter-tab.active, .filter-tab:hover { background: var(--accent2); border-color: var(--accent2); color: #fff; }
-
-  .action-btns { display: flex; align-items: center; gap: 8px; }
-
-  /* ─── 즐겨찾기 버튼 ─── */
-  .fav-tab-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 7px 14px;
-    background: rgba(255, 199, 0, 0.06);
-    border: 1px solid rgba(255, 199, 0, 0.3);
-    border-radius: 8px;
-    color: #c8960a;
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 600;
-    transition: all 0.15s;
-    white-space: nowrap;
-  }
-  .fav-tab-btn:hover {
-    border-color: #ffc700;
-    color: #ffc700;
-    background: rgba(255, 199, 0, 0.12);
-  }
-  .fav-badge {
-    background: #ffc700;
-    color: #1a1200;
-    border-radius: 10px;
-    padding: 1px 7px;
-    font-size: 11px;
-    font-weight: 700;
-    min-width: 18px;
-    text-align: center;
-  }
-
-  .bulk-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; background: rgba(124,107,255,0.1); border: 1px solid var(--accent2); border-radius: 8px; color: var(--accent2); text-decoration: none; font-size: 13px; font-weight: 700; transition: all 0.15s; }
-  .bulk-btn:hover { background: rgba(124,107,255,0.2); }
-  .reset-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 16px; background: rgba(240,96,96,0.08); border: 1px solid var(--danger); border-radius: 8px; color: var(--danger); font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all 0.15s; }
-  .reset-btn:hover { background: rgba(240,96,96,0.18); }
-
-  /* ─── 테이블 ─── */
-  .card-table { width: 100%; border-collapse: collapse; }
-  .card-table th { text-align: left; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--surface); font-family: 'JetBrains Mono', monospace; }
-  .card-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; background: var(--surface); }
-  .card-table tr:hover td { background: var(--surface2); cursor: pointer; }
-  .card-thumb { width: 42px; height: 42px; object-fit: contain; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); }
-  .card-name-text { font-weight: 600; }
-  .card-number-text { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
-  .rarity-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; background: rgba(91,141,239,0.1); color: var(--accent); border: 1px solid rgba(91,141,239,0.2); font-family: 'JetBrains Mono', monospace; }
-  .price-set { color: var(--success); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
-  .price-unset { color: var(--text-dim); font-size: 12px; }
-  .market-price { color: var(--text-muted); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
-  .set-btn { padding: 4px 12px; border-radius: 5px; font-size: 12px; font-weight: 700; border: 1px solid var(--accent2); color: var(--accent2); background: none; cursor: pointer; font-family: inherit; transition: all 0.15s; text-decoration: none; display: inline-block; }
-  .set-btn:hover { background: var(--accent2); color: #fff; }
-  .empty { text-align: center; padding: 80px; color: var(--text-muted); }
-
-  /* ─── 별 버튼 ─── */
-  .star-toggle {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-    padding: 4px 6px;
-    border-radius: 6px;
-    transition: transform 0.15s;
-  }
-  .star-toggle:hover { transform: scale(1.25); }
-  .star-toggle.popping {
-    animation: star-pop 0.3s cubic-bezier(.36,.07,.19,.97);
-  }
-  @keyframes star-pop {
-    0%   { transform: scale(1); }
-    40%  { transform: scale(1.5) rotate(-15deg); }
-    70%  { transform: scale(0.85) rotate(8deg); }
-    100% { transform: scale(1); }
-  }
-
-  /* ─── 모달 ─── */
-  .modal-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); align-items: center; justify-content: center; }
-  .modal-overlay.show { display: flex; }
-  .modal-box { background: var(--surface); border: 1px solid var(--border2); border-radius: 16px; padding: 28px; width: 360px; }
-  .modal-icon { font-size: 32px; margin-bottom: 12px; }
-  .modal-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
-  .modal-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 20px; }
-  .modal-btns { display: flex; gap: 8px; }
-  .modal-cancel { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border2); background: none; color: var(--text-muted); font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-  .modal-cancel:hover { border-color: var(--text-muted); color: var(--text); }
-  .modal-confirm { flex: 1; padding: 10px; border-radius: 8px; border: none; background: var(--danger); color: #fff; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s; }
-  .modal-confirm:hover { opacity: 0.85; }
-  .modal-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* ─── 토스트 ─── */
-  #fav-toast {
-    position: fixed; bottom: 28px; left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 10px; padding: 10px 20px; font-size: 13px;
-    color: var(--text); z-index: 9999;
-    transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
-    pointer-events: none;
-  }
-  #fav-toast.show { transform: translateX(-50%) translateY(0); }
-</style>
+<link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
 </head>
 <body>
 
@@ -167,19 +29,14 @@
   <div class="page-title">{{ expansion.name }}</div>
 
   <div class="action-row">
-    <!-- 왼쪽: 필터 탭 -->
     <div class="filter-tabs">
       <a href="?filter=all"      class="filter-tab {% if filter_type == 'all' %}active{% endif %}">전체 {{ cards|length }}장</a>
       <a href="?filter=unpriced" class="filter-tab {% if filter_type == 'unpriced' %}active{% endif %}">미설정</a>
       <a href="?filter=priced"   class="filter-tab {% if filter_type == 'priced' %}active{% endif %}">설정 완료</a>
     </div>
-
-    <!-- 오른쪽: 액션 버튼들 -->
     <div class="action-btns">
-      <!-- ★ 즐겨찾기 이동 버튼 -->
       <a href="{{ favorites_url }}" class="fav-tab-btn">
-        ⭐ 즐겨찾기
-        <span class="fav-badge" id="favCountBadge">{{ favorite_count }}</span>
+        ⭐ 즐겨찾기 <span class="fav-badge" id="favCountBadge">{{ favorite_count }}</span>
       </a>
       <button class="reset-btn" onclick="showResetModal()">🗑 판매가 초기화</button>
       {% if bulk_price_url %}
@@ -198,7 +55,7 @@
         <th>시장 최저가</th>
         <th>판매가</th>
         <th>수집일시</th>
-        <th style="width:36px"></th><!-- 별 버튼 열 -->
+        <th style="width:36px"></th>
         <th></th>
       </tr>
     </thead>
@@ -224,7 +81,6 @@
           <span style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">{{ card.latest_collected_at|date:"m.d H:i" }}</span>
           {% endif %}
         </td>
-        <!-- ★ 즐겨찾기 버튼 -->
         <td onclick="event.stopPropagation()">
           <button class="star-toggle {% if card.is_favorite %}active{% endif %}"
                   data-card-id="{{ card.id }}"
@@ -244,17 +100,16 @@
   {% endif %}
 </main>
 
-<!-- ── 모달 ── -->
-<div class="modal-overlay" id="resetModal" onclick="hideResetModal()">
+<!-- 모달 -->
+<div class="modal-overlay" id="resetModal" onclick="hideModal()">
   <div class="modal-box" onclick="event.stopPropagation()">
     <div class="modal-icon" id="modalIcon">⚠️</div>
     <div class="modal-title" id="modalTitle">판매가 초기화</div>
     <div class="modal-desc" id="modalDesc">
-      <strong>{{ expansion.name }}</strong>의 모든 카드 판매가를 초기화하시겠습니까?<br>
-      설정된 판매가가 전부 미설정(0)으로 변경됩니다.
+      <span id="resetModalDesc"><strong>{{ expansion.name }}</strong>의 모든 카드 판매가를 초기화하시겠습니까?<br>설정된 판매가가 전부 미설정(0)으로 변경됩니다.</span>
     </div>
     <div class="modal-btns" id="modalBtns">
-      <button class="modal-cancel" onclick="hideResetModal()">취소</button>
+      <button class="modal-cancel" onclick="hideModal()">취소</button>
       <button class="modal-confirm" id="confirmBtn" onclick="doReset()">초기화</button>
     </div>
   </div>
@@ -262,111 +117,11 @@
 
 <div id="fav-toast"></div>
 
+<script src="{% static 'dashboard/dashboard.js' %}"></script>
 <script>
-const CSRF           = '{{ csrf_token }}';
-const EXPANSION_CODE = '{{ expansion.code }}';
-const EXPANSION_NAME = '{{ expansion.name|escapejs }}';
+/* 페이지별 설정값 */
 const TOGGLE_FAV_BASE = '{{ toggle_favorite_url_base }}';
-// 예: '/dashboard/pokemon/kr/cards/'  — views.py context에서 전달
-
-// ── 즐겨찾기 토글 ──
-async function toggleFavorite(btn) {
-  const cardId = btn.dataset.cardId;
-  const isFav  = btn.dataset.favorite === 'true';
-
-  btn.classList.add('popping');
-  btn.addEventListener('animationend', () => btn.classList.remove('popping'), { once: true });
-
-  try {
-    const res  = await fetch(`${TOGGLE_FAV_BASE}${cardId}/favorite/`, {
-      method: 'POST',
-      headers: { 'X-CSRFToken': CSRF, 'Content-Type': 'application/json' },
-    });
-    const data = await res.json();
-    if (!data.success) throw new Error(data.error);
-
-    const nowFav          = data.is_favorite;
-    btn.textContent       = nowFav ? '⭐' : '☆';
-    btn.dataset.favorite  = nowFav ? 'true' : 'false';
-    btn.title             = nowFav ? '즐겨찾기 해제' : '즐겨찾기 추가';
-    btn.classList.toggle('active', nowFav);
-
-    // 배지 카운트
-    const badge = document.getElementById('favCountBadge');
-    if (badge) {
-      const cur = parseInt(badge.textContent) || 0;
-      badge.textContent = Math.max(0, cur + (nowFav ? 1 : -1));
-    }
-
-    showToast(nowFav ? '⭐ 즐겨찾기에 추가했어요' : '☆ 즐겨찾기에서 제거했어요');
-  } catch (err) {
-    console.error(err);
-    showToast('오류가 발생했어요');
-  }
-}
-
-function showToast(msg) {
-  const t = document.getElementById('fav-toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
-}
-
-// ── 판매가 초기화 모달 ──
-function showResetModal() {
-  document.getElementById('modalIcon').textContent  = '⚠️';
-  document.getElementById('modalTitle').textContent = '판매가 초기화';
-  document.getElementById('modalDesc').innerHTML    =
-    `<strong>${EXPANSION_NAME}</strong>의 모든 카드 판매가를 초기화하시겠습니까?<br>설정된 판매가가 전부 미설정(0)으로 변경됩니다.`;
-  document.getElementById('modalBtns').innerHTML    =
-    `<button class="modal-cancel" onclick="hideResetModal()">취소</button>
-     <button class="modal-confirm" id="confirmBtn" onclick="doReset()">초기화</button>`;
-  document.getElementById('resetModal').classList.add('show');
-}
-
-function hideResetModal() {
-  document.getElementById('resetModal').classList.remove('show');
-}
-
-document.addEventListener('keydown', e => { if (e.key === 'Escape') hideResetModal(); });
-
-async function doReset() {
-  const confirmBtn = document.getElementById('confirmBtn');
-  confirmBtn.disabled    = true;
-  confirmBtn.textContent = '초기화 중...';
-
-  const RESET_PRICES_URL = '{{ reset_prices_url }}';
-
-  try {
-    const res  = await fetch(RESET_PRICES_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
-    });
-    const data = await res.json();
-
-    if (data.success) {
-      document.getElementById('modalIcon').textContent  = '✅';
-      document.getElementById('modalTitle').textContent = '초기화 완료';
-      document.getElementById('modalDesc').innerHTML    =
-        `<strong>${data.count}개</strong> 카드의 판매가가 초기화됐습니다.`;
-      document.getElementById('modalBtns').innerHTML    =
-        `<button class="modal-confirm" onclick="location.reload()" style="background:var(--success);">확인</button>`;
-    } else {
-      document.getElementById('modalIcon').textContent  = '❌';
-      document.getElementById('modalTitle').textContent = '오류 발생';
-      document.getElementById('modalDesc').textContent  = data.error || '알 수 없는 오류가 발생했습니다.';
-      document.getElementById('modalBtns').innerHTML    =
-        `<button class="modal-cancel" onclick="hideResetModal()">닫기</button>`;
-    }
-  } catch(e) {
-    document.getElementById('modalIcon').textContent  = '❌';
-    document.getElementById('modalTitle').textContent = '네트워크 오류';
-    document.getElementById('modalDesc').textContent  = '서버와 통신 중 오류가 발생했습니다.';
-    document.getElementById('modalBtns').innerHTML    =
-      `<button class="modal-cancel" onclick="hideResetModal()">닫기</button>`;
-  }
-}
+const RESET_URL       = '{{ reset_prices_url }}';
 </script>
 </body>
 </html>
