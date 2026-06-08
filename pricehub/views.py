@@ -358,15 +358,18 @@ def _expansion_list_view(request, cfg_key, extra_ctx=None):
         e.card_count = e.cards.count()
         e.unpriced_count = e.cards.filter(selling_price=0).count()
  
-    # 하락 대기 카드 수
-    drop_qs = card_model.objects.filter(modified_price__gt=0, selling_price__gt=0)
-    drop_count = sum(1 for c in drop_qs if c.modified_price < c.selling_price)
+    # 하락 대기 카드 수 (modified_price 없는 모델은 0)
+    try:
+        drop_qs = card_model.objects.filter(modified_price__gt=0, selling_price__gt=0)
+        drop_count = sum(1 for c in drop_qs if c.modified_price < c.selling_price)
+    except Exception:
+        drop_count = 0
  
     ctx = {
         'expansions': expansions,
         'total_cards': sum(e.card_count for e in expansions),
         'total_unpriced': sum(e.unpriced_count for e in expansions),
-        'total_drop': drop_count,                              # ← 신규
+        'total_drop': drop_count,
         'base_url': base_url,
         'title': cfg['label'],
         'breadcrumb': [('홈', '/'), (cfg['label'], None)],
@@ -375,6 +378,7 @@ def _expansion_list_view(request, cfg_key, extra_ctx=None):
     if extra_ctx:
         ctx.update(extra_ctx)
     return render(request, 'dashboard/expansion_list.html', ctx)
+ 
 
 
 def _card_list_view(request, cfg_key, code, extra_ctx=None):
@@ -676,27 +680,35 @@ def _bulk_issues_view(request, cfg_key):
     price_model = cfg['price_model']
     base_url    = cfg['base_url']
  
-    mode               = request.GET.get('mode', 'drop')       # ← 신규
-    expansion_code     = request.GET.get('expansion', '')
-    selected_rarities  = request.GET.getlist('rarities')
-    sort               = request.GET.get('sort', 'drop_pct')
+    mode              = request.GET.get('mode', 'drop')
+    expansion_code    = request.GET.get('expansion', '')
+    selected_rarities = request.GET.getlist('rarities')
+    sort              = request.GET.get('sort', 'drop_pct')
  
     all_rarities = _get_rarities(card_model, expansion_code or None)
     expansions   = cfg['expansion_model'].objects.order_by('-release_date')
  
-    # ── 판매가 미설정 모드 ────────────────────────────
+    common_config = {
+        'label':                cfg['label'],
+        'bulk_price_url':       f'{base_url}/bulk-price/',
+        'bulk_issues_url':      f'{base_url}/bulk-price/issues/',
+        'approve_url':          f'{base_url}/bulk-price/approve/',
+        'edit_url':             f'{base_url}/bulk-price/edit/',
+        'set_price_url_prefix': f'{base_url}/cards/',
+        'high_rarity_list':     cfg.get('bulk_issues_high_rarity_list', cfg.get('high_rarity_list', '[]')),
+        'unpriced_url':         f'{base_url}/bulk-price/issues/?mode=unpriced',
+        'drop_url':             f'{base_url}/bulk-price/issues/?mode=drop',
+    }
+ 
+    # ── 판매가 미설정 모드 ──────────────────────────────────────
     if mode == 'unpriced':
         qs = card_model.objects.filter(selling_price=0).select_related('expansion')
         if expansion_code:
             qs = qs.filter(expansion__code=expansion_code)
         if selected_rarities:
             qs = qs.filter(rarity__in=selected_rarities)
-        if sort == 'name':
-            qs = qs.order_by('name')
-        else:
-            qs = qs.order_by('expansion__code', 'card_number')
+        qs = qs.order_by('expansion__code', 'card_number')
  
-        # 사이드패널용 raw_data
         card_ids = [c.pk for c in qs]
         seen_raw = {}
         for cp in (
@@ -709,40 +721,29 @@ def _bulk_issues_view(request, cfg_key):
                 seen_raw[cp['card_id']] = cp['raw_data']
  
         return render(request, 'dashboard/bulk_issues.html', {
-            'mode':                'unpriced',
-            'cards':               qs,           # unpriced 모드는 cards 변수 사용
-            'drop_cards':          [],
-            'expansions':          expansions,
-            'expansion_code':      expansion_code,
-            'selected_expansion':  expansion_code,
-            'sort':                sort,
-            'total_count':         qs.count(),
-            'avg_drop_pct':        0,
-            'max_drop':            0,
-            'all_rarities':        all_rarities,
-            'selected_rarities':   selected_rarities,
+            'mode':                   'unpriced',
+            'cards':                  qs,
+            'drop_cards':             [],
+            'expansions':             expansions,
+            'expansion_code':         expansion_code,
+            'sort':                   sort,
+            'total_count':            qs.count(),
+            'avg_drop_pct':           0,
+            'max_drop':               0,
+            'all_rarities':           all_rarities,
+            'selected_rarities':      selected_rarities,
             'selected_rarities_json': json.dumps(selected_rarities),
-            'card_raw_json':       json.dumps(seen_raw, ensure_ascii=False),
+            'card_raw_json':          json.dumps(seen_raw, ensure_ascii=False),
             'breadcrumb': [
                 ('홈', '/'),
                 (cfg['label'], f'{base_url}/expansions/'),
                 ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
                 ('판매가 미설정 목록', None),
             ],
-            'config': {
-                'label':            cfg['label'],
-                'bulk_price_url':   f'{base_url}/bulk-price/',
-                'bulk_issues_url':  f'{base_url}/bulk-price/issues/',
-                'approve_url':      f'{base_url}/bulk-price/approve/',
-                'edit_url':         f'{base_url}/bulk-price/edit/',
-                'set_price_url_prefix': f'{base_url}/cards/',
-                'high_rarity_list': cfg.get('bulk_issues_high_rarity_list', cfg.get('high_rarity_list', '[]')),
-                'unpriced_url':     f'{base_url}/bulk-price/issues/?mode=unpriced',
-                'drop_url':         f'{base_url}/bulk-price/issues/?mode=drop',
-            },
+            'config': common_config,
         })
  
-    # ── 하락 대기 모드 (기존 로직) ───────────────────
+    # ── 가격 하락 대기 모드 (default) ───────────────────────────
     qs = card_model.objects.filter(
         modified_price__gt=0,
         selling_price__gt=0,
@@ -775,9 +776,9 @@ def _bulk_issues_view(request, cfg_key):
     else:
         drop_cards.sort(key=lambda x: getattr(x['card'], 'name_kr', None) or x['card'].name or '')
  
-    total_count   = len(drop_cards)
-    avg_drop_pct  = round(sum(d['drop_pct'] for d in drop_cards) / total_count, 1) if total_count else 0
-    max_drop      = max((d['drop_pct'] for d in drop_cards), default=0)
+    total_count  = len(drop_cards)
+    avg_drop_pct = round(sum(d['drop_pct'] for d in drop_cards) / total_count, 1) if total_count else 0
+    max_drop     = max((d['drop_pct'] for d in drop_cards), default=0)
  
     drop_card_ids = [d['card'].pk for d in drop_cards]
     seen_raw = {}
@@ -791,37 +792,26 @@ def _bulk_issues_view(request, cfg_key):
             seen_raw[cp['card_id']] = cp['raw_data']
  
     return render(request, 'dashboard/bulk_issues.html', {
-        'mode':                'drop',
-        'cards':               [],
-        'drop_cards':          drop_cards,
-        'expansions':          expansions,
-        'expansion_code':      expansion_code,
-        'selected_expansion':  expansion_code,
-        'sort':                sort,
-        'total_count':         total_count,
-        'avg_drop_pct':        avg_drop_pct,
-        'max_drop':            max_drop,
-        'all_rarities':        all_rarities,
-        'selected_rarities':   selected_rarities,
+        'mode':                   'drop',
+        'cards':                  [],
+        'drop_cards':             drop_cards,
+        'expansions':             expansions,
+        'expansion_code':         expansion_code,
+        'sort':                   sort,
+        'total_count':            total_count,
+        'avg_drop_pct':           avg_drop_pct,
+        'max_drop':               max_drop,
+        'all_rarities':           all_rarities,
+        'selected_rarities':      selected_rarities,
         'selected_rarities_json': json.dumps(selected_rarities),
-        'card_raw_json':       json.dumps(seen_raw, ensure_ascii=False),
+        'card_raw_json':          json.dumps(seen_raw, ensure_ascii=False),
         'breadcrumb': [
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
             ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
             ('하락 대기 목록', None),
         ],
-        'config': {
-            'label':            cfg['label'],
-            'bulk_price_url':   f'{base_url}/bulk-price/',
-            'bulk_issues_url':  f'{base_url}/bulk-price/issues/',
-            'approve_url':      f'{base_url}/bulk-price/approve/',
-            'edit_url':         f'{base_url}/bulk-price/edit/',
-            'set_price_url_prefix': f'{base_url}/cards/',
-            'high_rarity_list': cfg.get('bulk_issues_high_rarity_list', cfg.get('high_rarity_list', '[]')),
-            'unpriced_url':     f'{base_url}/bulk-price/issues/?mode=unpriced',
-            'drop_url':         f'{base_url}/bulk-price/issues/?mode=drop',
-        },
+        'config': common_config,
     })
 
 def _bulk_approve_view(request, cfg_key):

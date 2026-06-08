@@ -681,23 +681,26 @@ function showIssuesSidePanel(cardId) {
     `${row.dataset.number} · ${row.dataset.rarity}`;
 
   /* 하락 요약 */
-  const selling  = parseInt(row.dataset.selling);
-  const modified = parseInt(row.dataset.modified);
-  const dropAmt  = selling - modified;
-  const dropPct  = ((dropAmt / selling) * 100).toFixed(1);
-  document.getElementById('sideOldPrice').textContent = selling.toLocaleString() + '원';
-  document.getElementById('sideNewPrice').textContent = modified.toLocaleString() + '원';
-  document.getElementById('sideDropPct').textContent  = `-${dropPct}%`;
-  document.getElementById('sideDropAmt').textContent  = `▼ ${dropAmt.toLocaleString()}원`;
-  const sideBar = document.getElementById('sideDropBar');
-  sideBar.style.width = Math.min(parseFloat(dropPct), 100) + '%';
-  const pct = parseFloat(dropPct);
-  sideBar.style.background = pct < 10
-    ? 'linear-gradient(90deg,#f5a623,#f06060)'
-    : pct < 30
-      ? 'linear-gradient(90deg,#f06060,#c43c3c)'
-      : 'linear-gradient(90deg,#c43c3c,#9b1f1f)';
-  document.getElementById('sidePriceSummary').style.display = 'block';
+  const summaryEl = document.getElementById('sidePriceSummary');
+  if (summaryEl) {
+    const selling  = parseInt(row.dataset.selling);
+    const modified = parseInt(row.dataset.modified);
+    const dropAmt  = selling - modified;
+    const dropPct  = ((dropAmt / selling) * 100).toFixed(1);
+    document.getElementById('sideOldPrice').textContent = selling.toLocaleString() + '원';
+    document.getElementById('sideNewPrice').textContent = modified.toLocaleString() + '원';
+    document.getElementById('sideDropPct').textContent  = `-${dropPct}%`;
+    document.getElementById('sideDropAmt').textContent  = `▼ ${dropAmt.toLocaleString()}원`;
+    const sideBar = document.getElementById('sideDropBar');
+    sideBar.style.width = Math.min(parseFloat(dropPct), 100) + '%';
+    const pct = parseFloat(dropPct);
+    sideBar.style.background = pct < 10
+      ? 'linear-gradient(90deg,#f5a623,#f06060)'
+      : pct < 30
+        ? 'linear-gradient(90deg,#f06060,#c43c3c)'
+        : 'linear-gradient(90deg,#c43c3c,#9b1f1f)';
+    summaryEl.style.display = 'block';
+  }
 
   /* 판매처 목록 (JSON key는 항상 문자열) */
   const raw   = (typeof CARD_RAW !== 'undefined') ? CARD_RAW[String(cardId)] : null;

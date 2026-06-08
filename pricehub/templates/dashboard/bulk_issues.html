@@ -28,9 +28,10 @@
   <div class="main-area">
 
     <!-- 모드 탭 -->
+    {% if config.drop_url %}
     <div style="display:flex;gap:8px;margin-bottom:14px;">
       <a href="{{ config.drop_url }}"
-         class="filter-tab {% if mode == 'drop' %}active{% endif %}">
+         class="filter-tab {% if mode != 'unpriced' %}active{% endif %}">
         📉 가격 하락 대기
       </a>
       <a href="{{ config.unpriced_url }}"
@@ -38,10 +39,10 @@
         ❓ 판매가 미설정
       </a>
     </div>
+    {% endif %}
 
     <!-- 필터/정렬 컨트롤 바 -->
     <div class="control-bar">
-
       <!-- 확장팩 -->
       <div class="control-row">
         <span class="ctrl-label">확장팩</span>
@@ -85,7 +86,7 @@
       <div class="control-row">
         <span class="ctrl-label">정렬</span>
         <div class="ctrl-divider"></div>
-        {% if mode == 'drop' %}
+        {% if mode != 'unpriced' %}
         <button class="action-btn {% if sort == 'drop_pct' %}active-sort{% endif %}"
                 onclick="changeSort('drop_pct')">하락률순</button>
         <button class="action-btn {% if sort == 'drop_amt' %}active-sort{% endif %}"
@@ -108,7 +109,7 @@
         <div style="font-size:15px;font-weight:800;color:var(--warning);
                     font-family:'JetBrains Mono',monospace;" id="remainCount">{{ total_count }}개</div>
       </div>
-      {% if mode == 'drop' %}
+      {% if mode != 'unpriced' %}
       <div style="display:flex;gap:10px;align-items:center;">
         <div class="drop-stat-pill">
           <span class="drop-stat-label">평균 하락률</span>
@@ -122,13 +123,13 @@
       {% endif %}
     </div>
 
-    <!-- ══════════════════════════════
-         하락 대기 모드 테이블
-    ══════════════════════════════ -->
-    {% if mode == 'drop' %}
+    <!-- ══════════════════════════════════════
+         판매가 미설정 모드
+    ══════════════════════════════════════ -->
+    {% if mode == 'unpriced' %}
 
-      {% if drop_cards %}
-       <table class="issues-table">
+      {% if cards %}
+      <table class="issues-table">
         <thead>
           <tr>
             <th style="width:32px;">
@@ -139,7 +140,10 @@
             <th>카드</th>
             <th style="width:65px;">레어도</th>
             <th style="width:100px;">확장팩</th>
-            <th style="width:220px;">시장가 <span style="font-size:9px;color:var(--text-dim);font-weight:400;">(클릭하면 입력)</span></th>
+            <th style="width:220px;">
+              시장가
+              <span style="font-size:9px;color:var(--text-dim);font-weight:400;margin-left:4px;">(클릭하면 입력)</span>
+            </th>
             <th style="width:130px;">판매가 입력</th>
             <th style="width:70px;">액션</th>
           </tr>
@@ -156,18 +160,16 @@
               data-selling="0"
               data-modified="0"
               onclick="showIssuesSidePanel({{ card.id }})">
- 
+
             <td onclick="event.stopPropagation()">
               <input type="checkbox" class="row-check" data-id="{{ card.id }}"
                      style="accent-color:var(--accent2);cursor:pointer;width:14px;height:14px;">
             </td>
- 
             <td>
               {% if card.image_url %}
               <img src="{{ card.image_url }}" class="card-thumb" loading="lazy">
               {% endif %}
             </td>
- 
             <td>
               <div style="display:flex;align-items:center;">
                 <span class="warning-dot"></span>
@@ -178,18 +180,16 @@
                 </div>
               </div>
             </td>
- 
             <td><span class="rarity-badge">{{ card.rarity }}</span></td>
- 
             <td style="font-size:12px;color:var(--text-muted);">{{ card.expansion.name }}</td>
- 
-            <!-- 시장가: renderIssuesStats가 채움 -->
+
+            <!-- 시장가: renderIssuesStats 가 채움 -->
             <td onclick="event.stopPropagation()">
               <div class="market-stats" id="stats-{{ card.id }}">
-                <span class="stat-no-data">로딩 중...</span>
+                <span class="stat-no-data" style="font-size:11px;color:var(--text-dim);">-</span>
               </div>
             </td>
- 
+
             <!-- 판매가 입력 -->
             <td onclick="event.stopPropagation()">
               <div class="price-cell">
@@ -200,8 +200,6 @@
                 <span class="saved-badge" id="badge-{{ card.id }}">✓</span>
               </div>
             </td>
- 
-            <!-- 저장 -->
             <td onclick="event.stopPropagation()" style="text-align:center;">
               <button class="issue-save-btn" style="padding:6px 10px;width:100%;"
                       onclick="saveIssuePrice({{ card.id }})">저장</button>
@@ -210,20 +208,21 @@
           {% endfor %}
         </tbody>
       </table>
+
       {% else %}
       <div class="empty">
         <div style="font-size:40px;margin-bottom:12px;opacity:0.4;">✅</div>
-        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">가격 하락 대기 카드가 없습니다!</div>
-        <div style="font-size:13px;">일괄 설정 후 가격이 하락한 카드가 여기 표시됩니다.</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">판매가 미설정 카드가 없습니다!</div>
+        <div style="font-size:13px;">모든 카드에 판매가가 설정되어 있습니다.</div>
       </div>
       {% endif %}
 
-    <!-- ══════════════════════════════
-         판매가 미설정 모드 테이블
-    ══════════════════════════════ -->
+    <!-- ══════════════════════════════════════
+         가격 하락 대기 모드 (default)
+    ══════════════════════════════════════ -->
     {% else %}
 
-      {% if cards %}
+      {% if drop_cards %}
       <table class="issues-table">
         <thead>
           <tr>
@@ -232,72 +231,91 @@
                      style="accent-color:var(--accent2);cursor:pointer;">
             </th>
             <th style="width:42px;"></th>
-            <th>카드</th>
+            <th style="width:170px;">카드</th>
             <th style="width:70px;">레어도</th>
-            <th style="width:120px;">확장팩</th>
-            <th style="width:150px;">시장가</th>
-            <th style="width:150px;">판매가 입력</th>
+            <th style="width:110px;">확장팩</th>
+            <th style="width:110px;">이전 판매가</th>
+            <th style="width:130px;">수정 가격</th>
+            <th style="width:150px;">하락폭</th>
             <th style="width:80px;">액션</th>
           </tr>
         </thead>
         <tbody id="cardTableBody">
-          {% for card in cards %}
-          <tr id="row-{{ card.id }}"
-              data-id="{{ card.id }}"
-              data-name="{{ card.name|escapejs }}"
-              data-number="{{ card.card_number }}"
-              data-rarity="{{ card.rarity }}"
-              data-expansion="{{ card.expansion.code }}"
-              data-image="{{ card.image_url|default:'' }}"
-              data-selling="0"
-              data-modified="0"
-              onclick="showIssuesSidePanel({{ card.id }})">
+          {% for item in drop_cards %}
+          <tr id="row-{{ item.card.id }}"
+              data-id="{{ item.card.id }}"
+              data-name="{{ item.card.name|escapejs }}"
+              data-number="{{ item.card.card_number }}"
+              data-rarity="{{ item.card.rarity }}"
+              data-expansion="{{ item.card.expansion.code }}"
+              data-image="{{ item.card.image_url|default:'' }}"
+              data-selling="{{ item.selling_price }}"
+              data-modified="{{ item.modified_price }}"
+              onclick="showIssuesSidePanel({{ item.card.id }})">
+
             <td onclick="event.stopPropagation()">
-              <input type="checkbox" class="row-check" data-id="{{ card.id }}"
+              <input type="checkbox" class="row-check" data-id="{{ item.card.id }}"
                      style="accent-color:var(--accent2);cursor:pointer;width:14px;height:14px;">
             </td>
             <td>
-              {% if card.image_url %}
-              <img src="{{ card.image_url }}" class="card-thumb" loading="lazy">
+              {% if item.card.image_url %}
+              <img src="{{ item.card.image_url }}" class="card-thumb" loading="lazy">
               {% endif %}
             </td>
             <td>
               <div style="display:flex;align-items:center;">
                 <span class="warning-dot"></span>
                 <div>
-                  <strong>{{ card.name }}</strong>
+                  <strong>{{ item.card.name }}</strong>
                   <span style="font-size:11px;color:var(--text-muted);margin-left:4px;
-                               font-family:'JetBrains Mono',monospace;">{{ card.card_number }}</span>
+                               font-family:'JetBrains Mono',monospace;">{{ item.card.card_number }}</span>
                 </div>
               </div>
             </td>
-            <td><span class="rarity-badge">{{ card.rarity }}</span></td>
-            <td style="font-size:12px;color:var(--text-muted);">{{ card.expansion.name }}</td>
+            <td><span class="rarity-badge">{{ item.card.rarity }}</span></td>
+            <td style="font-size:12px;color:var(--text-muted);">{{ item.card.expansion.name }}</td>
             <td>
-              <div class="market-stats" id="stats-{{ card.id }}"></div>
+              <span style="font-size:13px;font-weight:700;color:var(--text-muted);
+                           text-decoration:line-through;font-family:'JetBrains Mono',monospace;">
+                {{ item.selling_price|floatformat:0 }}원
+              </span>
             </td>
             <td onclick="event.stopPropagation()" style="padding-right:6px;">
               <div class="price-cell">
-                <input type="number" class="price-input-issues" id="input-{{ card.id }}"
-                       placeholder="가격 입력" min="1" step="100"
-                       style="width:100%;"
-                       onkeydown="if(event.key==='Enter') saveIssuePrice({{ card.id }})">
-                <span class="saved-badge" id="badge-{{ card.id }}">✓</span>
+                <input type="number" class="price-input-issues" id="input-{{ item.card.id }}"
+                       value="{{ item.modified_price }}" min="1" step="100"
+                       style="color:#e86060;font-weight:700;width:100%;"
+                       onkeydown="if(event.key==='Enter') saveIssueEdit({{ item.card.id }})">
+                <span class="saved-badge" id="badge-{{ item.card.id }}">✓</span>
+              </div>
+            </td>
+            <td style="padding-right:8px;">
+              <div class="drop-bar-wrap">
+                <div class="drop-bar-labels">
+                  <span class="drop-pct-text">-{{ item.drop_pct }}%</span>
+                  <span class="drop-amt-text">▼ {{ item.drop_amt|floatformat:0 }}원</span>
+                </div>
+                <div class="drop-bar-bg">
+                  <div class="drop-bar-fill"
+                       data-pct="{{ item.drop_pct }}"
+                       style="width:{% if item.drop_pct > 100 %}100{% else %}{{ item.drop_pct }}{% endif %}%"></div>
+                </div>
               </div>
             </td>
             <td onclick="event.stopPropagation()" style="text-align:center;">
               <button class="issue-save-btn" style="padding:6px 14px;width:100%;"
-                      onclick="saveIssuePrice({{ card.id }})">💾 저장</button>
+                      onclick="saveIssueEdit({{ item.card.id }})">💾 저장</button>
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
+
       {% else %}
       <div class="empty">
         <div style="font-size:40px;margin-bottom:12px;opacity:0.4;">✅</div>
-        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">판매가 미설정 카드가 없습니다!</div>
-        <div style="font-size:13px;">모든 카드에 판매가가 설정되어 있습니다.</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px;">가격 하락 대기 카드가 없습니다!</div>
+        <div style="font-size:13px;">일괄 설정 후 가격이 하락한 카드가 여기 표시됩니다.</div>
       </div>
       {% endif %}
 
@@ -313,8 +331,8 @@
       <div class="side-title">판매처 목록 (클릭하면 가격 반영)</div>
       <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
       <div class="side-card-info" id="sideCardInfo"></div>
-      <!-- 하락 요약 (drop 모드에서만 표시) -->
-      {% if mode == 'drop' %}
+      <!-- 하락 요약: drop 모드에만 표시 -->
+      {% if mode != 'unpriced' %}
       <div id="sidePriceSummary" style="display:none;margin-top:10px;padding:10px 12px;
            background:var(--surface2);border:1px solid var(--border2);border-radius:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">

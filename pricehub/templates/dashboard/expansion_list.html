@@ -28,8 +28,8 @@
   <div class="page-title">{{ title }} 확장팩</div>
   <div class="page-sub" style="font-size:13px;color:var(--text-muted);margin-bottom:28px;">확장팩을 선택해 카드별 판매가를 설정하세요.</div>
 
-  <!-- 통계 카드 4개 -->
-  <div class="stats-row-grid" style="grid-template-columns: repeat(4, 1fr);">
+  <!-- 통계 카드 — bulk_issues_url 있을 때만 4개, 없으면 3개 -->
+  <div class="stats-row-grid" style="{% if bulk_issues_url %}grid-template-columns: repeat(4, 1fr);{% endif %}">
 
     <div class="stat-card">
       <div class="stat-label">전체 확장팩</div>
@@ -41,19 +41,28 @@
       <div class="stat-value green">{{ total_cards }}</div>
     </div>
 
-    <!-- 판매가 미설정 → 미설정 목록 -->
+    <!-- 판매가 미설정 -->
+    {% if bulk_issues_url %}
     <a href="{{ bulk_issues_url }}?mode=unpriced" class="stat-card stat-card-link"
        title="판매가 미설정 카드 목록 보기">
       <div class="stat-label">판매가 미설정 →</div>
       <div class="stat-value yellow">{{ total_unpriced }}</div>
     </a>
+    {% else %}
+    <div class="stat-card">
+      <div class="stat-label">판매가 미설정</div>
+      <div class="stat-value yellow">{{ total_unpriced }}</div>
+    </div>
+    {% endif %}
 
-    <!-- 가격 하락 대기 → 하락 목록 -->
+    <!-- 가격 하락 대기 (bulk_issues_url 있을 때만) -->
+    {% if bulk_issues_url %}
     <a href="{{ bulk_issues_url }}?mode=drop" class="stat-card stat-card-link"
        title="가격 하락 대기 카드 목록 보기">
       <div class="stat-label">가격 하락 대기 →</div>
       <div class="stat-value" style="color:var(--danger);">{{ total_drop }}</div>
     </a>
+    {% endif %}
 
   </div>
 
@@ -67,8 +76,12 @@
       <button class="search-btn" onclick="searchCards()">🔍 검색</button>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
+      {% if reset_all_url %}
       <button class="reset-btn" onclick="showResetAllModal()">🗑 전체 초기화</button>
+      {% endif %}
+      {% if bulk_price_url %}
       <a href="{{ bulk_price_url }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
+      {% endif %}
     </div>
   </div>
 
@@ -110,12 +123,14 @@
           <span>{% if expansion.card_count > 0 %}{% widthratio expansion.unpriced_count expansion.card_count 100 as up %}{{ 100|add:"-"|add:up }}%{% else %}0%{% endif %}</span>
         </div>
       </a>
+      {% if reset_prices_url_prefix %}
       <div class="exp-footer">
         <button class="exp-reset-btn"
                 onclick="showResetModal('{{ expansion.code }}', '{{ expansion.name|escapejs }}')">
           🗑 판매가 초기화
         </button>
       </div>
+      {% endif %}
     </div>
     {% endfor %}
   </div>
