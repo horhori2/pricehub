@@ -58,6 +58,9 @@ def collect_prices_for_all_cards():
                     source=mall_name or '알 수 없음',
                     raw_data=valid_items,
                 )
+                # 최신 raw_data 캐시 업데이트
+                card.latest_raw_data = valid_items
+                card.save(update_fields=['latest_raw_data'])
                 general_found += 1
                 print(f"  ✅ 저장: {int(general_price)}원 ({mall_name})")
             else:

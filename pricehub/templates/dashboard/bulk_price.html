@@ -88,40 +88,43 @@
   {% endif %}
 
   <div class="main-grid">
-    <!-- 좌: 경쟁 샵 랭킹 -->
+    <!-- 좌: 경쟁 샵 랭킹 (AJAX 로딩) -->
     <div>
-      {% if shop_stats %}
-      <div class="summary-row">
-        <div class="s-card"><div class="s-label">총 샵 수</div><div class="s-value c-purple">{{ shop_stats|length }}</div></div>
-        <div class="s-card"><div class="s-label">전체 평균가</div><div class="s-value c-yellow">{{ overall_avg|floatformat:0 }}원</div></div>
+      <div id="shopStatsLoading" class="panel" style="padding:32px;text-align:center;color:var(--text-dim);">
+        <div style="font-size:24px;margin-bottom:10px;">⏳</div>
+        <div>샵 통계 로딩 중...</div>
       </div>
-      <div class="panel">
-        <div class="panel-title"><span class="panel-dot"></span>샵별 유효 상품 수</div>
-        <div class="chart-wrap"><canvas id="countChart"></canvas></div>
-      </div>
-      <div class="panel">
-        <div class="panel-title"><span class="panel-dot"></span>샵별 평균가 vs 전체 평균</div>
-        <div class="chart-wrap"><canvas id="avgChart"></canvas></div>
-      </div>
-      <div class="panel" style="padding:16px;">
-        <div class="panel-title"><span class="panel-dot"></span>샵 랭킹</div>
-        <div class="click-hint">👆 샵 클릭 → 우측 우선순위에 자동 추가</div>
-        <div class="rank-filter-row">
-          <button class="rank-filter-btn active" onclick="filterShops('all',this)">전체</button>
-          <button class="rank-filter-btn" onclick="filterShops('cheap',this)">저렴</button>
-          <button class="rank-filter-btn" onclick="filterShops('exp',this)">비쌈</button>
+      <div id="shopStatsContent" style="display:none;">
+        <div class="summary-row">
+          <div class="s-card"><div class="s-label">총 샵 수</div><div class="s-value c-purple" id="statShopCount">-</div></div>
+          <div class="s-card"><div class="s-label">전체 평균가</div><div class="s-value c-yellow" id="statOverallAvg">-</div></div>
         </div>
-        <table class="rank-table">
-          <thead><tr><th style="width:30px">#</th><th>샵</th><th>상품 수</th><th>평균가</th><th>비교</th></tr></thead>
-          <tbody id="rankBody"></tbody>
-        </table>
+        <div class="panel">
+          <div class="panel-title"><span class="panel-dot"></span>샵별 유효 상품 수</div>
+          <div class="chart-wrap"><canvas id="countChart"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-title"><span class="panel-dot"></span>샵별 평균가 vs 전체 평균</div>
+          <div class="chart-wrap"><canvas id="avgChart"></canvas></div>
+        </div>
+        <div class="panel" style="padding:16px;">
+          <div class="panel-title"><span class="panel-dot"></span>샵 랭킹</div>
+          <div class="click-hint">👆 샵 클릭 → 우측 우선순위에 자동 추가</div>
+          <div class="rank-filter-row">
+            <button class="rank-filter-btn active" onclick="filterShops('all',this)">전체</button>
+            <button class="rank-filter-btn" onclick="filterShops('cheap',this)">저렴</button>
+            <button class="rank-filter-btn" onclick="filterShops('exp',this)">비쌈</button>
+          </div>
+          <table class="rank-table">
+            <thead><tr><th style="width:30px">#</th><th>샵</th><th>상품 수</th><th>평균가</th><th>비교</th></tr></thead>
+            <tbody id="rankBody"></tbody>
+          </table>
+        </div>
       </div>
-      {% else %}
-      <div class="panel empty-state">
+      <div id="shopStatsEmpty" style="display:none;" class="panel empty-state">
         <div style="font-size:36px;margin-bottom:12px;opacity:0.4;">📭</div>
         <div>raw_data가 없습니다. 가격 수집 후 다시 확인해주세요.</div>
       </div>
-      {% endif %}
     </div>
 
     <!-- 우: 우선순위 설정 -->
@@ -210,33 +213,61 @@
 <script src="{% static 'dashboard/dashboard.js' %}"></script>
 <script>
 /* 페이지별 설정값 */
-const BULK_RUN_URL    = '{{ config.bulk_run_url }}';
-const BULK_PRICE_URL  = '{{ config.bulk_price_url }}';
-const BULK_DROP_URL   = '{{ config.drop_url }}';
+const BULK_RUN_URL      = '{{ config.bulk_run_url }}';
+const BULK_PRICE_URL    = '{{ config.bulk_price_url }}';
+const BULK_SHOP_STATS_URL = '{{ config.bulk_shop_stats_url }}';
+const BULK_DROP_URL     = '{{ config.drop_url }}';
 const BULK_UNPRICED_URL = '{{ config.unpriced_url }}';
-const MALL_DATA       = {{ mall_names|safe }};
-const SHOPS           = {{ shop_stats_json|safe }};
-const OVERALL_AVG     = {{ overall_avg }};
-const MAX_COUNT       = SHOPS.length ? Math.max(...SHOPS.map(s => s.count)) : 1;
-const allMalls        = MALL_DATA.map(([name, count]) => ({ name, count }));
-let selectedRarities  = new Set(JSON.parse(document.getElementById('rarityData').textContent));
+let SHOPS       = [];
+let OVERALL_AVG = 0;
+let MAX_COUNT   = 1;
+let allMalls    = [];
+let selectedRarities = new Set(JSON.parse(document.getElementById('rarityData').textContent));
 
-/* 차트 초기화 */
-const TOP = SHOPS.slice(0, 15);
 const chartBase = {
   responsive: true, maintainAspectRatio: false,
   plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1e2a', borderColor: '#2f3650', borderWidth: 1, titleColor: '#dde2f0', bodyColor: '#9aa0c0' } },
   scales: { x: { ticks: { color: '#5a6080', font: { size: 10 }, maxRotation: 35 }, grid: { color: 'rgba(37,42,58,0.8)' } }, y: { ticks: { color: '#5a6080', font: { size: 10, family: 'JetBrains Mono' } }, grid: { color: 'rgba(37,42,58,0.8)' } } }
 };
-if (TOP.length && document.getElementById('countChart')) {
-  new Chart(document.getElementById('countChart'), { type: 'bar', data: { labels: TOP.map(s => s.name), datasets: [{ data: TOP.map(s => s.count), backgroundColor: TOP.map((_, i) => i===0?'rgba(245,166,35,0.75)':i<3?'rgba(124,107,255,0.65)':'rgba(91,141,239,0.45)'), borderColor: TOP.map((_, i) => i===0?'#f5a623':i<3?'#7c6bff':'#5b8def'), borderWidth: 1, borderRadius: 5 }] }, options: { ...chartBase, plugins: { ...chartBase.plugins, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  상품 ${c.parsed.y}개` } } }, scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v+'개' } } } } });
-}
-if (TOP.length && document.getElementById('avgChart')) {
-  new Chart(document.getElementById('avgChart'), { type: 'bar', data: { labels: TOP.map(s => s.name), datasets: [ { label: '샵 평균가', data: TOP.map(s => s.avg), backgroundColor: TOP.map(s => s.cheaper?'rgba(61,214,140,0.6)':'rgba(240,96,96,0.6)'), borderColor: TOP.map(s => s.cheaper?'#3dd68c':'#f06060'), borderWidth: 1, borderRadius: 5 }, { label: '전체 평균', data: TOP.map(() => OVERALL_AVG), type: 'line', borderColor: 'rgba(245,166,35,0.7)', borderWidth: 2, borderDash: [5,4], pointRadius: 0, fill: false } ] }, options: { ...chartBase, plugins: { ...chartBase.plugins, legend: { display: true, labels: { color: '#5a6080', font: { size: 10 } } }, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  ${c.dataset.label}: ${c.parsed.y.toLocaleString()}원` } } }, scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v.toLocaleString()+'원' } } } } });
+let countChartInst = null, avgChartInst = null;
+
+function initCharts(shops, overallAvg) {
+  const TOP = shops.slice(0, 15);
+  if (countChartInst) countChartInst.destroy();
+  if (avgChartInst)   avgChartInst.destroy();
+  if (!TOP.length) return;
+  countChartInst = new Chart(document.getElementById('countChart'), { type: 'bar', data: { labels: TOP.map(s => s.name), datasets: [{ data: TOP.map(s => s.count), backgroundColor: TOP.map((_, i) => i===0?'rgba(245,166,35,0.75)':i<3?'rgba(124,107,255,0.65)':'rgba(91,141,239,0.45)'), borderColor: TOP.map((_, i) => i===0?'#f5a623':i<3?'#7c6bff':'#5b8def'), borderWidth: 1, borderRadius: 5 }] }, options: { ...chartBase, plugins: { ...chartBase.plugins, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  상품 ${c.parsed.y}개` } } }, scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v+'개' } } } } });
+  avgChartInst   = new Chart(document.getElementById('avgChart'),   { type: 'bar', data: { labels: TOP.map(s => s.name), datasets: [ { label: '샵 평균가', data: TOP.map(s => s.avg), backgroundColor: TOP.map(s => s.cheaper?'rgba(61,214,140,0.6)':'rgba(240,96,96,0.6)'), borderColor: TOP.map(s => s.cheaper?'#3dd68c':'#f06060'), borderWidth: 1, borderRadius: 5 }, { label: '전체 평균', data: TOP.map(() => overallAvg), type: 'line', borderColor: 'rgba(245,166,35,0.7)', borderWidth: 2, borderDash: [5,4], pointRadius: 0, fill: false } ] }, options: { ...chartBase, plugins: { ...chartBase.plugins, legend: { display: true, labels: { color: '#5a6080', font: { size: 10 } } }, tooltip: { ...chartBase.plugins.tooltip, callbacks: { label: c => `  ${c.dataset.label}: ${c.parsed.y.toLocaleString()}원` } } }, scales: { ...chartBase.scales, y: { ...chartBase.scales.y, ticks: { ...chartBase.scales.y.ticks, callback: v => v.toLocaleString()+'원' } } } } });
 }
 
+/* 페이지 로드 후 shop_stats AJAX 로딩 */
+(function loadShopStats() {
+  const params = new URLSearchParams(window.location.search);
+  const url = BULK_SHOP_STATS_URL + (params.toString() ? '?' + params.toString() : '');
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      SHOPS       = data.shop_stats || [];
+      OVERALL_AVG = data.overall_avg || 0;
+      MAX_COUNT   = SHOPS.length ? Math.max(...SHOPS.map(s => s.count)) : 1;
+      allMalls    = (data.mall_names || []).map(([name, count]) => ({ name, count }));
+      document.getElementById('shopStatsLoading').style.display = 'none';
+      if (SHOPS.length) {
+        document.getElementById('statShopCount').textContent  = SHOPS.length;
+        document.getElementById('statOverallAvg').textContent = OVERALL_AVG.toLocaleString() + '원';
+        document.getElementById('shopStatsContent').style.display = '';
+        initCharts(SHOPS, OVERALL_AVG);
+        renderRankTable();
+      } else {
+        document.getElementById('shopStatsEmpty').style.display = '';
+      }
+    })
+    .catch(() => {
+      document.getElementById('shopStatsLoading').textContent = '샵 통계 로딩 실패';
+    });
+})();
+
 /* 초기화 */
-if (SHOPS.length) renderRankTable();
 updateBulkRarityDisplay();
 document.querySelectorAll('.priority-input').forEach((input, i) => {
   input.addEventListener('focus', () => showAutocomplete(i + 1, input.value));

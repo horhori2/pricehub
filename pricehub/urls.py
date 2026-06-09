@@ -42,12 +42,13 @@ def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
         ]
     if has_bulk:
         patterns += [
-            path('bulk-price/',           views['bulk_price'],    name=f'{name}-bulk-price'),
-            path('bulk-price/run/',       views['bulk_run'],      name=f'{name}-bulk-run'),
-            path('bulk-price/drop/',      views['bulk_drop'],     name=f'{name}-bulk-drop'),
-            path('bulk-price/unpriced/',  views['bulk_unpriced'], name=f'{name}-bulk-unpriced'),
-            path('bulk-price/approve/',   views['bulk_approve'],  name=f'{name}-bulk-approve'),
-            path('bulk-price/edit/',      views['bulk_edit'],     name=f'{name}-bulk-edit'),
+            path('bulk-price/',           views['bulk_price'],       name=f'{name}-bulk-price'),
+            path('bulk-price/stats/',     views['bulk_shop_stats'],  name=f'{name}-bulk-shop-stats'),
+            path('bulk-price/run/',       views['bulk_run'],         name=f'{name}-bulk-run'),
+            path('bulk-price/drop/',      views['bulk_drop'],        name=f'{name}-bulk-drop'),
+            path('bulk-price/unpriced/',  views['bulk_unpriced'],    name=f'{name}-bulk-unpriced'),
+            path('bulk-price/approve/',   views['bulk_approve'],     name=f'{name}-bulk-approve'),
+            path('bulk-price/edit/',      views['bulk_edit'],        name=f'{name}-bulk-edit'),
         ]
     if has_shop_stats:
         patterns += [
@@ -85,6 +86,7 @@ _pokemon_kr_views = {
     'toggle_favorite':   v.pokemon_kr_toggle_favorite,
     'bulk_approve':      v.pokemon_kr_bulk_approve,
     'bulk_edit':         v.pokemon_kr_bulk_edit,
+    'bulk_shop_stats':   v.pokemon_kr_bulk_shop_stats,
 }
 
 _pokemon_jp_views = {
@@ -111,6 +113,7 @@ _onepiece_kr_views = {
     'toggle_favorite':  v.onepiece_kr_toggle_favorite,
     'bulk_approve':     v.onepiece_kr_bulk_approve,
     'bulk_edit':        v.onepiece_kr_bulk_edit,
+    'bulk_shop_stats':  v.onepiece_kr_bulk_shop_stats,
 }
 
 

@@ -49,6 +49,9 @@ def collect_all_prices_integrated():
                     source=general_mall,
                     raw_data=valid_items,
                 )
+                # 최신 raw_data 캐시 업데이트
+                card.latest_raw_data = valid_items
+                card.save(update_fields=['latest_raw_data'])
                 print(f"✅ 일반 최저가 저장: {int(general_price)}원 ({general_mall})")
                 general_success += 1
             else:
@@ -110,6 +113,9 @@ def collect_expansion_prices_integrated(expansion_code: str):
                     source=general_mall,
                     raw_data=valid_items,
                 )
+                # 최신 raw_data 캐시 업데이트
+                card.latest_raw_data = valid_items
+                card.save(update_fields=['latest_raw_data'])
                 print(f"✅ 일반: {int(general_price)}원 ({general_mall})")
                 general_success += 1
             

@@ -126,6 +126,12 @@ class Card(models.Model):
         blank=True,
         verbose_name='수정 가격 (일괄 설정 임시값)',
     )
+    latest_raw_data = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name='최신 수집 raw_data 캐시',
+        help_text='가격 수집 시 자동 업데이트. bulk_price 조회에 사용.'
+    )
 
     class Meta:
         db_table = 'card'
@@ -238,6 +244,12 @@ class OnePieceCard(models.Model):
     default=0,
     verbose_name='수정 가격 (일괄 설정 임시값)',
     help_text='일괄 설정 실행 시 임시 저장. 하락 시 작업자 확인 후 반영.',
+    )
+    latest_raw_data = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name='최신 수집 raw_data 캐시',
+        help_text='가격 수집 시 자동 업데이트. bulk_price 조회에 사용.'
     )
     class Meta:
         db_table = 'onepiece_card'
