@@ -588,23 +588,28 @@ async function runBulk() {
     const rDrop = document.getElementById('rDrop');
     if (rDrop) rDrop.textContent = (data.drop_count || 0).toLocaleString();
     const expCode = document.getElementById('expansionSelect').value;
-    document.getElementById('btnIssues').href =
-      expCode ? `${BULK_ISSUES_URL}?expansion=${expCode}` : BULK_ISSUES_URL;
-    if (data.needs_review_count === 0 && (data.drop_count || 0) === 0) {
-      document.getElementById('btnIssues').style.display = 'none';
-    }
+    const dropSuffix = expCode ? `?expansion=${expCode}` : '';
+    const btnDrop = document.getElementById('btnDrop');
+    const btnUnpriced = document.getElementById('btnUnpriced');
+    if (btnDrop) btnDrop.href = BULK_DROP_URL + dropSuffix;
+    if (btnUnpriced) btnUnpriced.href = BULK_UNPRICED_URL + dropSuffix;
+    if (data.drop_count === 0) { if (btnDrop) btnDrop.style.display = 'none'; }
+    if (data.needs_review_count === 0) { if (btnUnpriced) btnUnpriced.style.display = 'none'; }
     document.getElementById('resultBox').classList.add('show');
   } catch (e) { alert('오류: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '⚡ 일괄 판매가 설정 실행'; }
 }
 function resetBulkResult() {
   document.getElementById('resultBox').classList.remove('show');
-  document.getElementById('btnIssues').style.display = '';
+  const btnDrop = document.getElementById('btnDrop');
+  const btnUnpriced = document.getElementById('btnUnpriced');
+  if (btnDrop) btnDrop.style.display = '';
+  if (btnUnpriced) btnUnpriced.style.display = '';
 }
 
 
 /* ================================================================
-   bulk_issues.js — 하락 대기 카드 목록 페이지 전용
+   bulk_drop / bulk_unpriced 페이지 전용 (구 bulk_issues)
    ================================================================ */
 
 /* 페이지에서 선언해야 하는 변수:

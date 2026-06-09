@@ -661,12 +661,11 @@ def _bulk_run_view(request, cfg_key):
 
 
 def _common_issues_config(cfg):
-    """두 issues 뷰에서 공통으로 쓰는 config dict 생성"""
+    """bulk_drop / bulk_unpriced 뷰에서 공통으로 쓰는 config dict 생성"""
     base_url = cfg['base_url']
     return {
         'label':                cfg['label'],
         'bulk_price_url':       f'{base_url}/bulk-price/',
-        'bulk_issues_url':      f'{base_url}/bulk-price/issues/',
         'approve_url':          f'{base_url}/bulk-price/approve/',
         'edit_url':             f'{base_url}/bulk-price/edit/',
         'set_price_url_prefix': f'{base_url}/cards/',
@@ -876,7 +875,6 @@ def pokemon_kr_expansion_list(request):
     return _expansion_list_view(request, 'pokemon_kr', {
         'bulk_price_url':          '/pokemon/kr/bulk-price/',
         'card_search_url':         '/pokemon/kr/cards/search/',
-        'bulk_issues_url':         '/pokemon/kr/bulk-price/issues/',
         'reset_prices_url_prefix': '/pokemon/kr/expansions/',
         'reset_all_url':           '/pokemon/kr/reset-all-prices/',
     })
@@ -1127,7 +1125,6 @@ def onepiece_kr_expansion_list(request):
     return _expansion_list_view(request, 'onepiece_kr', {
         'bulk_price_url':          '/onepiece/kr/bulk-price/',
         'card_search_url':         '/onepiece/kr/cards/search/',
-        'bulk_issues_url':         '/onepiece/kr/bulk-price/issues/',
         'reset_prices_url_prefix': '/onepiece/kr/expansions/',
         'reset_all_url':           '/onepiece/kr/reset-all-prices/',
     })
