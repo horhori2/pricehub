@@ -390,7 +390,7 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
 
     expansion = get_object_or_404(expansion_model, code=code)
     latest_price_qs = price_model.objects.filter(card=OuterRef('pk')).order_by('-collected_at')
-    cards = (
+    cards_qs = (
         card_model.objects.filter(expansion=expansion)
         .annotate(
             latest_market_price=Subquery(latest_price_qs.values('price')[:1]),
@@ -401,29 +401,81 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
 
     filter_type = request.GET.get('filter', 'all')
     if filter_type == 'unpriced':
-        cards = cards.filter(selling_price=0)
+        cards_qs = cards_qs.filter(selling_price=0)
     elif filter_type == 'priced':
-        cards = cards.filter(selling_price__gt=0)
+        cards_qs = cards_qs.filter(selling_price__gt=0)
+
+    # 레어도 필터
+    all_rarities = list(
+        card_model.objects.filter(expansion=expansion)
+        .values_list('rarity', flat=True)
+        .distinct()
+        .order_by('rarity')
+    )
+    selected_rarities = request.GET.getlist('rarities')
+    if selected_rarities:
+        cards_qs = cards_qs.filter(rarity__in=selected_rarities)
+
+    # 페이지네이션
+    per_page    = 100
+    total_count = cards_qs.count()
+    page        = max(1, int(request.GET.get('page', 1) or 1))
+    total_pages = max(1, -(-total_count // per_page))
+    page        = min(page, total_pages)
+    offset      = (page - 1) * per_page
+    cards_list  = list(cards_qs[offset:offset + per_page])
+
+    _half  = 3
+    _start = max(1, page - _half)
+    _end   = min(total_pages, page + _half)
+    if _end - _start < 6:
+        if _start == 1:
+            _end = min(total_pages, _start + 6)
+        else:
+            _start = max(1, _end - 6)
+    page_range = list(range(_start, _end + 1))
+
+    # 카드별 최신 raw_data (사이드 패널 판매처 목록용 — raw_data 필드 없는 모델은 스킵)
+    card_ids = [c.pk for c in cards_list]
+    seen_raw = {}
+    if hasattr(price_model, 'raw_data') or any(
+        f.name == 'raw_data' for f in price_model._meta.get_fields()
+    ):
+        for cp in (
+            price_model.objects.filter(card_id__in=card_ids)
+            .exclude(raw_data={}).exclude(raw_data=[])
+            .order_by('-collected_at')
+            .values('card_id', 'raw_data')
+        ):
+            if cp['card_id'] not in seen_raw:
+                seen_raw[cp['card_id']] = cp['raw_data']
 
     fav_ctx = {}
     if 'favorites_url' in cfg:
         fav_ctx = {
-            'favorites_url': cfg['favorites_url'],
+            'favorites_url':           cfg['favorites_url'],
             'toggle_favorite_url_base': cfg['toggle_favorite_url_base'],
-            'favorite_count': card_model.objects.filter(is_favorite=True).count(),
+            'favorite_count':          card_model.objects.filter(is_favorite=True).count(),
         }
 
     ctx = {
-        'expansion': expansion,
-        'cards': cards,
-        'filter_type': filter_type,
+        'expansion':        expansion,
+        'cards':            cards_list,
+        'filter_type':      filter_type,
+        'all_rarities':     all_rarities,
+        'selected_rarities': selected_rarities,
+        'card_raw_json':    json.dumps(seen_raw, ensure_ascii=False),
+        'total_count':      total_count,
+        'page':             page,
+        'total_pages':      total_pages,
+        'page_range':       page_range,
         'breadcrumb': [
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
             (expansion.name, None),
         ],
         'detail_base_url': f'{base_url}/cards',
-        'back_url': f'{base_url}/expansions/',
+        'back_url':        f'{base_url}/expansions/',
         **fav_ctx,
     }
     if extra_ctx:

@@ -64,8 +64,10 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .price-set { color: var(--success); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 .price-unset { color: var(--text-dim); font-size: 12px; }
 .market-price { color: var(--text-muted); font-size: 13px; font-family: 'JetBrains Mono', monospace; }
-.set-btn { padding: 4px 12px; border-radius: 5px; font-size: 12px; font-weight: 700; border: 1px solid var(--accent2); color: var(--accent2); background: none; cursor: pointer; font-family: inherit; transition: all 0.15s; text-decoration: none; display: inline-block; }
-.set-btn:hover { background: var(--accent2); color: #fff; }
+.set-btn { padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; border: 1px solid var(--border2); color: var(--text-muted); background: var(--surface2); cursor: pointer; font-family: inherit; transition: all 0.15s; text-decoration: none; display: inline-block; white-space: nowrap; }
+.set-btn:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(124,107,255,0.08); }
+.set-btn.save-btn { border-color: var(--accent2); color: var(--accent2); background: rgba(124,107,255,0.08); font-size: 12px; padding: 4px 10px; }
+.set-btn.save-btn:hover { background: var(--accent2); color: #fff; }
 .empty { text-align: center; padding: 80px; color: var(--text-muted); }
 
 /* ── 별(즐겨찾기) 버튼 ── */
@@ -81,10 +83,13 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 
 /* ── 인라인 가격 편집 (favorites) ── */
 .price-display.hidden { display: none; }
-.price-input-wrap { display: none; align-items: center; gap: 6px; }
+.price-input-wrap { display: none; align-items: center; gap: 5px; }
 .price-input-wrap.show { display: flex; }
-.price-input { width: 100px; padding: 4px 8px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; text-align: right; }
-.price-input:focus { outline: none; border-color: var(--accent2); }
+.price-input { width: 90px; padding: 5px 8px; background: var(--bg); border: 1px solid var(--accent2); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; text-align: right; -moz-appearance: textfield; transition: box-shadow 0.15s; }
+.price-input::-webkit-outer-spin-button, .price-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.price-input:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(124,107,255,0.18); }
+.price-cancel-btn { background: none; border: none; color: var(--text-dim); font-size: 15px; cursor: pointer; padding: 2px 3px; line-height: 1; transition: color 0.12s; flex-shrink: 0; }
+.price-cancel-btn:hover { color: var(--danger); }
 .price-save-btn { padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: 700; border: none; background: var(--success); color: #000; cursor: pointer; font-family: inherit; }
 .price-cancel-btn { padding: 4px 8px; border-radius: 5px; font-size: 12px; border: 1px solid var(--border2); background: none; color: var(--text-muted); cursor: pointer; font-family: inherit; }
 
