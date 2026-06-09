@@ -24,103 +24,210 @@
   <a href="/logout/" class="logout-btn">로그아웃</a>
 </header>
 
-<main>
-  <div class="page-code">{{ expansion.code }}</div>
-  <div class="page-title">{{ expansion.name }}</div>
+<div class="{% if card_raw_json != '{}' %}layout-issues{% endif %}"
+     {% if card_raw_json == '{}' %}style="max-width:1200px;margin:0 auto;"{% endif %}>
+  <div class="main-area" style="padding: 32px 28px;">
+    <div class="page-code">{{ expansion.code }}</div>
+    <div class="page-title">{{ expansion.name }}</div>
 
-  <div class="action-row">
-    <div class="filter-tabs">
-      <a href="?filter=all{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}"      class="filter-tab {% if filter_type == 'all' %}active{% endif %}">전체 {{ cards|length }}장</a>
-      <a href="?filter=unpriced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}" class="filter-tab {% if filter_type == 'unpriced' %}active{% endif %}">미설정</a>
-      <a href="?filter=priced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}"   class="filter-tab {% if filter_type == 'priced' %}active{% endif %}">설정 완료</a>
+    <div class="action-row">
+      <div class="filter-tabs">
+        <a href="?filter=all{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}"      class="filter-tab {% if filter_type == 'all' %}active{% endif %}">전체 {{ total_count }}장</a>
+        <a href="?filter=unpriced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}" class="filter-tab {% if filter_type == 'unpriced' %}active{% endif %}">미설정</a>
+        <a href="?filter=priced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}"   class="filter-tab {% if filter_type == 'priced' %}active{% endif %}">설정 완료</a>
+      </div>
+      <div class="action-btns">
+        <!-- 일괄 수정 (체크 시 표시) -->
+        <div id="bulkBar" style="display:flex;align-items:center;gap:8px;">
+          <span id="bulkCount" style="font-size:12px;font-weight:700;color:var(--accent2);font-family:'JetBrains Mono',monospace;white-space:nowrap;"></span>
+          <input type="number" id="bulkPriceInput"
+                 placeholder="일괄 가격"
+                 min="0" step="100"
+                 style="width:120px;padding:6px 9px;background:var(--bg);border:1px solid var(--accent2);
+                        border-radius:7px;color:var(--text);font-family:'JetBrains Mono',monospace;
+                        font-size:13px;font-weight:600;outline:none;-moz-appearance:textfield;"
+                 onkeydown="if(event.key==='Enter') saveBulkPrice()">
+          <button onclick="saveBulkPrice()"
+                  style="padding:6px 14px;background:var(--accent2);border:none;border-radius:7px;
+                         color:#fff;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">
+            💾 적용
+          </button>
+          <button onclick="clearBulkSelection()"
+                  style="background:none;border:1px solid var(--border2);border-radius:7px;
+                         color:var(--text-muted);font-size:12px;font-weight:600;font-family:inherit;
+                         cursor:pointer;padding:6px 10px;white-space:nowrap;">
+            해제
+          </button>
+          <div style="width:1px;height:20px;background:var(--border2);"></div>
+        </div>
+        <a href="{{ favorites_url }}" class="fav-tab-btn">
+          ⭐ 즐겨찾기 <span class="fav-badge" id="favCountBadge">{{ favorite_count }}</span>
+        </a>
+        <button class="reset-btn" onclick="showResetModal()">🗑 판매가 초기화</button>
+        {% if bulk_price_url %}
+        <a href="{{ bulk_price_url }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
+        {% endif %}
+      </div>
     </div>
-    <div class="action-btns">
-      <a href="{{ favorites_url }}" class="fav-tab-btn">
-        ⭐ 즐겨찾기 <span class="fav-badge" id="favCountBadge">{{ favorite_count }}</span>
-      </a>
-      <button class="reset-btn" onclick="showResetModal()">🗑 판매가 초기화</button>
-      {% if bulk_price_url %}
-      <a href="{{ bulk_price_url }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
+
+    {% if all_rarities %}
+    <div class="rarity-filter" style="margin-bottom: 20px;">
+      <span class="filter-label">레어도</span>
+      <div class="rarity-divider"></div>
+      {% for rarity in all_rarities %}
+      <button type="button"
+              class="rarity-chip {% if rarity in selected_rarities %}active{% endif %}"
+              data-rarity="{{ rarity }}"
+              onclick="toggleCardListRarity('{{ rarity }}', this)">
+        {{ rarity }}
+      </button>
+      {% endfor %}
+      <div class="rarity-divider"></div>
+      {% if selected_rarities %}
+      <button class="quick-chip-btn" onclick="selectCardListRarities([])">전체 해제</button>
+      <span style="font-size:11px;color:var(--accent2);font-weight:700;font-family:'JetBrains Mono',monospace;">{{ selected_rarities|join:", " }} 적용 중</span>
+      {% else %}
+      <span style="font-size:11px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;">클릭하여 필터</span>
       {% endif %}
     </div>
-  </div>
+    {% endif %}
 
-  {% if all_rarities %}
-  <div class="rarity-filter" style="margin-bottom: 20px;">
-    <span class="filter-label">레어도</span>
-    <div class="rarity-divider"></div>
-    {% for rarity in all_rarities %}
-    <label class="rarity-chip {% if rarity in selected_rarities %}active{% endif %}">
-      <input type="checkbox" value="{{ rarity }}"
-             {% if rarity in selected_rarities %}checked{% endif %}
-             onchange="toggleCardListRarity('{{ rarity }}', this)">
-      {{ rarity }}
-    </label>
-    {% endfor %}
-    <div class="rarity-divider"></div>
-    <button class="quick-chip-btn" onclick="selectCardListRarities([])">전체 해제</button>
-    <button class="quick-chip-btn" onclick="applyCardListRarityFilter()"
-            style="border-color:var(--accent2);color:var(--accent2);font-weight:800;">✓ 적용</button>
-    {% if selected_rarities %}
-    <span style="font-size:11px;color:var(--accent2);font-weight:700;font-family:'JetBrains Mono',monospace;">{{ selected_rarities|join:", " }} 적용 중</span>
+    {% if cards %}
+    <table class="card-table">
+      <thead>
+        <tr>
+          <th style="width:36px;" onclick="event.stopPropagation()">
+            <input type="checkbox" id="checkAll" onchange="toggleAllCards(this)"
+                   style="accent-color:var(--accent2);cursor:pointer;width:14px;height:14px;">
+          </th>
+          <th style="width:52px"></th>
+          <th>카드</th>
+          <th>레어도</th>
+          <th>시장 최저가</th>
+          <th>판매가</th>
+          <th>수집일시</th>
+          <th style="width:36px"></th>
+          <th style="width:60px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for card in cards %}
+        <tr id="row-{{ card.id }}"
+            style="cursor:pointer;"
+            data-id="{{ card.id }}"
+            data-name="{{ card.name|escapejs }}"
+            data-number="{{ card.shop_product_code|default:card.card_number }}"
+            data-rarity="{{ card.rarity }}"
+            data-image="{{ card.image_url|default:'' }}"
+            onclick="handleCardRowClick({{ card.id }}, {% if card.selling_price %}{{ card.selling_price|floatformat:0 }}{% else %}0{% endif %})">
+          <td style="padding:11px 10px;" onclick="event.stopPropagation()">
+            <input type="checkbox" class="card-check" data-id="{{ card.id }}"
+                   onclick="event.stopPropagation(); updateBulkBar();"
+                   style="accent-color:var(--accent2);cursor:pointer;width:14px;height:14px;">
+          </td>
+          <td>{% if card.image_url %}<img src="{{ card.image_url }}" class="card-thumb">{% endif %}</td>
+          <td>
+            <div class="card-name-text">{{ card.name }}</div>
+            <div class="card-number-text">{{ card.shop_product_code }}</div>
+          </td>
+          <td><span class="rarity-badge">{{ card.rarity }}</span></td>
+          <td>
+            {% if card.latest_market_price %}<span class="market-price">{{ card.latest_market_price|floatformat:0 }}원</span>
+            {% else %}<span class="price-unset">미수집</span>{% endif %}
+          </td>
+          <td onclick="event.stopPropagation()" style="min-width:150px;">
+            <div class="price-display" id="disp-{{ card.id }}">
+              {% if card.selling_price %}
+                <span class="price-set">{{ card.selling_price|floatformat:0 }}원</span>
+              {% else %}
+                <span class="price-unset">미설정</span>
+              {% endif %}
+            </div>
+            <div class="price-input-wrap" id="edit-{{ card.id }}">
+              <input type="number" class="price-input" id="inp-{{ card.id }}"
+                     value="{% if card.selling_price %}{{ card.selling_price|floatformat:0 }}{% endif %}"
+                     placeholder="0"
+                     min="0" step="100"
+                     onkeydown="handlePriceKey(event, {{ card.id }})"
+                     onclick="event.stopPropagation()">
+              <button class="set-btn save-btn" onclick="saveInlinePrice({{ card.id }})">저장</button>
+              <button class="price-cancel-btn" onclick="closePriceInput({{ card.id }})" title="취소">×</button>
+            </div>
+          </td>
+          <td>
+            {% if card.latest_collected_at %}
+            <span style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">{{ card.latest_collected_at|date:"m.d H:i" }}</span>
+            {% endif %}
+          </td>
+          <td onclick="event.stopPropagation()">
+            <button class="star-toggle {% if card.is_favorite %}active{% endif %}"
+                    data-card-id="{{ card.id }}"
+                    data-favorite="{{ card.is_favorite|yesno:'true,false' }}"
+                    title="{% if card.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기 추가{% endif %}"
+                    onclick="toggleFavorite(this)">
+              {% if card.is_favorite %}⭐{% else %}☆{% endif %}
+            </button>
+          </td>
+          <td onclick="event.stopPropagation()">
+            <a href="{{ detail_base_url }}/{{ card.id }}/" class="set-btn">상세</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if total_pages > 1 %}
+    <div class="pagination-bar">
+      {% if page > 1 %}
+      <a class="pg-btn" href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&page={{ page|add:"-1" }}">← 이전</a>
+      {% else %}
+      <span class="pg-btn disabled">← 이전</span>
+      {% endif %}
+
+      <div class="pg-pages">
+        {% for p in page_range %}
+          {% if p == page %}
+          <span class="pg-num active">{{ p }}</span>
+          {% else %}
+          <a class="pg-num" href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&page={{ p }}">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if page < total_pages %}
+      <a class="pg-btn" href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&page={{ page|add:"1" }}">다음 →</a>
+      {% else %}
+      <span class="pg-btn disabled">다음 →</span>
+      {% endif %}
+
+      <span class="pg-info">{{ page }} / {{ total_pages }}페이지 · 총 {{ total_count }}장</span>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty">카드가 없습니다.</div>
     {% endif %}
   </div>
-  {% endif %}
 
-  {% if cards %}
-  <table class="card-table">
-    <thead>
-      <tr>
-        <th style="width:52px"></th>
-        <th>카드</th>
-        <th>레어도</th>
-        <th>시장 최저가</th>
-        <th>판매가</th>
-        <th>수집일시</th>
-        <th style="width:36px"></th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for card in cards %}
-      <tr onclick="location.href='{{ detail_base_url }}/{{ card.id }}/'">
-        <td>{% if card.image_url %}<img src="{{ card.image_url }}" class="card-thumb">{% endif %}</td>
-        <td>
-          <div class="card-name-text">{{ card.name }}</div>
-          <div class="card-number-text">{{ card.shop_product_code }}</div>
-        </td>
-        <td><span class="rarity-badge">{{ card.rarity }}</span></td>
-        <td>
-          {% if card.latest_market_price %}<span class="market-price">{{ card.latest_market_price|floatformat:0 }}원</span>
-          {% else %}<span class="price-unset">미수집</span>{% endif %}
-        </td>
-        <td>
-          {% if card.selling_price %}<span class="price-set">{{ card.selling_price|floatformat:0 }}원</span>
-          {% else %}<span class="price-unset">미설정</span>{% endif %}
-        </td>
-        <td>
-          {% if card.latest_collected_at %}
-          <span style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">{{ card.latest_collected_at|date:"m.d H:i" }}</span>
-          {% endif %}
-        </td>
-        <td onclick="event.stopPropagation()">
-          <button class="star-toggle {% if card.is_favorite %}active{% endif %}"
-                  data-card-id="{{ card.id }}"
-                  data-favorite="{{ card.is_favorite|yesno:'true,false' }}"
-                  title="{% if card.is_favorite %}즐겨찾기 해제{% else %}즐겨찾기 추가{% endif %}"
-                  onclick="toggleFavorite(this)">
-            {% if card.is_favorite %}⭐{% else %}☆{% endif %}
-          </button>
-        </td>
-        <td><a href="{{ detail_base_url }}/{{ card.id }}/" class="set-btn" onclick="event.stopPropagation()">설정</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <div class="empty">카드가 없습니다.</div>
+  <!-- 사이드 패널 -->
+  {% if card_raw_json != '{}' %}
+  <div class="side-panel">
+    <div class="side-header">
+      <img id="sideCardImage" src="" alt=""
+           style="display:none;width:100%;max-height:200px;object-fit:contain;border-radius:10px;
+                  background:var(--surface2);border:1px solid var(--border);margin-bottom:12px;">
+      <div class="side-title">판매처 목록 <span style="font-size:10px;font-weight:400;color:var(--text-dim);">(클릭하면 가격 반영)</span></div>
+      <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
+      <div class="side-card-info" id="sideCardInfo"></div>
+    </div>
+    <div class="side-empty" id="sideEmpty">
+      <div class="side-empty-icon">🏪</div>
+      <div class="side-empty-text" id="sideEmptyText">카드 행을 클릭하면<br>판매처 목록이 표시됩니다</div>
+    </div>
+    <div class="side-store-list" id="sideStoreList" style="display:none;"></div>
+  </div>
   {% endif %}
-</main>
+</div>
 
 <!-- 모달 -->
 <div class="modal-overlay" id="resetModal" onclick="hideModal()">
@@ -139,29 +246,165 @@
 
 <div id="fav-toast"></div>
 
+<script id="cardRawData" type="application/json">{{ card_raw_json|safe }}</script>
 <script src="{% static 'dashboard/dashboard.js' %}"></script>
 <script>
 /* 페이지별 설정값 */
 const TOGGLE_FAV_BASE = '{{ toggle_favorite_url_base }}';
 const RESET_URL       = '{{ reset_prices_url }}';
 
-/* 카드 목록 레어도 필터 */
+/* CARD_RAW: 사이드 패널 판매처 목록 */
+const CARD_RAW = (() => {
+  try { return JSON.parse(document.getElementById('cardRawData').textContent); }
+  catch { return {}; }
+})();
+
+/* 행 클릭: 사이드 패널 열기 + 판매가 input 활성화 */
+function handleCardRowClick(cardId, currentPrice) {
+  if (document.getElementById('sideEmpty')) showIssuesSidePanel(cardId);
+  openPriceInput(cardId, currentPrice);
+}
+
+/* 사이드 패널에서 판매처 클릭 → 판매가 input 채우기 */
+function fillIssuePrice(cardId, price) {
+  const inp = document.getElementById('inp-' + cardId);
+  if (!inp) return;
+  inp.value = price;
+  inp.focus();
+  document.getElementById('row-' + cardId)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* 인라인 판매가 수정 */
+const SET_PRICE_BASE = '{{ detail_base_url }}';
+
+function openPriceInput(cardId, currentPrice) {
+  document.getElementById('disp-' + cardId).style.display = 'none';
+  const wrap = document.getElementById('edit-' + cardId);
+  wrap.classList.add('show');
+  const inp = document.getElementById('inp-' + cardId);
+  inp.value = currentPrice || '';
+  setTimeout(() => { inp.focus(); inp.select(); }, 50);
+}
+
+function closePriceInput(cardId) {
+  document.getElementById('disp-' + cardId).style.display = '';
+  document.getElementById('edit-' + cardId).classList.remove('show');
+}
+
+function handlePriceKey(e, cardId) {
+  if (e.key === 'Enter')  saveInlinePrice(cardId);
+  if (e.key === 'Escape') closePriceInput(cardId);
+}
+
+async function saveInlinePrice(cardId) {
+  const inp   = document.getElementById('inp-' + cardId);
+  const price = parseInt(inp.value, 10) || 0;
+  const url   = SET_PRICE_BASE + '/' + cardId + '/set-price/';
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+  try {
+    const res  = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ selling_price: price }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const disp = document.getElementById('disp-' + cardId);
+      disp.innerHTML = price > 0
+        ? `<span class="price-set">${price.toLocaleString()}원</span>`
+        : `<span class="price-unset">미설정</span>`;
+      closePriceInput(cardId);
+      showFavToast('저장됐습니다.');
+    } else {
+      showFavToast('저장 실패: ' + (data.error || ''));
+    }
+  } catch (err) {
+    showFavToast('오류가 발생했습니다.');
+  }
+}
+
+/* 체크박스 & 일괄 수정 */
+function toggleAllCards(masterCb) {
+  document.querySelectorAll('.card-check').forEach(cb => cb.checked = masterCb.checked);
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.card-check:checked');
+  const master = document.getElementById('checkAll');
+  const all = document.querySelectorAll('.card-check');
+
+  document.getElementById('bulkCount').textContent = `${checked.length}개 선택`;
+
+  master.indeterminate = checked.length > 0 && checked.length < all.length;
+  master.checked = checked.length === all.length && all.length > 0;
+}
+
+function clearBulkSelection() {
+  document.querySelectorAll('.card-check').forEach(cb => cb.checked = false);
+  document.getElementById('checkAll').checked = false;
+  document.getElementById('checkAll').indeterminate = false;
+  updateBulkBar();
+}
+
+async function saveBulkPrice() {
+  const price = parseInt(document.getElementById('bulkPriceInput').value, 10) || 0;
+  const checked = [...document.querySelectorAll('.card-check:checked')];
+  if (!checked.length) return;
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+  let successCount = 0;
+
+  await Promise.all(checked.map(async cb => {
+    const cardId = cb.dataset.id;
+    try {
+      const res = await fetch(SET_PRICE_BASE + '/' + cardId + '/set-price/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ selling_price: price }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        successCount++;
+        const disp = document.getElementById('disp-' + cardId);
+        if (disp) {
+          disp.innerHTML = price > 0
+            ? `<span class="price-set">${price.toLocaleString()}원</span>`
+            : `<span class="price-unset">미설정</span>`;
+        }
+        // 열려있는 input이 있으면 닫기
+        document.getElementById('edit-' + cardId)?.classList.remove('show');
+        disp && (disp.style.display = '');
+      }
+    } catch {}
+  }));
+
+  showFavToast(`${successCount}개 카드에 ${price > 0 ? price.toLocaleString() + '원' : '미설정'} 적용됐습니다.`);
+  clearBulkSelection();
+  document.getElementById('bulkPriceInput').value = '';
+}
+
+
 let _cardListRarities = new Set({{ selected_rarities|safe }});
 
-function toggleCardListRarity(rarity, checkbox) {
-  const label = checkbox.closest('.rarity-chip');
-  if (checkbox.checked) { _cardListRarities.add(rarity); label.classList.add('active'); }
-  else                  { _cardListRarities.delete(rarity); label.classList.remove('active'); }
+function toggleCardListRarity(rarity, btn) {
+  if (_cardListRarities.has(rarity)) {
+    _cardListRarities.delete(rarity);
+    btn.classList.remove('active');
+  } else {
+    _cardListRarities.add(rarity);
+    btn.classList.add('active');
+  }
+  applyCardListRarityFilter();
 }
 
 function selectCardListRarities(rarities) {
   _cardListRarities = new Set(rarities);
-  document.querySelectorAll('.rarity-chip').forEach(chip => {
-    const val = chip.querySelector('input').value;
-    const active = _cardListRarities.has(val);
-    chip.classList.toggle('active', active);
-    chip.querySelector('input').checked = active;
+  document.querySelectorAll('.rarity-chip').forEach(btn => {
+    btn.classList.toggle('active', _cardListRarities.has(btn.dataset.rarity));
   });
+  applyCardListRarityFilter();
 }
 
 function applyCardListRarityFilter() {
