@@ -78,9 +78,12 @@
   <div class="review-banner">
     <div class="review-banner-left">
       <span>⚠️</span>
-      <span>판매가 미설정 카드 <span class="review-banner-count">{{ needs_review }}</span>개가 점검을 기다리고 있습니다.</span>
+      <span>점검이 필요한 카드 <span class="review-banner-count">{{ needs_review }}</span>개가 있습니다.</span>
     </div>
-    <a href="{{ config.bulk_issues_url }}" class="review-link">점검하기 →</a>
+    <div style="display:flex;gap:8px;">
+      <a href="{{ config.drop_url }}" class="review-link">📉 하락 대기 →</a>
+      <a href="{{ config.unpriced_url }}" class="review-link">❓ 미설정 →</a>
+    </div>
   </div>
   {% endif %}
 
@@ -187,10 +190,14 @@
         <div class="result-box" id="resultBox">
           <div class="result-mini-grid">
             <div class="r-mini"><div class="r-mini-label">완료</div><div class="r-mini-value c-green" id="rSet">0</div></div>
+            <div class="r-mini"><div class="r-mini-label">하락 대기</div><div class="r-mini-value" style="color:#e86060;" id="rDrop">0</div></div>
             <div class="r-mini"><div class="r-mini-label">점검</div><div class="r-mini-value c-yellow" id="rReview">0</div></div>
             <div class="r-mini"><div class="r-mini-label">스킵</div><div class="r-mini-value" style="color:var(--text-muted);" id="rSkip">0</div></div>
           </div>
-          <a href="{{ config.bulk_issues_url }}" class="issues-link" id="btnIssues">⚠️ 점검 필요 카드 확인</a>
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <a href="{{ config.drop_url }}" class="issues-link" id="btnDrop">📉 하락 대기 확인</a>
+            <a href="{{ config.unpriced_url }}" class="issues-link" id="btnUnpriced">❓ 미설정 확인</a>
+          </div>
           <button class="again-btn" onclick="resetBulkResult()">↺ 다시 실행</button>
         </div>
       </div>
@@ -203,15 +210,16 @@
 <script src="{% static 'dashboard/dashboard.js' %}"></script>
 <script>
 /* 페이지별 설정값 */
-const BULK_RUN_URL   = '{{ config.bulk_run_url }}';
-const BULK_PRICE_URL = '{{ config.bulk_price_url }}';
-const BULK_ISSUES_URL = '{{ config.bulk_issues_url }}';
-const MALL_DATA      = {{ mall_names|safe }};
-const SHOPS          = {{ shop_stats_json|safe }};
-const OVERALL_AVG    = {{ overall_avg }};
-const MAX_COUNT      = SHOPS.length ? Math.max(...SHOPS.map(s => s.count)) : 1;
-const allMalls       = MALL_DATA.map(([name, count]) => ({ name, count }));
-let selectedRarities = new Set(JSON.parse(document.getElementById('rarityData').textContent));
+const BULK_RUN_URL    = '{{ config.bulk_run_url }}';
+const BULK_PRICE_URL  = '{{ config.bulk_price_url }}';
+const BULK_DROP_URL   = '{{ config.drop_url }}';
+const BULK_UNPRICED_URL = '{{ config.unpriced_url }}';
+const MALL_DATA       = {{ mall_names|safe }};
+const SHOPS           = {{ shop_stats_json|safe }};
+const OVERALL_AVG     = {{ overall_avg }};
+const MAX_COUNT       = SHOPS.length ? Math.max(...SHOPS.map(s => s.count)) : 1;
+const allMalls        = MALL_DATA.map(([name, count]) => ({ name, count }));
+let selectedRarities  = new Set(JSON.parse(document.getElementById('rarityData').textContent));
 
 /* 차트 초기화 */
 const TOP = SHOPS.slice(0, 15);

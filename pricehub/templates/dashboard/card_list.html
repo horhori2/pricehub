@@ -30,9 +30,9 @@
 
   <div class="action-row">
     <div class="filter-tabs">
-      <a href="?filter=all"      class="filter-tab {% if filter_type == 'all' %}active{% endif %}">전체 {{ cards|length }}장</a>
-      <a href="?filter=unpriced" class="filter-tab {% if filter_type == 'unpriced' %}active{% endif %}">미설정</a>
-      <a href="?filter=priced"   class="filter-tab {% if filter_type == 'priced' %}active{% endif %}">설정 완료</a>
+      <a href="?filter=all{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}"      class="filter-tab {% if filter_type == 'all' %}active{% endif %}">전체 {{ cards|length }}장</a>
+      <a href="?filter=unpriced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}" class="filter-tab {% if filter_type == 'unpriced' %}active{% endif %}">미설정</a>
+      <a href="?filter=priced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}"   class="filter-tab {% if filter_type == 'priced' %}active{% endif %}">설정 완료</a>
     </div>
     <div class="action-btns">
       <a href="{{ favorites_url }}" class="fav-tab-btn">
@@ -44,6 +44,28 @@
       {% endif %}
     </div>
   </div>
+
+  {% if all_rarities %}
+  <div class="rarity-filter" style="margin-bottom: 20px;">
+    <span class="filter-label">레어도</span>
+    <div class="rarity-divider"></div>
+    {% for rarity in all_rarities %}
+    <label class="rarity-chip {% if rarity in selected_rarities %}active{% endif %}">
+      <input type="checkbox" value="{{ rarity }}"
+             {% if rarity in selected_rarities %}checked{% endif %}
+             onchange="toggleCardListRarity('{{ rarity }}', this)">
+      {{ rarity }}
+    </label>
+    {% endfor %}
+    <div class="rarity-divider"></div>
+    <button class="quick-chip-btn" onclick="selectCardListRarities([])">전체 해제</button>
+    <button class="quick-chip-btn" onclick="applyCardListRarityFilter()"
+            style="border-color:var(--accent2);color:var(--accent2);font-weight:800;">✓ 적용</button>
+    {% if selected_rarities %}
+    <span style="font-size:11px;color:var(--accent2);font-weight:700;font-family:'JetBrains Mono',monospace;">{{ selected_rarities|join:", " }} 적용 중</span>
+    {% endif %}
+  </div>
+  {% endif %}
 
   {% if cards %}
   <table class="card-table">
@@ -122,6 +144,32 @@
 /* 페이지별 설정값 */
 const TOGGLE_FAV_BASE = '{{ toggle_favorite_url_base }}';
 const RESET_URL       = '{{ reset_prices_url }}';
+
+/* 카드 목록 레어도 필터 */
+let _cardListRarities = new Set({{ selected_rarities|safe }});
+
+function toggleCardListRarity(rarity, checkbox) {
+  const label = checkbox.closest('.rarity-chip');
+  if (checkbox.checked) { _cardListRarities.add(rarity); label.classList.add('active'); }
+  else                  { _cardListRarities.delete(rarity); label.classList.remove('active'); }
+}
+
+function selectCardListRarities(rarities) {
+  _cardListRarities = new Set(rarities);
+  document.querySelectorAll('.rarity-chip').forEach(chip => {
+    const val = chip.querySelector('input').value;
+    const active = _cardListRarities.has(val);
+    chip.classList.toggle('active', active);
+    chip.querySelector('input').checked = active;
+  });
+}
+
+function applyCardListRarityFilter() {
+  const params = new URLSearchParams();
+  params.set('filter', '{{ filter_type }}');
+  _cardListRarities.forEach(r => params.append('rarities', r));
+  location.href = '?' + params.toString();
+}
 </script>
 </body>
 </html>

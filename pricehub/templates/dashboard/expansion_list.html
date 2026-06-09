@@ -28,7 +28,7 @@
   <div class="page-title">{{ title }} 확장팩</div>
   <div class="page-sub" style="font-size:13px;color:var(--text-muted);margin-bottom:28px;">확장팩을 선택해 카드별 판매가를 설정하세요.</div>
 
-  <!-- 통계 카드 — bulk_issues_url 있을 때만 4개, 없으면 3개 -->
+  <!-- 통계 카드 -->
   <div class="stats-row-grid" style="{% if bulk_issues_url %}grid-template-columns: repeat(4, 1fr);{% endif %}">
 
     <div class="stat-card">
@@ -43,7 +43,7 @@
 
     <!-- 판매가 미설정 -->
     {% if bulk_issues_url %}
-    <a href="{{ bulk_issues_url }}?mode=unpriced" class="stat-card stat-card-link"
+    <a href="{{ bulk_unpriced_url }}" class="stat-card stat-card-link"
        title="판매가 미설정 카드 목록 보기">
       <div class="stat-label">판매가 미설정 →</div>
       <div class="stat-value yellow">{{ total_unpriced }}</div>
@@ -55,9 +55,9 @@
     </div>
     {% endif %}
 
-    <!-- 가격 하락 대기 (bulk_issues_url 있을 때만) -->
+    <!-- 가격 하락 대기 -->
     {% if bulk_issues_url %}
-    <a href="{{ bulk_issues_url }}?mode=drop" class="stat-card stat-card-link"
+    <a href="{{ bulk_drop_url }}" class="stat-card stat-card-link"
        title="가격 하락 대기 카드 목록 보기">
       <div class="stat-label">가격 하락 대기 →</div>
       <div class="stat-value" style="color:var(--danger);">{{ total_drop }}</div>

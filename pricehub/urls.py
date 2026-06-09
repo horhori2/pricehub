@@ -42,11 +42,12 @@ def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
         ]
     if has_bulk:
         patterns += [
-            path('bulk-price/',        views['bulk_price'],  name=f'{name}-bulk-price'),
-            path('bulk-price/run/',    views['bulk_run'],    name=f'{name}-bulk-run'),
-            path('bulk-price/issues/', views['bulk_issues'], name=f'{name}-bulk-issues'),
-            path('bulk-price/approve/', views['bulk_approve'], name=f'{name}-bulk-approve'),
-            path('bulk-price/edit/', views['bulk_edit'], name=f'{name}-bulk-edit'),
+            path('bulk-price/',           views['bulk_price'],    name=f'{name}-bulk-price'),
+            path('bulk-price/run/',       views['bulk_run'],      name=f'{name}-bulk-run'),
+            path('bulk-price/drop/',      views['bulk_drop'],     name=f'{name}-bulk-drop'),
+            path('bulk-price/unpriced/',  views['bulk_unpriced'], name=f'{name}-bulk-unpriced'),
+            path('bulk-price/approve/',   views['bulk_approve'],  name=f'{name}-bulk-approve'),
+            path('bulk-price/edit/',      views['bulk_edit'],     name=f'{name}-bulk-edit'),
         ]
     if has_shop_stats:
         patterns += [
@@ -75,14 +76,15 @@ _pokemon_kr_views = {
     'reset_all':         v.pokemon_kr_reset_all_prices,
     'bulk_price':        v.pokemon_kr_bulk_price,
     'bulk_run':          v.pokemon_kr_bulk_run,
-    'bulk_issues':       v.pokemon_kr_bulk_issues,
+    'bulk_drop':         v.pokemon_kr_bulk_drop,
+    'bulk_unpriced':     v.pokemon_kr_bulk_unpriced,
     'shop_stats':        v.pokemon_kr_shop_stats,
     'shop_stats_detail': v.pokemon_kr_shop_stats_detail,
     'favorites':         v.pokemon_kr_favorites,
     'reset_fav_prices':  v.pokemon_kr_reset_favorite_prices,
     'toggle_favorite':   v.pokemon_kr_toggle_favorite,
-    'bulk_approve': v.pokemon_kr_bulk_approve,
-    'bulk_edit': v.pokemon_kr_bulk_edit,
+    'bulk_approve':      v.pokemon_kr_bulk_approve,
+    'bulk_edit':         v.pokemon_kr_bulk_edit,
 }
 
 _pokemon_jp_views = {
@@ -102,12 +104,13 @@ _onepiece_kr_views = {
     'reset_all':       v.onepiece_kr_reset_all_prices,
     'bulk_price':      v.onepiece_kr_bulk_price,
     'bulk_run':        v.onepiece_kr_bulk_run,
-    'bulk_issues':     v.onepiece_kr_bulk_issues,
+    'bulk_drop':       v.onepiece_kr_bulk_drop,
+    'bulk_unpriced':   v.onepiece_kr_bulk_unpriced,
     'favorites':        v.onepiece_kr_favorites,
     'reset_fav_prices': v.onepiece_kr_reset_favorite_prices,
     'toggle_favorite':  v.onepiece_kr_toggle_favorite,
-    'bulk_approve': v.onepiece_kr_bulk_approve,
-    'bulk_edit': v.onepiece_kr_bulk_edit,
+    'bulk_approve':     v.onepiece_kr_bulk_approve,
+    'bulk_edit':        v.onepiece_kr_bulk_edit,
 }
 
 
@@ -127,6 +130,4 @@ urlpatterns = [
                 has_favorites=True),
 
     path('api-docs/', api_docs_views.api_docs, name='api-docs'),
-
-
 ]

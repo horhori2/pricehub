@@ -82,7 +82,7 @@ def search_naver_shopping(search_query: str) -> List[dict]:
         enc_text = urllib.parse.quote(search_query)
         url = (
             f"https://openapi.naver.com/v1/search/shop"
-            f"?query={enc_text}&sort=sim&exclude=used:rental:cbshop&display=20"
+            f"?query={enc_text}&sort=sim&exclude=used:rental:cbshop&display=50"
         )
         req = urllib.request.Request(url)
         req.add_header("X-Naver-Client-Id", NAVER_CLIENT_ID)
