@@ -627,15 +627,31 @@ function showIssueToast(msg, type) {
   setTimeout(() => t.style.display = 'none', 3000);
 }
 
-/* ── 하락 바 색상 ── */
+/* ── 하락 바 색상 (클래스 방식 — style 직접 조작 없음) ── */
 function initDropBarColors() {
   document.querySelectorAll('.drop-bar-fill').forEach(bar => {
     const pct = parseFloat(bar.dataset.pct);
-    if      (pct < 10) bar.style.background = 'linear-gradient(90deg,#f5a623,#f06060)';
-    else if (pct < 30) bar.style.background = 'linear-gradient(90deg,#f06060,#c43c3c)';
-    else               bar.style.background = 'linear-gradient(90deg,#c43c3c,#9b1f1f)';
+    if      (pct < 10) bar.classList.add('drop-low');
+    else if (pct < 30) bar.classList.add('drop-mid');
+    else               bar.classList.add('drop-high');
+  });
+  // 초기 색상 적용 완료 후 transition 활성화 (로드 시 width 애니메이션 방지)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.querySelectorAll('.drop-bar-fill').forEach(bar => bar.classList.add('animate'));
+    });
   });
 }
+
+/* ── resize 중 transition 일시 비활성화 ── */
+let _resizeTimer = null;
+window.addEventListener('resize', () => {
+  document.documentElement.classList.add('no-transitions');
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    document.documentElement.classList.remove('no-transitions');
+  }, 150);
+}, { passive: true });
 
 /* ── 필터/정렬 ── */
 function submitIssuesFilter() {
@@ -646,6 +662,14 @@ function submitIssuesFilter() {
     inp.type = 'hidden'; inp.name = 'rarities'; inp.value = r;
     form.appendChild(inp);
   });
+  // 필터/정렬 변경 시 항상 1페이지로 돌아가기
+  let pageInp = form.querySelector('input[name="page"]');
+  if (!pageInp) {
+    pageInp = document.createElement('input');
+    pageInp.type = 'hidden'; pageInp.name = 'page';
+    form.appendChild(pageInp);
+  }
+  pageInp.value = '1';
   form.submit();
 }
 /* bulk_price.js의 toggleRarityChip/selectRaritiesChips가 호출하는 훅 */
@@ -785,6 +809,18 @@ async function saveIssueEdit(cardId) {
   }
 }
 
+/* ── 병렬 저장 헬퍼: 최대 concurrency개 동시 실행 ── */
+async function _runParallel(ids, taskFn, concurrency = 20) {
+  let idx = 0;
+  async function worker() {
+    while (idx < ids.length) {
+      const id = ids[idx++];
+      await taskFn(id);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, ids.length) }, worker));
+}
+
 /* ── 체크된 카드 저장 ── */
 async function approveChecked() {
   const ids = [...document.querySelectorAll('.row-check:checked')]
@@ -793,10 +829,8 @@ async function approveChecked() {
   if (!confirm(`${ids.length}개 카드를 저장할까요?`)) return;
   const btn = document.getElementById('saveAllBtn');
   btn.disabled = true;
-  for (let i = 0; i < ids.length; i++) {
-    btn.textContent = `처리 중... (${i + 1}/${ids.length})`;
-    await saveIssueEdit(ids[i]);
-  }
+  btn.innerHTML = '<span class="spinner-sm"></span>저장 중...';
+  await _runParallel(ids, saveIssueEdit);
   btn.disabled = false; btn.textContent = '💾 체크된 카드 저장';
 }
 
@@ -806,7 +840,7 @@ async function approveAll() {
     .map(cb => parseInt(cb.dataset.id));
   if (!ids.length) return;
   if (!confirm(`전체 ${ids.length}개 카드를 저장할까요?`)) return;
-  for (const id of ids) await saveIssueEdit(id);
+  await _runParallel(ids, saveIssueEdit);
 }
 
 /* ── 행 완료 처리 ── */
@@ -883,10 +917,13 @@ async function saveAllIssues() {
   if (!targets.length) { showIssueToast('입력된 가격이 없습니다.', 'err'); return; }
   const btn = document.getElementById('saveAllBtn');
   btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span>저장 중...';
   let saved = 0, failed = 0;
-  for (let i = 0; i < targets.length; i += 10) {
-    const chunk = targets.slice(i, i + 10);
-    await Promise.all(chunk.map(async ({ cardId, input }) => {
+  let tIdx = 0;
+  const total = targets.length;
+  async function worker() {
+    while (tIdx < total) {
+      const { cardId, input } = targets[tIdx++];
       const price = parseInt(input.value);
       try {
         const res  = await fetch(`${SET_PRICE_URL_PREFIX}${cardId}/set-price/`, {
@@ -896,9 +933,9 @@ async function saveAllIssues() {
         const data = await res.json();
         if (data.success) { markIssueDone(cardId); saved++; } else failed++;
       } catch { failed++; }
-    }));
-    btn.textContent = `저장 중... (${saved}/${targets.length})`;
+    }
   }
+  await Promise.all(Array.from({ length: Math.min(20, total) }, worker));
   btn.disabled = false; btn.textContent = '⚡ 체크된 카드 저장';
   showIssueToast(
     failed === 0 ? `✅ ${saved}개 저장 완료!` : `✅ ${saved}개 완료 / ❌ ${failed}개 실패`,

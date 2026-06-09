@@ -176,6 +176,34 @@
       </tbody>
     </table>
 
+    {% if total_pages > 1 %}
+    <div class="pagination-bar">
+      {% if page > 1 %}
+      <a class="pg-btn" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ page|add:"-1" }}">← 이전</a>
+      {% else %}
+      <span class="pg-btn disabled">← 이전</span>
+      {% endif %}
+
+      <div class="pg-pages">
+        {% for p in page_range %}
+          {% if p == page %}
+          <span class="pg-num active">{{ p }}</span>
+          {% else %}
+          <a class="pg-num" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ p }}">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if page < total_pages %}
+      <a class="pg-btn" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ page|add:"1" }}">다음 →</a>
+      {% else %}
+      <span class="pg-btn disabled">다음 →</span>
+      {% endif %}
+
+      <span class="pg-info">{{ page }} / {{ total_pages }}페이지 · 총 {{ total_count }}개</span>
+    </div>
+    {% endif %}
+
     {% else %}
     <div class="empty">
       <div style="font-size:40px;margin-bottom:12px;opacity:0.4;">✅</div>

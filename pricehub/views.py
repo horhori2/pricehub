@@ -685,6 +685,8 @@ def _bulk_drop_view(request, cfg_key):
     expansion_code    = request.GET.get('expansion', '')
     selected_rarities = request.GET.getlist('rarities')
     sort              = request.GET.get('sort', 'drop_pct')
+    page              = max(1, int(request.GET.get('page', 1) or 1))
+    per_page          = 100
 
     all_rarities = _get_rarities(card_model, expansion_code or None)
     expansions   = cfg['expansion_model'].objects.order_by('-release_date')
@@ -699,14 +701,14 @@ def _bulk_drop_view(request, cfg_key):
     if selected_rarities:
         qs = qs.filter(rarity__in=selected_rarities)
 
-    drop_cards = []
+    all_drop_cards = []
     for card in qs:
         mod  = int(card.modified_price)
         sell = int(card.selling_price)
         if mod < sell:
             drop_amt = sell - mod
             drop_pct = round((drop_amt / sell) * 100, 1)
-            drop_cards.append({
+            all_drop_cards.append({
                 'card':           card,
                 'modified_price': mod,
                 'selling_price':  sell,
@@ -715,15 +717,32 @@ def _bulk_drop_view(request, cfg_key):
             })
 
     if sort == 'drop_pct':
-        drop_cards.sort(key=lambda x: -x['drop_pct'])
+        all_drop_cards.sort(key=lambda x: -x['drop_pct'])
     elif sort == 'drop_amt':
-        drop_cards.sort(key=lambda x: -x['drop_amt'])
+        all_drop_cards.sort(key=lambda x: -x['drop_amt'])
     else:
-        drop_cards.sort(key=lambda x: getattr(x['card'], 'name_kr', None) or x['card'].name or '')
+        all_drop_cards.sort(key=lambda x: getattr(x['card'], 'name_kr', None) or x['card'].name or '')
 
-    total_count  = len(drop_cards)
-    avg_drop_pct = round(sum(d['drop_pct'] for d in drop_cards) / total_count, 1) if total_count else 0
-    max_drop     = max((d['drop_pct'] for d in drop_cards), default=0)
+    total_count  = len(all_drop_cards)
+    avg_drop_pct = round(sum(d['drop_pct'] for d in all_drop_cards) / total_count, 1) if total_count else 0
+    max_drop     = max((d['drop_pct'] for d in all_drop_cards), default=0)
+
+    # ── 페이지네이션 ──
+    total_pages  = max(1, -(-total_count // per_page))   # ceiling division
+    page         = min(page, total_pages)
+    offset       = (page - 1) * per_page
+    drop_cards   = all_drop_cards[offset:offset + per_page]
+
+    # 페이지 번호 목록 (최대 7개, 현재 페이지 중심)
+    _half = 3
+    _start = max(1, page - _half)
+    _end   = min(total_pages, page + _half)
+    if _end - _start < 6:
+        if _start == 1:
+            _end = min(total_pages, _start + 6)
+        else:
+            _start = max(1, _end - 6)
+    page_range = list(range(_start, _end + 1))
 
     drop_card_ids = [d['card'].pk for d in drop_cards]
     seen_raw = {}
@@ -748,6 +767,10 @@ def _bulk_drop_view(request, cfg_key):
         'selected_rarities':      selected_rarities,
         'selected_rarities_json': json.dumps(selected_rarities),
         'card_raw_json':          json.dumps(seen_raw, ensure_ascii=False),
+        'page':                   page,
+        'total_pages':            total_pages,
+        'per_page':               per_page,
+        'page_range':             page_range,
         'breadcrumb': [
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
@@ -768,6 +791,8 @@ def _bulk_unpriced_view(request, cfg_key):
     expansion_code    = request.GET.get('expansion', '')
     selected_rarities = request.GET.getlist('rarities')
     sort              = request.GET.get('sort', 'name')
+    page              = max(1, int(request.GET.get('page', 1) or 1))
+    per_page          = 100
 
     all_rarities = _get_rarities(card_model, expansion_code or None)
     expansions   = cfg['expansion_model'].objects.order_by('-release_date')
@@ -779,7 +804,26 @@ def _bulk_unpriced_view(request, cfg_key):
         qs = qs.filter(rarity__in=selected_rarities)
     qs = qs.order_by('expansion__code', 'card_number')
 
-    card_ids = [c.pk for c in qs]
+    total_count = qs.count()
+
+    # ── 페이지네이션 ──
+    total_pages = max(1, -(-total_count // per_page))   # ceiling division
+    page        = min(page, total_pages)
+    offset      = (page - 1) * per_page
+    cards_page  = qs[offset:offset + per_page]
+
+    # 페이지 번호 목록 (최대 7개, 현재 페이지 중심)
+    _half = 3
+    _start = max(1, page - _half)
+    _end   = min(total_pages, page + _half)
+    if _end - _start < 6:
+        if _start == 1:
+            _end = min(total_pages, _start + 6)
+        else:
+            _start = max(1, _end - 6)
+    page_range = list(range(_start, _end + 1))
+
+    card_ids = [c.pk for c in cards_page]
     seen_raw = {}
     for cp in (
         price_model.objects.filter(card_id__in=card_ids)
@@ -791,15 +835,19 @@ def _bulk_unpriced_view(request, cfg_key):
             seen_raw[cp['card_id']] = cp['raw_data']
 
     return render(request, 'dashboard/bulk_unpriced.html', {
-        'cards':                  qs,
+        'cards':                  cards_page,
         'expansions':             expansions,
         'expansion_code':         expansion_code,
         'sort':                   sort,
-        'total_count':            qs.count(),
+        'total_count':            total_count,
         'all_rarities':           all_rarities,
         'selected_rarities':      selected_rarities,
         'selected_rarities_json': json.dumps(selected_rarities),
         'card_raw_json':          json.dumps(seen_raw, ensure_ascii=False),
+        'page':                   page,
+        'total_pages':            total_pages,
+        'per_page':               per_page,
+        'page_range':             page_range,
         'breadcrumb': [
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
