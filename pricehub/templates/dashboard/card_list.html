@@ -148,13 +148,14 @@
             {% if card.latest_market_price %}<span class="market-price">{{ card.latest_market_price|floatformat:0 }}원</span>
             {% else %}<span class="price-unset">미수집</span>{% endif %}
           </td>
-          <td onclick="event.stopPropagation()" style="min-width:150px;">
-            <div class="price-display" id="disp-{{ card.id }}">
+          <td style="min-width:150px;">
+            <div class="price-display price-display-editable" id="disp-{{ card.id }}">
               {% if card.selling_price %}
                 <span class="price-set">{{ card.selling_price|floatformat:0 }}원</span>
               {% else %}
                 <span class="price-unset">미설정</span>
               {% endif %}
+              <span class="price-edit-hint">✎</span>
             </div>
             <div class="price-input-wrap" id="edit-{{ card.id }}">
               <input type="number" class="price-input" id="inp-{{ card.id }}"
@@ -163,8 +164,8 @@
                      min="0" step="100"
                      onkeydown="handlePriceKey(event, {{ card.id }})"
                      onclick="event.stopPropagation()">
-              <button class="set-btn save-btn" onclick="saveInlinePrice({{ card.id }})">저장</button>
-              <button class="price-cancel-btn" onclick="closePriceInput({{ card.id }})" title="취소">×</button>
+              <button class="set-btn save-btn" onclick="event.stopPropagation(); saveInlinePrice({{ card.id }})">저장</button>
+              <button class="price-cancel-btn" onclick="event.stopPropagation(); closePriceInput({{ card.id }})" title="취소">×</button>
             </div>
           </td>
           <td>
@@ -325,8 +326,8 @@ async function saveInlinePrice(cardId) {
     if (data.success) {
       const disp = document.getElementById('disp-' + cardId);
       disp.innerHTML = price > 0
-        ? `<span class="price-set">${price.toLocaleString()}원</span>`
-        : `<span class="price-unset">미설정</span>`;
+        ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-edit-hint">✎</span>`
+        : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
       // data-selling 동기화
       const row = document.getElementById('row-' + cardId);
       if (row) row.dataset.selling = price;
@@ -398,8 +399,8 @@ async function saveBulkPrice() {
         const disp = document.getElementById('disp-' + cardId);
         if (disp) {
           disp.innerHTML = price > 0
-            ? `<span class="price-set">${price.toLocaleString()}원</span>`
-            : `<span class="price-unset">미설정</span>`;
+            ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-edit-hint">✎</span>`
+            : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
         }
         // data-selling 동기화 추가
         const row = document.getElementById('row-' + cardId);

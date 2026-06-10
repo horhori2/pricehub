@@ -263,15 +263,23 @@
         <button class="run-btn" id="runBtn" onclick="runBulk()">⚡ 일괄 판매가 설정 실행</button>
 
         <div class="result-box" id="resultBox">
-          <div class="result-mini-grid">
+          <div class="result-mini-grid result-mini-grid-4">
             <div class="r-mini"><div class="r-mini-label">완료</div><div class="r-mini-value c-green" id="rSet">0</div></div>
-            <div class="r-mini"><div class="r-mini-label">하락 대기</div><div class="r-mini-value" style="color:#e86060;" id="rDrop">0</div></div>
-            <div class="r-mini"><div class="r-mini-label">점검</div><div class="r-mini-value c-yellow" id="rReview">0</div></div>
+            <div class="r-mini r-mini-drop"><div class="r-mini-label">하락 대기</div><div class="r-mini-value" style="color:#e86060;" id="rDrop">0</div></div>
+            <div class="r-mini r-mini-review"><div class="r-mini-label">미설정</div><div class="r-mini-value c-yellow" id="rReview">0</div></div>
             <div class="r-mini"><div class="r-mini-label">스킵</div><div class="r-mini-value" style="color:var(--text-muted);" id="rSkip">0</div></div>
           </div>
-          <div style="display:flex;gap:6px;margin-bottom:8px;">
-            <a href="{{ config.drop_url }}" class="issues-link" id="btnDrop">📉 하락 대기 확인</a>
-            <a href="{{ config.unpriced_url }}" class="issues-link" id="btnUnpriced">❓ 미설정 확인</a>
+          <div id="resultActions" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
+            <a href="{{ config.drop_url }}" class="issues-link issues-link-drop" id="btnDrop">
+              <span>📉 하락 대기 확인</span>
+              <span class="issues-link-count" id="btnDropCount"></span>
+              <span class="issues-link-arrow">→</span>
+            </a>
+            <a href="{{ config.unpriced_url }}" class="issues-link issues-link-unpriced" id="btnUnpriced">
+              <span>❓ 미설정 확인</span>
+              <span class="issues-link-count" id="btnUnpricedCount"></span>
+              <span class="issues-link-arrow">→</span>
+            </a>
           </div>
           <button class="again-btn" onclick="resetBulkResult()">↺ 다시 실행</button>
         </div>
@@ -309,17 +317,7 @@
   </div>
 </div>
 
-<!-- 인라인 결과 패널 모달 -->
-<div id="inlinePanelOverlay" style="display:none;position:fixed;inset:0;z-index:200;
-     background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;padding:24px;">
-  <div id="inlinePanel"
-       style="width:min(900px,100%);max-height:calc(100vh - 80px);
-              background:var(--surface,var(--bg));
-              border:1px solid var(--border2,#2a2d3a);border-radius:14px;
-              display:flex;flex-direction:column;overflow:hidden;
-              box-shadow:0 24px 60px rgba(0,0,0,0.5);">
-  </div>
-</div>
+
 
 <script src="{% static 'dashboard/dashboard.js' %}"></script>
 <script>
