@@ -525,7 +525,97 @@ function highlightPriorityInput(idx) {
   input.style.borderColor = 'var(--accent2)'; input.style.background = 'rgba(124,107,255,0.06)';
   setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 800);
 }
-function clearPriority(idx) { document.getElementById(`p${idx}`).value = ''; }
+function clearPriority(idx) {
+  document.getElementById(`p${idx}`).value = '';
+  saveBulkSettings();
+}
+
+/* ================================================================
+   판매처 설정 자동 저장 / 불러오기 (localStorage)
+   저장 키: pricehub_bulk_settings_{BULK_PRICE_URL}
+   저장 항목: priorities(5개), minPrice, fallbackMode, skipPriced
+   ================================================================ */
+
+function _bulkSettingsKey() {
+  /* BULK_PRICE_URL이 카테고리별로 달라서 키를 URL 기반으로 분리 */
+  return 'pricehub_bulk:' + (typeof BULK_PRICE_URL !== 'undefined' ? BULK_PRICE_URL : 'default');
+}
+
+function saveBulkSettings() {
+  try {
+    const settings = {
+      priorities: [1,2,3,4,5].map(i => (document.getElementById(`p${i}`)?.value || '').trim()),
+      minPrice:   document.getElementById('minPrice')?.value || '',
+      fallback:   _fallbackMode,
+      skip:       document.getElementById('skipPriced')?.checked || false,
+    };
+    localStorage.setItem(_bulkSettingsKey(), JSON.stringify(settings));
+    _showSaveIndicator();
+  } catch (e) { /* localStorage 비활성화 환경 무시 */ }
+}
+
+function loadBulkSettings() {
+  try {
+    const raw = localStorage.getItem(_bulkSettingsKey());
+    if (!raw) return;
+    const s = JSON.parse(raw);
+
+    /* 우선순위 복원 */
+    if (Array.isArray(s.priorities)) {
+      s.priorities.slice(0, 5).forEach((name, i) => {
+        const el = document.getElementById(`p${i + 1}`);
+        if (el && name) el.value = name;
+      });
+    }
+
+    /* 희망 최저가 복원 */
+    const minEl = document.getElementById('minPrice');
+    if (minEl && s.minPrice) minEl.value = s.minPrice;
+
+    /* 미매칭 처리 방식 복원 */
+    if (s.fallback !== undefined) setFallback(s.fallback);
+
+    /* 덮어쓰기 체크박스 복원 */
+    const skipEl = document.getElementById('skipPriced');
+    if (skipEl && s.skip !== undefined) skipEl.checked = s.skip;
+
+    _showLoadedIndicator(s.priorities.filter(Boolean));
+  } catch (e) { /* 파싱 오류 무시 */ }
+}
+
+function clearBulkSettings() {
+  try {
+    localStorage.removeItem(_bulkSettingsKey());
+    [1,2,3,4,5].forEach(i => { const el = document.getElementById(`p${i}`); if (el) el.value = ''; });
+    const minEl = document.getElementById('minPrice');
+    if (minEl) minEl.value = '';
+    setFallback('');
+    const skipEl = document.getElementById('skipPriced');
+    if (skipEl) skipEl.checked = false;
+    _updateSaveStatusEl('설정 초기화됨', '#e86060', 2000);
+  } catch (e) { /* 무시 */ }
+}
+
+function _showSaveIndicator() {
+  const now = new Date();
+  const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  _updateSaveStatusEl(`✓ ${timeStr} 저장됨`, 'var(--success, #3dd68c)', 2500);
+}
+
+function _showLoadedIndicator(priorities) {
+  if (!priorities.length) return;
+  _updateSaveStatusEl(`↺ 마지막 설정 불러옴 (${priorities.length}개 판매처)`, 'var(--accent2)', 3500);
+}
+
+function _updateSaveStatusEl(msg, color, duration) {
+  const el = document.getElementById('bulkSaveStatus');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color   = color;
+  el.style.opacity = '1';
+  clearTimeout(el._timer);
+  if (duration) el._timer = setTimeout(() => { el.style.opacity = '0'; }, duration);
+}
 
 function showAutocomplete(idx, val) {
   const list = document.getElementById(`ac${idx}`), q = val.trim();
@@ -550,20 +640,43 @@ function getBulkPriorities() {
 }
 
 let _fallbackMode = '';
+let _bulkLoadingSettings = false;  /* 로드 중 저장 트리거 방지 플래그 */
 function setFallback(mode) {
   _fallbackMode = mode;
   const map = { avg: 'btnFallbackAvg', max: 'btnFallbackMax', '': 'btnFallbackNone' };
   Object.values(map).forEach(id => {
-    const btn = document.getElementById(id), active = map[mode] === id;
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const active = map[mode] === id;
     btn.style.borderColor = active ? 'var(--accent2)' : 'var(--border2)';
     btn.style.background  = active ? 'rgba(124,107,255,0.1)' : 'none';
     btn.style.color       = active ? 'var(--accent2)' : 'var(--text-muted)';
   });
+  if (!_bulkLoadingSettings) saveBulkSettings();
 }
 
 async function runBulk() {
   const priorities = getBulkPriorities();
   if (!priorities.length) { alert('판매처 우선순위를 1개 이상 입력해주세요.'); return; }
+  saveBulkSettings();  /* 실행 직전에 현재 설정 저장 */
+
+  /* 덮어쓰기 경고 */
+  const skipPriced = document.getElementById('skipPriced');
+  if (skipPriced && !skipPriced.checked) {
+    const confirmed = await new Promise(resolve => {
+      const modal   = document.getElementById('overwriteModal');
+      const cancelB = document.getElementById('overwriteCancelBtn');
+      const confirmB= document.getElementById('overwriteConfirmBtn');
+      if (!modal) { resolve(true); return; }   /* 모달 없으면 그냥 진행 */
+      modal.style.display = 'flex';
+      const close = (val) => { modal.style.display = 'none'; resolve(val); };
+      cancelB.onclick  = () => close(false);
+      confirmB.onclick = () => close(true);
+      modal.onclick    = (e) => { if (e.target === modal) close(false); };
+    });
+    if (!confirmed) return;
+  }
+
   const btn = document.getElementById('runBtn');
   btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>적용 중...';
   try {
@@ -596,6 +709,18 @@ async function runBulk() {
     if (data.drop_count === 0) { if (btnDrop) btnDrop.style.display = 'none'; }
     if (data.needs_review_count === 0) { if (btnUnpriced) btnUnpriced.style.display = 'none'; }
     document.getElementById('resultBox').classList.add('show');
+
+    /* ── 인라인 패널 로드 ── */
+    const hasUnpriced = (data.needs_review_count || 0) > 0;
+    const hasDrop     = (data.drop_count || 0) > 0;
+    if (hasUnpriced || hasDrop) {
+      showInlinePanel(
+        hasUnpriced ? (data.needs_review_ids || []) : [],
+        hasDrop     ? (data.drop_ids || [])         : [],
+      );
+    } else {
+      hideInlinePanel();
+    }
   } catch (e) { alert('오류: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '⚡ 일괄 판매가 설정 실행'; }
 }
@@ -605,6 +730,439 @@ function resetBulkResult() {
   const btnUnpriced = document.getElementById('btnUnpriced');
   if (btnDrop) btnDrop.style.display = '';
   if (btnUnpriced) btnUnpriced.style.display = '';
+  hideInlinePanel();
+}
+
+
+/* ================================================================
+   인라인 결과 패널 — bulk_run 실행 후 미설정·하락 카드를
+   bulk_price 페이지에서 바로 처리 (페이지 이동 없이)
+   ================================================================ */
+
+/* 페이지에서 선언해야 하는 변수:
+   BULK_INLINE_CARDS_URL  — '/pokemon/kr/bulk-price/inline-cards/'
+   APPROVE_URL, EDIT_URL  — 기존과 동일
+*/
+
+let _inlineRaw = {};   /* { card_id(str): raw_data[] } */
+
+function hideInlinePanel() {
+  const overlay = document.getElementById('inlinePanelOverlay');
+  const panel   = document.getElementById('inlinePanel');
+  if (overlay) overlay.style.display = 'none';
+  if (panel)   panel.innerHTML = '';
+}
+
+async function showInlinePanel(unpricedIds, dropIds) {
+  const overlay = document.getElementById('inlinePanelOverlay');
+  const panel   = document.getElementById('inlinePanel');
+  if (!overlay || !panel) return;
+
+  /* 오버레이 표시 + 로딩 */
+  overlay.style.display = 'flex';
+  panel.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-dim);">
+    <span class="spinner-sm"></span>&nbsp; 카드 데이터 불러오는 중...
+  </div>`;
+
+  /* 오버레이 클릭으로 닫기 */
+  overlay.onclick = (e) => { if (e.target === overlay) hideInlinePanel(); };
+
+  try {
+    const [unpricedRes, dropRes] = await Promise.all([
+      unpricedIds.length ? fetch(BULK_INLINE_CARDS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ card_ids: unpricedIds, mode: 'unpriced' }),
+      }) : null,
+      dropIds.length ? fetch(BULK_INLINE_CARDS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ card_ids: dropIds, mode: 'drop' }),
+      }) : null,
+    ]);
+
+    const unpricedData = unpricedRes ? await unpricedRes.json() : { cards: [], raw: {} };
+    const dropData     = dropRes     ? await dropRes.json()     : { cards: [], raw: {} };
+
+    _inlineRaw = { ...unpricedData.raw, ...dropData.raw };
+    panel.innerHTML = _renderInlinePanel(unpricedData.cards, dropData.cards);
+    _initInlinePanelEvents();
+
+  } catch (e) {
+    panel.innerHTML = `<div style="padding:24px;color:var(--danger);">❌ 데이터 로드 실패: ${e.message}</div>`;
+  }
+}
+
+function _renderInlinePanel(unpricedCards, dropCards) {
+  const tabs = [];
+  if (unpricedCards.length) tabs.push({ id: 'tab-unpriced', label: `❓ 미설정 ${unpricedCards.length}개`, key: 'unpriced' });
+  if (dropCards.length)     tabs.push({ id: 'tab-drop',     label: `📉 하락 대기 ${dropCards.length}개`,  key: 'drop' });
+  if (!tabs.length) return '';
+
+  const activeKey = tabs[0].key;
+
+  const tabsHtml = tabs.map(t => `
+    <button class="inline-tab${t.key === activeKey ? ' active' : ''}"
+            id="${t.id}" onclick="switchInlineTab('${t.key}')">
+      ${t.label}
+    </button>`).join('');
+
+  return `
+  <div class="inline-panel-inner">
+    <div class="inline-panel-header">
+      <div style="display:flex;gap:6px;">${tabsHtml}</div>
+      <button onclick="hideInlinePanel()"
+              style="background:none;border:none;color:var(--text-dim);font-size:22px;cursor:pointer;
+                     padding:2px 8px;line-height:1;border-radius:6px;transition:color 0.15s;"
+              onmouseover="this.style.color='var(--danger)'"
+              onmouseout="this.style.color='var(--text-dim)'"
+              title="닫기">×</button>
+    </div>
+
+    <div id="inlineTabUnpriced" class="inline-tab-content${activeKey === 'unpriced' ? '' : ' hidden'}">
+      <div class="inline-tab-toolbar">
+        <button class="action-btn success" onclick="inlineSaveChecked('unpriced')">💾 체크된 카드 저장</button>
+        <button class="action-btn" onclick="inlineSaveAll('unpriced')">전체 저장</button>
+        <button class="action-btn" onclick="inlineFillAll('unpriced','min')">최저가 일괄 입력</button>
+        <button class="action-btn" onclick="inlineFillAll('unpriced','avg')">평균가 일괄 입력</button>
+        <span id="inlineUnpricedRemain" style="font-size:12px;color:var(--warning);
+              font-family:'JetBrains Mono',monospace;font-weight:700;margin-left:4px;">
+          ${unpricedCards.length}개 남음
+        </span>
+      </div>
+      <div class="inline-table-wrap">
+        <table class="issues-table">
+          <thead><tr>
+            <th style="width:28px;"><input type="checkbox" id="inlineCheckAllUnpriced"
+              onchange="toggleInlineAll('unpriced',this)" style="accent-color:var(--accent2);cursor:pointer;"></th>
+            <th style="width:36px;"></th>
+            <th>카드</th>
+            <th style="width:60px;">레어도</th>
+            <th style="width:90px;">확장팩</th>
+            <th>시장가 <span style="font-size:9px;color:var(--text-dim);">(클릭→입력)</span></th>
+            <th style="width:120px;">판매가 입력</th>
+            <th style="width:60px;"></th>
+          </tr></thead>
+          <tbody id="inlineUnpricedBody">
+            ${unpricedCards.map(c => _renderUnpricedRow(c)).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="inlineTabDrop" class="inline-tab-content${activeKey === 'drop' ? '' : ' hidden'}">
+      <div class="inline-tab-toolbar">
+        <button class="action-btn success" onclick="inlineApproveChecked()">✅ 체크된 카드 하락 반영</button>
+        <button class="action-btn" onclick="inlineApproveAll()">전체 하락 반영</button>
+        <button class="action-btn" onclick="inlineSaveChecked('drop')">💾 직접 입력 저장</button>
+        <div style="display:flex;align-items:center;gap:4px;margin-left:4px;">
+          <input type="number" id="inlineDropPctThreshold" value="10" min="1" max="99" step="1"
+                 style="width:52px;padding:4px 6px;background:var(--bg);border:1px solid var(--border2);
+                        border-radius:5px;color:var(--text);font-family:'JetBrains Mono',monospace;
+                        font-size:12px;font-weight:700;outline:none;text-align:center;"
+                 onfocus="this.style.borderColor='var(--accent2)'"
+                 onblur="this.style.borderColor='var(--border2)'">
+          <span style="font-size:11px;color:var(--text-muted);">% 이하</span>
+          <button class="action-btn" style="white-space:nowrap;"
+                  onclick="inlineApproveByPct()">일괄 반영</button>
+        </div>
+        <span id="inlineDropRemain" style="font-size:12px;color:var(--danger);
+              font-family:'JetBrains Mono',monospace;font-weight:700;margin-left:4px;">
+          ${dropCards.length}개 남음
+        </span>
+      </div>
+      <div class="inline-table-wrap">
+        <table class="issues-table">
+          <thead><tr>
+            <th style="width:28px;"><input type="checkbox" id="inlineCheckAllDrop"
+              onchange="toggleInlineAll('drop',this)" style="accent-color:var(--accent2);cursor:pointer;"></th>
+            <th style="width:36px;"></th>
+            <th>카드</th>
+            <th style="width:60px;">레어도</th>
+            <th style="width:70px;">현재가</th>
+            <th style="width:70px;">하락가</th>
+            <th style="width:60px;">하락</th>
+            <th>시장가</th>
+            <th style="width:120px;">직접 입력</th>
+            <th style="width:60px;"></th>
+          </tr></thead>
+          <tbody id="inlineDropBody">
+            ${dropCards.map(c => _renderDropRow(c)).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function _renderUnpricedRow(c) {
+  const raw    = _inlineRaw[String(c.id)] || [];
+  const prices = raw.map(i => parseInt(i.lprice)).filter(p => p > 0).sort((a, b) => a - b);
+  const minP   = prices.length ? prices[0] : 0;
+  const avgP   = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+  const maxP   = prices.length ? prices[prices.length - 1] : 0;
+
+  const statsHtml = prices.length
+    ? `<div class="market-pills">
+        <span class="stat-pill stat-min" onclick="event.stopPropagation();inlineFillPrice(${c.id},'unpriced',${minP})" title="최저가 클릭 시 입력">
+          <span class="pill-label">최저</span>${minP.toLocaleString()}
+        </span>
+        <span class="stat-pill stat-avg" onclick="event.stopPropagation();inlineFillPrice(${c.id},'unpriced',${avgP})" title="평균가">
+          <span class="pill-label">평균</span>${avgP.toLocaleString()}
+        </span>
+        <span class="stat-pill stat-max" onclick="event.stopPropagation();inlineFillPrice(${c.id},'unpriced',${maxP})" title="최고가">
+          <span class="pill-label">최고</span>${maxP.toLocaleString()}
+        </span>
+       </div>`
+    : `<span style="font-size:11px;color:var(--text-dim);">데이터 없음</span>`;
+
+  return `<tr id="inline-row-unpriced-${c.id}" data-id="${c.id}" data-mode="unpriced">
+    <td onclick="event.stopPropagation()">
+      <input type="checkbox" class="inline-row-check" data-id="${c.id}" data-mode="unpriced"
+             style="accent-color:var(--accent2);cursor:pointer;width:14px;height:14px;">
+    </td>
+    <td>${c.image_url ? `<img src="${c.image_url}" class="card-thumb" loading="lazy">` : ''}</td>
+    <td>
+      <strong>${c.name}</strong>
+      <span style="font-size:11px;color:var(--text-muted);margin-left:4px;
+                   font-family:'JetBrains Mono',monospace;">${c.card_number}</span>
+    </td>
+    <td><span class="rarity-badge">${c.rarity}</span></td>
+    <td style="font-size:11px;color:var(--text-muted);">${c.expansion_code}</td>
+    <td onclick="event.stopPropagation()">${statsHtml}</td>
+    <td onclick="event.stopPropagation()">
+      <input type="number" class="price-input-issues" id="inline-input-${c.id}"
+             placeholder="가격" min="1" step="100" style="width:100%;"
+             onkeydown="if(event.key==='Enter') inlineSaveOne(${c.id},'unpriced')">
+    </td>
+    <td onclick="event.stopPropagation()">
+      <button class="issue-save-btn" style="width:100%;padding:5px 6px;"
+              onclick="inlineSaveOne(${c.id},'unpriced')">저장</button>
+    </td>
+  </tr>`;
+}
+
+function _renderDropRow(c) {
+  const dropAmt = c.selling_price - c.modified_price;
+  const dropPct = c.drop_pct ?? ((dropAmt / c.selling_price) * 100).toFixed(1);
+  const raw     = _inlineRaw[String(c.id)] || [];
+  const prices  = raw.map(i => parseInt(i.lprice)).filter(p => p > 0).sort((a, b) => a - b);
+  const minP    = prices.length ? prices[0] : 0;
+  const avgP    = prices.length ? Math.round(prices.reduce((a, b) => a + b, 0) / prices.length) : 0;
+
+  const statsHtml = prices.length
+    ? `<span class="stat-pill stat-min" onclick="event.stopPropagation();inlineFillPrice(${c.id},'drop',${minP})"
+             style="cursor:pointer;" title="클릭→입력">
+         <span class="pill-label">최저</span>${minP.toLocaleString()}
+       </span>`
+    : `<span style="font-size:11px;color:var(--text-dim);">-</span>`;
+
+  const pctClass = dropPct < 10 ? 'diff-cheap' : dropPct < 30 ? '' : 'diff-exp';
+
+  return `<tr id="inline-row-drop-${c.id}" data-id="${c.id}" data-mode="drop" data-drop-pct="${dropPct}">
+    <td onclick="event.stopPropagation()">
+      <input type="checkbox" class="inline-row-check" data-id="${c.id}" data-mode="drop"
+             style="accent-color:var(--accent2);cursor:pointer;width:14px;height:14px;">
+    </td>
+    <td>${c.image_url ? `<img src="${c.image_url}" class="card-thumb" loading="lazy">` : ''}</td>
+    <td>
+      <strong>${c.name}</strong>
+      <span style="font-size:11px;color:var(--text-muted);margin-left:4px;
+                   font-family:'JetBrains Mono',monospace;">${c.card_number}</span>
+    </td>
+    <td><span class="rarity-badge">${c.rarity}</span></td>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:12px;">${c.selling_price.toLocaleString()}</td>
+    <td style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--danger);">
+      ${c.modified_price.toLocaleString()}
+    </td>
+    <td>
+      <span class="diff-badge ${pctClass}">▼${dropPct}%</span>
+    </td>
+    <td onclick="event.stopPropagation()">${statsHtml}</td>
+    <td onclick="event.stopPropagation()">
+      <input type="number" class="price-input-issues" id="inline-input-${c.id}"
+             placeholder="직접 입력" min="1" step="100" style="width:100%;"
+             onkeydown="if(event.key==='Enter') inlineSaveOne(${c.id},'drop')">
+    </td>
+    <td onclick="event.stopPropagation()">
+      <button class="issue-save-btn" style="width:100%;padding:5px 6px;"
+              onclick="inlineSaveOne(${c.id},'drop')">저장</button>
+    </td>
+  </tr>`;
+}
+
+function _initInlinePanelEvents() {
+  /* ESC 키로 닫기 */
+  const escHandler = (e) => { if (e.key === 'Escape') { hideInlinePanel(); document.removeEventListener('keydown', escHandler); } };
+  document.addEventListener('keydown', escHandler);
+}
+
+/* ── 탭 전환 ── */
+function switchInlineTab(key) {
+  ['unpriced', 'drop'].forEach(k => {
+    const tab     = document.getElementById(`tab-${k}`);
+    const content = document.getElementById(`inlineTab${k.charAt(0).toUpperCase() + k.slice(1)}`);
+    if (tab)     tab.classList.toggle('active', k === key);
+    if (content) content.classList.toggle('hidden', k !== key);
+  });
+}
+
+/* ── 가격 입력창 채우기 ── */
+function inlineFillPrice(cardId, mode, price) {
+  const input = document.getElementById(`inline-input-${cardId}`);
+  if (!input) return;
+  input.value = price;
+  input.classList.add('prefilled');
+  input.focus();
+}
+
+/* ── 전체 최저/평균가 일괄 입력 ── */
+function inlineFillAll(mode, priceType) {
+  const tbody = document.getElementById(mode === 'unpriced' ? 'inlineUnpricedBody' : 'inlineDropBody');
+  if (!tbody) return;
+  let count = 0;
+  tbody.querySelectorAll('tr:not(.done)').forEach(row => {
+    const cid    = row.dataset.id;
+    const raw    = _inlineRaw[String(cid)] || [];
+    const prices = raw.map(i => parseInt(i.lprice)).filter(p => p > 0);
+    if (!prices.length) return;
+    const price  = priceType === 'min'
+      ? Math.min(...prices)
+      : Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+    const input  = document.getElementById(`inline-input-${cid}`);
+    if (input && !input.disabled) {
+      input.value = price; input.classList.add('prefilled');
+      const cb = row.querySelector('.inline-row-check'); if (cb) cb.checked = true;
+      count++;
+    }
+  });
+  showIssueToast(`✅ ${count}개 카드에 ${priceType === 'min' ? '최저가' : '평균가'} 입력됐어요.`, 'ok');
+}
+
+/* ── 전체 체크박스 토글 ── */
+function toggleInlineAll(mode, masterCb) {
+  document.querySelectorAll(`.inline-row-check[data-mode="${mode}"]`)
+    .forEach(cb => cb.checked = masterCb.checked);
+}
+
+/* ── 행 완료 처리 ── */
+function _markInlineDone(cardId, mode) {
+  const row   = document.getElementById(`inline-row-${mode}-${cardId}`);
+  const input = document.getElementById(`inline-input-${cardId}`);
+  if (!row) return;
+
+  row.classList.add('done');
+  setTimeout(() => { row.classList.add('resolved'); setTimeout(() => row.remove(), 400); }, 600);
+  if (input) { input.classList.add('saved'); input.disabled = true; }
+
+  /* 남은 카운트 갱신 */
+  const remainEl = document.getElementById(mode === 'unpriced' ? 'inlineUnpricedRemain' : 'inlineDropRemain');
+  if (remainEl) {
+    const cur = parseInt(remainEl.textContent) || 0;
+    const next = Math.max(0, cur - 1);
+    remainEl.textContent = `${next}개 남음`;
+    if (next === 0) remainEl.style.color = 'var(--success, #3dd68c)';
+  }
+}
+
+/* ── 개별 저장 (미설정: set-price, 하락: edit) ── */
+async function inlineSaveOne(cardId, mode) {
+  const input = document.getElementById(`inline-input-${cardId}`);
+  const price = parseInt(input?.value);
+  if (!price || price <= 0) {
+    if (input) { input.style.borderColor = 'var(--danger)'; setTimeout(() => input.style.borderColor = '', 800); }
+    return;
+  }
+  try {
+    let res;
+    if (mode === 'unpriced') {
+      res = await fetch(`${BULK_INLINE_SET_PRICE_PREFIX}${cardId}/set-price/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ selling_price: price }),
+      });
+    } else {
+      res = await fetch(BULK_INLINE_EDIT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ card_id: cardId, price }),
+      });
+    }
+    const data = await res.json();
+    if (data.success) {
+      _markInlineDone(cardId, mode);
+      showIssueToast(`✅ ${price.toLocaleString()}원 저장 완료`, 'ok');
+    } else {
+      showIssueToast('❌ ' + (data.error || '오류'), 'err');
+    }
+  } catch {
+    showIssueToast('❌ 네트워크 오류', 'err');
+  }
+}
+
+/* ── 체크된 카드 저장 (미설정/하락 직접입력 공통) ── */
+async function inlineSaveChecked(mode) {
+  const checked = [...document.querySelectorAll(`.inline-row-check[data-mode="${mode}"]:checked`)];
+  if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
+  if (!confirm(`${checked.length}개 카드를 저장할까요?`)) return;
+  await _runParallel(checked.map(cb => parseInt(cb.dataset.id)), id => inlineSaveOne(id, mode));
+}
+
+/* ── 전체 저장 (미설정) ── */
+async function inlineSaveAll(mode) {
+  const rows = [...document.querySelectorAll(`#inline${mode === 'unpriced' ? 'Unpriced' : 'Drop'}Body tr:not(.done):not(.resolved)`)];
+  if (!rows.length) return;
+  if (!confirm(`${rows.length}개 카드를 전체 저장할까요?`)) return;
+  await _runParallel(rows.map(r => parseInt(r.dataset.id)), id => inlineSaveOne(id, mode));
+}
+
+/* ── 하락 반영 (approve: modified_price → selling_price) ── */
+async function _inlineApproveOne(cardId) {
+  try {
+    const res  = await fetch(BULK_INLINE_APPROVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ card_id: cardId }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      _markInlineDone(cardId, 'drop');
+    } else {
+      showIssueToast('❌ ' + (data.error || '오류'), 'err');
+    }
+  } catch {
+    showIssueToast('❌ 네트워크 오류', 'err');
+  }
+}
+
+async function inlineApproveChecked() {
+  const checked = [...document.querySelectorAll('.inline-row-check[data-mode="drop"]:checked')];
+  if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
+  if (!confirm(`${checked.length}개 카드에 하락가를 반영할까요?`)) return;
+  await _runParallel(checked.map(cb => parseInt(cb.dataset.id)), _inlineApproveOne);
+  showIssueToast(`✅ ${checked.length}개 하락 반영 완료`, 'ok');
+}
+
+async function inlineApproveAll() {
+  const rows = [...document.querySelectorAll('#inlineDropBody tr:not(.done):not(.resolved)')];
+  if (!rows.length) return;
+  if (!confirm(`전체 ${rows.length}개 카드에 하락가를 반영할까요?`)) return;
+  await _runParallel(rows.map(r => parseInt(r.dataset.id)), _inlineApproveOne);
+  showIssueToast(`✅ ${rows.length}개 하락 반영 완료`, 'ok');
+}
+
+/* ── N% 이하 하락 카드만 일괄 반영 (인라인 패널) ── */
+async function inlineApproveByPct() {
+  const threshold = parseFloat(document.getElementById('inlineDropPctThreshold')?.value) || 10;
+  const rows = [...document.querySelectorAll('#inlineDropBody tr:not(.done):not(.resolved)')]
+    .filter(r => parseFloat(r.dataset.dropPct) <= threshold);
+  if (!rows.length) {
+    showIssueToast(`하락폭 ${threshold}% 이하 카드가 없습니다.`, 'err');
+    return;
+  }
+  if (!confirm(`하락폭 ${threshold}% 이하 카드 ${rows.length}개에 하락가를 반영할까요?`)) return;
+  await _runParallel(rows.map(r => parseInt(r.dataset.id)), _inlineApproveOne);
+  showIssueToast(`✅ ${rows.length}개 반영 완료 (${threshold}% 이하)`, 'ok');
 }
 
 
@@ -841,6 +1399,40 @@ async function approveAll() {
   if (!ids.length) return;
   if (!confirm(`전체 ${ids.length}개 카드를 저장할까요?`)) return;
   await _runParallel(ids, saveIssueEdit);
+}
+
+/* ── N% 이하 하락 카드만 일괄 approve (bulk_drop 페이지) ── */
+async function approveByPct() {
+  const threshold = parseFloat(document.getElementById('dropPctThreshold')?.value) || 10;
+  const rows = [...document.querySelectorAll('#cardTableBody tr:not(.resolved):not(.done)')]
+    .filter(r => {
+      const pct = parseFloat(r.dataset.dropPct);
+      return !isNaN(pct) && pct <= threshold;
+    });
+  if (!rows.length) {
+    showIssueToast(`하락폭 ${threshold}% 이하 카드가 없습니다.`, 'err');
+    return;
+  }
+  if (!confirm(`하락폭 ${threshold}% 이하 카드 ${rows.length}개에 하락가를 반영할까요?`)) return;
+
+  const btn = document.getElementById('approveByPctBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>처리 중...'; }
+
+  let done = 0;
+  await _runParallel(rows.map(r => parseInt(r.dataset.id)), async (cardId) => {
+    try {
+      const res  = await fetch(APPROVE_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body:    JSON.stringify({ card_id: cardId }),
+      });
+      const data = await res.json();
+      if (data.success) { markIssueDone(cardId); done++; }
+    } catch { /* 개별 오류는 무시하고 계속 */ }
+  });
+
+  if (btn) { btn.disabled = false; btn.textContent = `≤${threshold}% 일괄 반영`; }
+  showIssueToast(`✅ ${done}개 반영 완료 (${threshold}% 이하)`, 'ok');
 }
 
 /* ── 행 완료 처리 ── */

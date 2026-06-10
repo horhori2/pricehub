@@ -87,6 +87,22 @@
         <div class="ctrl-divider"></div>
         <button class="action-btn success" id="saveAllBtn" onclick="approveChecked()">💾 체크된 카드 저장</button>
         <button class="action-btn" onclick="approveAll()">전체 저장</button>
+        <div class="ctrl-divider"></div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <input type="number" id="dropPctThreshold" value="10" min="1" max="99" step="1"
+                 style="width:52px;padding:5px 7px;background:var(--bg);
+                        border:1px solid var(--border2);border-radius:6px;
+                        color:var(--text);font-family:'JetBrains Mono',monospace;
+                        font-size:12px;font-weight:700;outline:none;text-align:center;
+                        -moz-appearance:textfield;"
+                 onfocus="this.style.borderColor='var(--accent2)'"
+                 onblur="this.style.borderColor='var(--border2)'"
+                 oninput="document.getElementById('approveByPctBtn').textContent='≤'+this.value+'% 일괄 반영'">
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">% 이하</span>
+          <button class="action-btn" id="approveByPctBtn"
+                  onclick="approveByPct()"
+                  style="white-space:nowrap;">≤10% 일괄 반영</button>
+        </div>
       </div>
     </div>
 
@@ -138,6 +154,7 @@
             data-image="{{ item.card.image_url|default:'' }}"
             data-selling="{{ item.selling_price }}"
             data-modified="{{ item.modified_price }}"
+            data-drop-pct="{{ item.drop_pct }}"
             onclick="showIssuesSidePanel({{ item.card.id }})">
 
           <td onclick="event.stopPropagation()">

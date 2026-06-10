@@ -636,6 +636,10 @@ def _bulk_price_view(request, cfg_key):
             'bulk_run_url':         f'{base_url}/bulk-price/run/',
             'drop_url':             f'{base_url}/bulk-price/drop/',
             'unpriced_url':         f'{base_url}/bulk-price/unpriced/',
+            'inline_cards_url':     f'{base_url}/bulk-price/inline-cards/',
+            'approve_url':          f'{base_url}/bulk-price/approve/',
+            'edit_url':             f'{base_url}/bulk-price/edit/',
+            'set_price_url_prefix': f'{base_url}/cards/',
             'high_rarity_list':     cfg.get('high_rarity_list', '[]'),
         },
     })
@@ -788,6 +792,7 @@ def _common_issues_config(cfg):
         'high_rarity_list':     cfg.get('bulk_issues_high_rarity_list', cfg.get('high_rarity_list', '[]')),
         'drop_url':             f'{base_url}/bulk-price/drop/',
         'unpriced_url':         f'{base_url}/bulk-price/unpriced/',
+        'inline_cards_url':     f'{base_url}/bulk-price/inline-cards/',
     }
 
 
@@ -974,6 +979,71 @@ def _bulk_unpriced_view(request, cfg_key):
     })
 
 
+def _bulk_inline_cards_view(request, cfg_key):
+    """
+    인라인 결과 패널용 — card_id 목록을 받아 카드 기본 정보 + raw_data 반환.
+    POST body: { "card_ids": [1, 2, ...], "mode": "unpriced" | "drop" }
+    """
+    cfg         = _cfg(cfg_key)
+    card_model  = cfg['card_model']
+    price_model = cfg['price_model']
+
+    try:
+        body     = json.loads(request.body)
+        card_ids = [int(i) for i in body.get('card_ids', [])][:200]  # 최대 200개
+        mode     = body.get('mode', 'unpriced')
+    except (json.JSONDecodeError, TypeError, ValueError):
+        return JsonResponse({'error': 'Invalid request'}, status=400)
+
+    if not card_ids:
+        return JsonResponse({'cards': [], 'raw': {}})
+
+    cards = list(
+        card_model.objects.filter(pk__in=card_ids)
+        .select_related('expansion')
+        .values(
+            'id', 'name', 'rarity', 'card_number', 'image_url',
+            'selling_price', 'modified_price',
+            'expansion__code', 'expansion__name',
+        )
+    )
+
+    # raw_data 수집 (카드 ID별 최신 1건)
+    seen_raw = {}
+    for cp in (
+        price_model.objects.filter(card_id__in=card_ids)
+        .exclude(raw_data={}).exclude(raw_data=[])
+        .order_by('-collected_at')
+        .values('card_id', 'raw_data')
+    ):
+        if cp['card_id'] not in seen_raw:
+            seen_raw[cp['card_id']] = cp['raw_data']
+
+    # 하락 모드면 drop_pct 계산 추가
+    result_cards = []
+    for c in cards:
+        item = {
+            'id':             c['id'],
+            'name':           c['name'],
+            'rarity':         c['rarity'],
+            'card_number':    c['card_number'],
+            'image_url':      c['image_url'] or '',
+            'selling_price':  int(c['selling_price'] or 0),
+            'modified_price': int(c['modified_price'] or 0),
+            'expansion_code': c['expansion__code'],
+            'expansion_name': c['expansion__name'],
+        }
+        if mode == 'drop' and item['selling_price'] > 0:
+            drop_amt = item['selling_price'] - item['modified_price']
+            item['drop_pct'] = round((drop_amt / item['selling_price']) * 100, 1)
+        result_cards.append(item)
+
+    return JsonResponse({
+        'cards': result_cards,
+        'raw':   {str(k): v for k, v in seen_raw.items()},
+    })
+
+
 def _bulk_approve_view(request, cfg_key):
     """개별 카드 반영: modified_price → selling_price, modified_price 초기화"""
     cfg = _cfg(cfg_key)
@@ -1134,6 +1204,12 @@ def pokemon_kr_bulk_unpriced(request):
 @require_POST
 def pokemon_kr_bulk_approve(request):
     return _bulk_approve_view(request, 'pokemon_kr')
+
+
+@staff_required
+@require_POST
+def pokemon_kr_bulk_inline_cards(request):
+    return _bulk_inline_cards_view(request, 'pokemon_kr')
 
 
 @staff_required
@@ -1347,6 +1423,12 @@ def onepiece_kr_bulk_unpriced(request):
 @require_POST
 def onepiece_kr_bulk_approve(request):
     return _bulk_approve_view(request, 'onepiece_kr')
+
+
+@staff_required
+@require_POST
+def onepiece_kr_bulk_inline_cards(request):
+    return _bulk_inline_cards_view(request, 'onepiece_kr')
 
 
 @staff_required

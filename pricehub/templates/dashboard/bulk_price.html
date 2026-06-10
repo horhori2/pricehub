@@ -9,6 +9,64 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── 인라인 결과 패널 (모달) ── */
+.inline-panel-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 20px 24px;
+  overflow: hidden;
+}
+.inline-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+.inline-tab {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border2, #2a2d3a);
+  background: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.inline-tab.active {
+  background: rgba(124,107,255,0.12);
+  border-color: var(--accent2);
+  color: var(--accent2);
+}
+.inline-tab-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.inline-tab-content.hidden { display: none; }
+.inline-tab-toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+.inline-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid var(--border2, #2a2d3a);
+  border-radius: 8px;
+}
+.inline-table-wrap .issues-table { font-size: 12px; }
+.inline-table-wrap .issues-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface, var(--bg));
+}
+</style>
 </head>
 <body>
 
@@ -130,7 +188,21 @@
     <!-- 우: 우선순위 설정 -->
     <div class="right-panel">
       <div class="priority-section">
-        <div class="panel-title" style="margin-bottom:14px;"><span class="panel-dot"></span>판매처 우선순위</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+          <div class="panel-title" style="margin-bottom:0;"><span class="panel-dot"></span>판매처 우선순위</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="bulkSaveStatus"
+                  style="font-size:11px;font-family:'JetBrains Mono',monospace;opacity:0;transition:opacity 0.4s;"></span>
+            <button onclick="clearBulkSettings()" title="저장된 설정 초기화"
+                    style="background:none;border:1px solid var(--border2);border-radius:5px;color:var(--text-dim);
+                           font-size:11px;padding:2px 7px;cursor:pointer;font-family:inherit;white-space:nowrap;
+                           transition:all 0.15s;"
+                    onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'"
+                    onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text-dim)'">
+              ↺ 초기화
+            </button>
+          </div>
+        </div>
         <div class="priority-list">
           {% for i in "12345" %}{% with num=forloop.counter %}
           <div class="priority-item">
@@ -184,7 +256,7 @@
         <div class="selected-rarities-display" id="selectedRaritiesDisplay"></div>
 
         <label class="checkbox-wrap">
-          <input type="checkbox" id="skipPriced">
+          <input type="checkbox" id="skipPriced" checked>
           이미 설정된 카드는 덮어쓰지 않음
         </label>
 
@@ -210,6 +282,45 @@
   <script id="rarityData" type="application/json">{{ selected_rarities_json|safe }}</script>
 </main>
 
+<div class="toast" id="toast"></div>
+
+<!-- 덮어쓰기 경고 모달 -->
+<div id="overwriteModal" style="display:none;position:fixed;inset:0;z-index:300;
+     background:rgba(0,0,0,0.6);align-items:center;justify-content:center;">
+  <div style="background:var(--surface,var(--bg));border:1px solid var(--border2,#2a2d3a);
+              border-radius:14px;padding:28px 32px;width:min(420px,90vw);
+              box-shadow:0 20px 50px rgba(0,0,0,0.5);">
+    <div style="font-size:28px;margin-bottom:12px;">⚠️</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text);">기존 판매가 덮어쓰기</div>
+    <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:24px;">
+      <span style="color:var(--danger,#e86060);font-weight:700;">이미 설정된 카드의 판매가도 전부 덮어씁니다.</span><br>
+      계속 진행할까요?
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="overwriteCancelBtn"
+              style="padding:9px 20px;border-radius:8px;border:1px solid var(--border2);
+                     background:none;color:var(--text-muted);font-size:13px;font-weight:700;
+                     cursor:pointer;font-family:inherit;">취소</button>
+      <button id="overwriteConfirmBtn"
+              style="padding:9px 20px;border-radius:8px;border:none;
+                     background:var(--danger,#e86060);color:#fff;font-size:13px;font-weight:700;
+                     cursor:pointer;font-family:inherit;">덮어쓰고 실행</button>
+    </div>
+  </div>
+</div>
+
+<!-- 인라인 결과 패널 모달 -->
+<div id="inlinePanelOverlay" style="display:none;position:fixed;inset:0;z-index:200;
+     background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;padding:24px;">
+  <div id="inlinePanel"
+       style="width:min(900px,100%);max-height:calc(100vh - 80px);
+              background:var(--surface,var(--bg));
+              border:1px solid var(--border2,#2a2d3a);border-radius:14px;
+              display:flex;flex-direction:column;overflow:hidden;
+              box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+  </div>
+</div>
+
 <script src="{% static 'dashboard/dashboard.js' %}"></script>
 <script>
 /* 페이지별 설정값 */
@@ -218,6 +329,12 @@ const BULK_PRICE_URL    = '{{ config.bulk_price_url }}';
 const BULK_SHOP_STATS_URL = '{{ config.bulk_shop_stats_url }}';
 const BULK_DROP_URL     = '{{ config.drop_url }}';
 const BULK_UNPRICED_URL = '{{ config.unpriced_url }}';
+
+/* 인라인 패널 URL */
+const BULK_INLINE_CARDS_URL       = '{{ config.inline_cards_url }}';
+const BULK_INLINE_APPROVE_URL     = '{{ config.approve_url }}';
+const BULK_INLINE_EDIT_URL        = '{{ config.edit_url }}';
+const BULK_INLINE_SET_PRICE_PREFIX = '{{ config.set_price_url_prefix }}';
 let SHOPS       = [];
 let OVERALL_AVG = 0;
 let MAX_COUNT   = 1;
@@ -272,6 +389,27 @@ updateBulkRarityDisplay();
 document.querySelectorAll('.priority-input').forEach((input, i) => {
   input.addEventListener('focus', () => showAutocomplete(i + 1, input.value));
 });
+
+/* ── 판매처 설정 자동 저장/불러오기 초기화 ── */
+(function initBulkSettingsPersistence() {
+  /* 로드 플래그 켜기 → setFallback이 저장을 트리거하지 않도록 */
+  _bulkLoadingSettings = true;
+  loadBulkSettings();
+  _bulkLoadingSettings = false;
+
+  /* 우선순위 input 변경 시 자동 저장 */
+  document.querySelectorAll('.priority-input').forEach(input => {
+    input.addEventListener('change', saveBulkSettings);
+  });
+
+  /* minPrice 변경 시 자동 저장 */
+  const minPriceEl = document.getElementById('minPrice');
+  if (minPriceEl) minPriceEl.addEventListener('change', saveBulkSettings);
+
+  /* skipPriced 체크박스 변경 시 자동 저장 */
+  const skipEl = document.getElementById('skipPriced');
+  if (skipEl) skipEl.addEventListener('change', saveBulkSettings);
+})();
 </script>
 </body>
 </html>
