@@ -57,10 +57,6 @@ def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
         ]
     if has_favorites:
         patterns += [
-            path('favorites/',
-                 views['favorites'],            name=f'{name}-favorites'),
-            path('favorites/reset-prices/',
-                 views['reset_fav_prices'],     name=f'{name}-reset-fav-prices'),
             path('cards/<int:card_id>/favorite/',
                  views['toggle_favorite'],      name=f'{name}-toggle-favorite'),
         ]
@@ -81,8 +77,6 @@ _pokemon_kr_views = {
     'bulk_unpriced':     v.pokemon_kr_bulk_unpriced,
     'shop_stats':        v.pokemon_kr_shop_stats,
     'shop_stats_detail': v.pokemon_kr_shop_stats_detail,
-    'favorites':         v.pokemon_kr_favorites,
-    'reset_fav_prices':  v.pokemon_kr_reset_favorite_prices,
     'toggle_favorite':   v.pokemon_kr_toggle_favorite,
     'bulk_approve':      v.pokemon_kr_bulk_approve,
     'bulk_edit':         v.pokemon_kr_bulk_edit,
@@ -108,8 +102,6 @@ _onepiece_kr_views = {
     'bulk_run':        v.onepiece_kr_bulk_run,
     'bulk_drop':       v.onepiece_kr_bulk_drop,
     'bulk_unpriced':   v.onepiece_kr_bulk_unpriced,
-    'favorites':        v.onepiece_kr_favorites,
-    'reset_fav_prices': v.onepiece_kr_reset_favorite_prices,
     'toggle_favorite':  v.onepiece_kr_toggle_favorite,
     'bulk_approve':     v.onepiece_kr_bulk_approve,
     'bulk_edit':        v.onepiece_kr_bulk_edit,

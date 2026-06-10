@@ -71,8 +71,10 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .empty { text-align: center; padding: 80px; color: var(--text-muted); }
 
 /* ── 별(즐겨찾기) 버튼 ── */
-.star-toggle { background: none; border: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 4px 6px; border-radius: 6px; transition: transform 0.15s; }
-.star-toggle:hover { transform: scale(1.25); }
+.star-toggle { background: none; border: 1px solid var(--border2); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 7px; border-radius: 6px; transition: all 0.15s; color: var(--text-dim); opacity: 0.45; }
+.star-toggle:not(.active) { filter: grayscale(1); }
+.star-toggle:hover { transform: scale(1.2); opacity: 1; border-color: rgba(255,199,0,0.35); background: rgba(255,199,0,0.07); filter: none; color: #ffc700; }
+.star-toggle.active { opacity: 1; filter: none; color: #ffc700; }
 .star-toggle.popping { animation: star-pop 0.3s cubic-bezier(.36,.07,.19,.97); }
 @keyframes star-pop {
   0%   { transform: scale(1); }
