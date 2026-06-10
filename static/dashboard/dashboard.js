@@ -915,7 +915,9 @@ function showIssuesSidePanel(cardId) {
 
 /* ── 판매처 클릭 → 가격 입력창 채우기 ── */
 function fillIssuePrice(cardId, price) {
-  const input = document.getElementById(`input-${cardId}`);
+  /* issues 페이지: id="input-{id}", card_list 페이지: id="inp-{id}" */
+  const input = document.getElementById(`input-${cardId}`)
+             || document.getElementById(`inp-${cardId}`);
   if (!input) return;
   input.value = price; input.classList.add('prefilled'); input.focus();
   document.getElementById(`row-${cardId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1307,4 +1309,252 @@ function showShopToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = `toast ${type}`; t.style.display = 'block';
   setTimeout(() => t.style.display = 'none', 3500);
+}
+
+/* ================================================================
+   card_list.js — 카드 목록 페이지 전용
+   ================================================================ */
+
+/* SET_PRICE_BASE: 각 페이지에서 const로 선언 */
+
+function openPriceInput(cardId, currentPrice) {
+  document.getElementById('disp-' + cardId).style.display = 'none';
+  const wrap = document.getElementById('edit-' + cardId);
+  wrap.classList.add('show');
+  const inp = document.getElementById('inp-' + cardId);
+  inp.value = currentPrice || '';
+  setTimeout(() => { inp.focus(); inp.select(); }, 50);
+}
+
+function closePriceInput(cardId) {
+  document.getElementById('disp-' + cardId).style.display = '';
+  document.getElementById('edit-' + cardId).classList.remove('show');
+}
+
+function handlePriceKey(e, cardId) {
+  if (e.key === 'Enter')  saveInlinePrice(cardId);
+  if (e.key === 'Escape') closePriceInput(cardId);
+}
+
+async function saveInlinePrice(cardId) {
+  const inp   = document.getElementById('inp-' + cardId);
+  const price = parseInt(inp.value, 10) || 0;
+  const url   = SET_PRICE_BASE + '/' + cardId + '/set-price/';
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+  try {
+    const res  = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ selling_price: price }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      const disp = document.getElementById('disp-' + cardId);
+      disp.innerHTML = price > 0
+        ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-edit-hint">✎</span>`
+        : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
+      const row = document.getElementById('row-' + cardId);
+      if (row) row.dataset.selling = price;
+      closePriceInput(cardId);
+      showToast('저장됐습니다.');
+    } else {
+      showToast('저장 실패: ' + (data.error || ''));
+    }
+  } catch {
+    showToast('오류가 발생했습니다.');
+  }
+}
+
+function toggleAllCards(masterCb) {
+  document.querySelectorAll('.card-check').forEach(cb => cb.checked = masterCb.checked);
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.card-check:checked');
+  const master  = document.getElementById('checkAll');
+  const all     = document.querySelectorAll('.card-check');
+  document.getElementById('bulkCount').textContent = `${checked.length}개 선택`;
+  master.indeterminate = checked.length > 0 && checked.length < all.length;
+  master.checked = checked.length === all.length && all.length > 0;
+}
+
+function clearBulkSelection() {
+  document.querySelectorAll('.card-check').forEach(cb => cb.checked = false);
+  document.getElementById('checkAll').checked = false;
+  document.getElementById('checkAll').indeterminate = false;
+  updateBulkBar();
+}
+
+async function saveBulkPrice() {
+  const price = parseInt(document.getElementById('bulkPriceInput').value, 10) || 0;
+  const checked = [...document.querySelectorAll('.card-check:checked')];
+  if (!checked.length) return;
+
+  const useMinFilter = document.getElementById('minPriceToggle').checked;
+  const threshold    = price;
+  const csrfToken    = document.querySelector('meta[name="csrf-token"]').content;
+  let successCount = 0, skippedCount = 0;
+
+  await Promise.all(checked.map(async cb => {
+    const cardId = cb.dataset.id;
+    if (useMinFilter && threshold > 0) {
+      const row = document.getElementById('row-' + cardId);
+      const currentPrice = row ? (parseInt(row.dataset.selling, 10) || 0) : 0;
+      if (currentPrice >= threshold) { skippedCount++; return; }
+    }
+    try {
+      const res  = await fetch(SET_PRICE_BASE + '/' + cardId + '/set-price/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ selling_price: price }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        successCount++;
+        const disp = document.getElementById('disp-' + cardId);
+        if (disp) {
+          disp.innerHTML = price > 0
+            ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-edit-hint">✎</span>`
+            : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
+        }
+        const row = document.getElementById('row-' + cardId);
+        if (row) row.dataset.selling = price;
+        document.getElementById('edit-' + cardId)?.classList.remove('show');
+        disp && (disp.style.display = '');
+      }
+    } catch {}
+  }));
+
+  const msg = skippedCount > 0
+    ? `${successCount}개 적용, ${skippedCount}개 스킵 (${threshold.toLocaleString()}원 이상)`
+    : `${successCount}개 카드에 ${price > 0 ? price.toLocaleString() + '원' : '미설정'} 적용됐습니다.`;
+  showToast(msg);
+  clearBulkSelection();
+  document.getElementById('bulkPriceInput').value = '';
+}
+
+function toggleCardListRarity(rarity, btn) {
+  if (_cardListRarities.has(rarity)) {
+    _cardListRarities.delete(rarity);
+    btn.classList.remove('active');
+  } else {
+    _cardListRarities.add(rarity);
+    btn.classList.add('active');
+  }
+  applyCardListRarityFilter();
+}
+
+function selectCardListRarities(rarities) {
+  _cardListRarities = new Set(rarities);
+  document.querySelectorAll('.rarity-chip').forEach(btn => {
+    btn.classList.toggle('active', _cardListRarities.has(btn.dataset.rarity));
+  });
+  applyCardListRarityFilter();
+}
+
+function applyCardListRarityFilter() {
+  const params = new URLSearchParams();
+  params.set('filter', _cardListFilterType || 'all');
+  params.set('sort',   _cardListSort || 'number');
+  _cardListRarities.forEach(r => params.append('rarities', r));
+  location.href = '?' + params.toString();
+}
+
+
+/* ================================================================
+   bulk_drop / bulk_unpriced — 일괄 가격 적용 (SET_PRICE_URL_PREFIX 사용)
+   bulk_drop: underOnly 옵션 지원
+   bulk_unpriced: underOnly 없음
+   ================================================================ */
+
+/**
+ * 체크된 카드에 일괄 가격 적용
+ * @param {boolean} [withUnderOnly=false]  true이면 현재 판매가 미만인 카드만 적용 (bulk_drop용)
+ */
+/* ── bulk_drop: 체크된 카드에 일괄 가격 적용 (판매가 미만만 적용 옵션 포함) ── */
+async function bulkSetPriceDrop() {
+  const price = parseInt(document.getElementById('bulkSetPriceInput').value, 10);
+  if (!price || price <= 0) {
+    showIssueToast('가격을 입력해주세요.', 'err'); return;
+  }
+
+  const underOnly = document.getElementById('bulkSetUnderOnly')?.checked;
+  const checked   = [...document.querySelectorAll('.row-check:checked')];
+  if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
+
+  const targets = checked.filter(cb => {
+    if (!underOnly) return true;
+    const row     = document.getElementById('row-' + cb.dataset.id);
+    const current = parseInt(row?.dataset.selling || '0', 10);
+    return current > price;
+  });
+
+  if (!targets.length) {
+    showIssueToast('조건에 맞는 카드가 없습니다.', 'err'); return;
+  }
+  if (!confirm(`${targets.length}개 카드에 ${price.toLocaleString()}원을 적용할까요?`)) return;
+
+  let success = 0, skip = 0;
+  await Promise.all(targets.map(async cb => {
+    const cardId = cb.dataset.id;
+    try {
+      const res  = await fetch(`${SET_PRICE_URL_PREFIX}${cardId}/set-price/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ selling_price: price }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const row = document.getElementById('row-' + cardId);
+        if (row) row.dataset.selling = price;
+        const input = document.getElementById('input-' + cardId);
+        if (input) { input.value = price; input.classList.add('saved'); }
+        success++;
+      } else skip++;
+    } catch { skip++; }
+  }));
+
+  const msg = skip > 0
+    ? `✅ ${success}개 적용, ${skip}개 실패`
+    : `✅ ${success}개에 ${price.toLocaleString()}원 적용 완료`;
+  showIssueToast(msg, success > 0 ? 'ok' : 'err');
+  document.getElementById('bulkSetPriceInput').value = '';
+}
+
+/* ── bulk_unpriced: 체크된 카드에 일괄 가격 적용 ── */
+async function bulkSetPriceUnpriced() {
+  const price = parseInt(document.getElementById('bulkSetPriceInput').value, 10);
+  if (!price || price <= 0) {
+    showIssueToast('가격을 입력해주세요.', 'err'); return;
+  }
+
+  const checked = [...document.querySelectorAll('.row-check:checked')];
+  if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
+  if (!confirm(`${checked.length}개 카드에 ${price.toLocaleString()}원을 적용할까요?`)) return;
+
+  let success = 0, skip = 0;
+  await Promise.all(checked.map(async cb => {
+    const cardId = cb.dataset.id;
+    try {
+      const res  = await fetch(`${SET_PRICE_URL_PREFIX}${cardId}/set-price/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+        body: JSON.stringify({ selling_price: price }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const input = document.getElementById('input-' + cardId);
+        if (input) { input.value = price; input.classList.add('saved'); }
+        success++;
+      } else skip++;
+    } catch { skip++; }
+  }));
+
+  const msg = skip > 0
+    ? `✅ ${success}개 적용, ${skip}개 실패`
+    : `✅ ${success}개에 ${price.toLocaleString()}원 적용 완료`;
+  showIssueToast(msg, success > 0 ? 'ok' : 'err');
+  document.getElementById('bulkSetPriceInput').value = '';
 }

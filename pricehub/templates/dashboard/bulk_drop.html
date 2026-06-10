@@ -117,8 +117,8 @@
                       font-size:13px;font-weight:600;outline:none;-moz-appearance:textfield;"
                onfocus="this.style.borderColor='var(--accent2)'"
                onblur="this.style.borderColor='var(--border2)'"
-               onkeydown="if(event.key==='Enter') bulkSetPrice()">
-        <button class="action-btn success" onclick="bulkSetPrice()" style="white-space:nowrap;">💾 체크된 카드에 적용</button>
+               onkeydown="if(event.key==='Enter') bulkSetPriceDrop()">
+        <button class="action-btn success" onclick="bulkSetPriceDrop()" style="white-space:nowrap;">💾 체크된 카드에 적용</button>
         <div class="ctrl-divider"></div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;">
           <input type="checkbox" id="bulkSetUnderOnly"
@@ -325,56 +325,6 @@ const CARD_RAW = (() => {
   catch { return {}; }
 })();
 let selectedRarities = new Set({{ selected_rarities_json|safe }});
-
-async function bulkSetPrice() {
-  const price = parseInt(document.getElementById('bulkSetPriceInput').value, 10);
-  if (!price || price <= 0) {
-    showIssueToast('가격을 입력해주세요.', 'err'); return;
-  }
-  const underOnly = document.getElementById('bulkSetUnderOnly').checked;
-  const checked = [...document.querySelectorAll('.row-check:checked')];
-  if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
-
-  const targets = checked.filter(cb => {
-    if (!underOnly) return true;
-    const row = document.getElementById('row-' + cb.dataset.id);
-    const current = parseInt(row?.dataset.selling || '0', 10);
-    return current > price;
-  });
-
-  if (!targets.length) {
-    showIssueToast('조건에 맞는 카드가 없습니다.', 'err'); return;
-  }
-  if (!confirm(`${targets.length}개 카드에 ${price.toLocaleString()}원을 적용할까요?`)) return;
-
-  let success = 0, skip = 0;
-  await Promise.all(targets.map(async cb => {
-    const cardId = cb.dataset.id;
-    try {
-      const res = await fetch(`${SET_PRICE_URL_PREFIX}${cardId}/set-price/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-        body: JSON.stringify({ selling_price: price }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        // 행의 data-selling 동기화
-        const row = document.getElementById('row-' + cardId);
-        if (row) row.dataset.selling = price;
-        // input 값도 업데이트
-        const input = document.getElementById('input-' + cardId);
-        if (input) { input.value = price; input.classList.add('saved'); }
-        success++;
-      } else skip++;
-    } catch { skip++; }
-  }));
-
-  const msg = skip > 0
-    ? `✅ ${success}개 적용, ${skip}개 실패`
-    : `✅ ${success}개에 ${price.toLocaleString()}원 적용 완료`;
-  showIssueToast(msg, success > 0 ? 'ok' : 'err');
-  document.getElementById('bulkSetPriceInput').value = '';
-}
 </script>
 
 <script src="{% static 'dashboard/dashboard.js' %}"></script>

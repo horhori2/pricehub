@@ -550,3 +550,52 @@ canvas { max-height: 280px; }
 .pg-num:hover { border-color:var(--accent2); color:var(--accent2); }
 .pg-num.active { background:var(--accent2); border-color:var(--accent2); color:#fff; cursor:default; }
 .pg-info { font-size:12px; color:var(--text-dim); font-family:'JetBrains Mono',monospace; margin-left:6px; white-space:nowrap; }
+
+/* ================================================================
+   home.html 전용
+   ================================================================ */
+.logo { display: flex; align-items: center; gap: 10px; }
+.logo-badge { background: var(--accent2); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
+.logo-text { font-size: 15px; font-weight: 700; }
+
+.page-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 48px; }
+
+.game-section { margin-bottom: 40px; }
+.game-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.game-icon { font-size: 28px; }
+.game-name { font-size: 20px; font-weight: 800; }
+.coming-soon-badge { padding: 2px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; background: rgba(90,96,128,0.15); color: var(--text-muted); border: 1px solid var(--border2); }
+
+.region-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+.region-card { display: block; text-decoration: none; color: inherit; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 24px; transition: all 0.15s; position: relative; overflow: hidden; }
+.region-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); opacity: 0; transition: opacity 0.15s; }
+.region-card:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+.region-card:hover::before { opacity: 1; }
+
+.region-label { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+.region-stats { display: flex; gap: 16px; margin-bottom: 14px; }
+.region-stat-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; font-family: 'JetBrains Mono', monospace; }
+.region-stat-value { font-size: 22px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+.region-stat-value.green { color: var(--success); }
+.region-stat-value.yellow { color: var(--warning); }
+
+.coming-soon-card { background: var(--surface); border: 1px dashed var(--border); border-radius: 14px; padding: 22px 24px; display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 13px; }
+
+.progress-bar { height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; margin-bottom: 8px; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; transition: width 0.4s ease; }
+.progress-fill.complete { background: var(--success); }
+.progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+
+/* ================================================================
+   bulk_price.html — 인라인 결과 패널
+   ================================================================ */
+.inline-panel-inner { display: flex; flex-direction: column; height: 100%; padding: 20px 24px; overflow: hidden; }
+.inline-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-shrink: 0; }
+.inline-tab { padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border2); background: none; color: var(--text-muted); font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+.inline-tab.active { background: rgba(124,107,255,0.12); border-color: var(--accent2); color: var(--accent2); }
+.inline-tab-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+.inline-tab-content.hidden { display: none; }
+.inline-tab-toolbar { display: flex; gap: 6px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; flex-shrink: 0; }
+.inline-table-wrap { flex: 1; overflow-y: auto; overflow-x: auto; border: 1px solid var(--border2); border-radius: 8px; }
+.inline-table-wrap .issues-table { font-size: 12px; }
+.inline-table-wrap .issues-table thead th { position: sticky; top: 0; z-index: 1; background: var(--surface); }

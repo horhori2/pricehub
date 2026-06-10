@@ -97,8 +97,8 @@
                       font-size:13px;font-weight:600;outline:none;-moz-appearance:textfield;"
                onfocus="this.style.borderColor='var(--accent2)'"
                onblur="this.style.borderColor='var(--border2)'"
-               onkeydown="if(event.key==='Enter') bulkSetPrice()">
-        <button class="action-btn success" onclick="bulkSetPrice()" style="white-space:nowrap;">💾 체크된 카드에 적용</button>
+               onkeydown="if(event.key==='Enter') bulkSetPriceUnpriced()">
+        <button class="action-btn success" onclick="bulkSetPriceUnpriced()" style="white-space:nowrap;">💾 체크된 카드에 적용</button>
       </div>
     </div>
 
@@ -259,40 +259,6 @@ const CARD_RAW = (() => {
   catch { return {}; }
 })();
 let selectedRarities = new Set({{ selected_rarities_json|safe }});
-
-async function bulkSetPrice() {
-  const price = parseInt(document.getElementById('bulkSetPriceInput').value, 10);
-  if (!price || price <= 0) {
-    showIssueToast('가격을 입력해주세요.', 'err'); return;
-  }
-  const checked = [...document.querySelectorAll('.row-check:checked')];
-  if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
-  if (!confirm(`${checked.length}개 카드에 ${price.toLocaleString()}원을 적용할까요?`)) return;
-
-  let success = 0, skip = 0;
-  await Promise.all(checked.map(async cb => {
-    const cardId = cb.dataset.id;
-    try {
-      const res = await fetch(`${SET_PRICE_URL_PREFIX}${cardId}/set-price/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-        body: JSON.stringify({ selling_price: price }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const input = document.getElementById('input-' + cardId);
-        if (input) { input.value = price; input.classList.add('saved'); }
-        success++;
-      } else skip++;
-    } catch { skip++; }
-  }));
-
-  const msg = skip > 0
-    ? `✅ ${success}개 적용, ${skip}개 실패`
-    : `✅ ${success}개에 ${price.toLocaleString()}원 적용 완료`;
-  showIssueToast(msg, success > 0 ? 'ok' : 'err');
-  document.getElementById('bulkSetPriceInput').value = '';
-}
 </script>
 
 <script src="{% static 'dashboard/dashboard.js' %}"></script>

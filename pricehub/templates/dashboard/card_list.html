@@ -266,187 +266,22 @@
 /* 페이지별 설정값 */
 const TOGGLE_FAV_BASE = '{{ toggle_favorite_url_base }}';
 const RESET_URL       = '{{ reset_prices_url }}';
+const SET_PRICE_BASE  = '{{ detail_base_url }}';
 
-/* CARD_RAW: 사이드 패널 판매처 목록 */
 const CARD_RAW = (() => {
   try { return JSON.parse(document.getElementById('cardRawData').textContent); }
   catch { return {}; }
 })();
 
+/* 레어도 필터 상태 */
+let _cardListRarities   = new Set({{ selected_rarities|safe }});
+const _cardListFilterType = '{{ filter_type }}';
+const _cardListSort       = '{{ sort }}';
+
 /* 행 클릭: 사이드 패널 열기 + 판매가 input 활성화 */
 function handleCardRowClick(cardId, currentPrice) {
   if (document.getElementById('sideEmpty')) showIssuesSidePanel(cardId);
   openPriceInput(cardId, currentPrice);
-}
-
-/* 사이드 패널에서 판매처 클릭 → 판매가 input 채우기 */
-function fillIssuePrice(cardId, price) {
-  const inp = document.getElementById('inp-' + cardId);
-  if (!inp) return;
-  inp.value = price;
-  inp.focus();
-  document.getElementById('row-' + cardId)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-
-/* 인라인 판매가 수정 */
-const SET_PRICE_BASE = '{{ detail_base_url }}';
-
-function openPriceInput(cardId, currentPrice) {
-  document.getElementById('disp-' + cardId).style.display = 'none';
-  const wrap = document.getElementById('edit-' + cardId);
-  wrap.classList.add('show');
-  const inp = document.getElementById('inp-' + cardId);
-  inp.value = currentPrice || '';
-  setTimeout(() => { inp.focus(); inp.select(); }, 50);
-}
-
-function closePriceInput(cardId) {
-  document.getElementById('disp-' + cardId).style.display = '';
-  document.getElementById('edit-' + cardId).classList.remove('show');
-}
-
-function handlePriceKey(e, cardId) {
-  if (e.key === 'Enter')  saveInlinePrice(cardId);
-  if (e.key === 'Escape') closePriceInput(cardId);
-}
-
-async function saveInlinePrice(cardId) {
-  const inp   = document.getElementById('inp-' + cardId);
-  const price = parseInt(inp.value, 10) || 0;
-  const url   = SET_PRICE_BASE + '/' + cardId + '/set-price/';
-  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-
-  try {
-    const res  = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-      body: JSON.stringify({ selling_price: price }),
-    });
-    const data = await res.json();
-    if (data.success) {
-      const disp = document.getElementById('disp-' + cardId);
-      disp.innerHTML = price > 0
-        ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-edit-hint">✎</span>`
-        : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
-      // data-selling 동기화
-      const row = document.getElementById('row-' + cardId);
-      if (row) row.dataset.selling = price;
-      closePriceInput(cardId);
-      showToast('저장됐습니다.');
-    } else {
-      showToast('저장 실패: ' + (data.error || ''));
-    }
-  } catch (err) {
-    showToast('오류가 발생했습니다.');
-  }
-}
-
-/* 체크박스 & 일괄 수정 */
-function toggleAllCards(masterCb) {
-  document.querySelectorAll('.card-check').forEach(cb => cb.checked = masterCb.checked);
-  updateBulkBar();
-}
-
-function updateBulkBar() {
-  const checked = document.querySelectorAll('.card-check:checked');
-  const master = document.getElementById('checkAll');
-  const all = document.querySelectorAll('.card-check');
-
-  document.getElementById('bulkCount').textContent = `${checked.length}개 선택`;
-
-  master.indeterminate = checked.length > 0 && checked.length < all.length;
-  master.checked = checked.length === all.length && all.length > 0;
-}
-
-function clearBulkSelection() {
-  document.querySelectorAll('.card-check').forEach(cb => cb.checked = false);
-  document.getElementById('checkAll').checked = false;
-  document.getElementById('checkAll').indeterminate = false;
-  updateBulkBar();
-}
-
-async function saveBulkPrice() {
-  const price = parseInt(document.getElementById('bulkPriceInput').value, 10) || 0;
-  const checked = [...document.querySelectorAll('.card-check:checked')];
-  if (!checked.length) return;
-
-  const useMinFilter = document.getElementById('minPriceToggle').checked;
-  const threshold = price;  // 적용 가격 미만만 변경
-
-  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-  let successCount = 0;
-  let skippedCount = 0;
-
-  await Promise.all(checked.map(async cb => {
-    const cardId = cb.dataset.id;
-
-    // 미만 필터 체크: 현재 판매가가 threshold 이상이면 스킵
-    if (useMinFilter && threshold > 0) {
-      const row = document.getElementById('row-' + cardId);
-      const currentPrice = row ? (parseInt(row.dataset.selling, 10) || 0) : 0;
-      if (currentPrice >= threshold) { skippedCount++; return; }
-    }
-
-    try {
-      const res = await fetch(SET_PRICE_BASE + '/' + cardId + '/set-price/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({ selling_price: price }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        successCount++;
-        const disp = document.getElementById('disp-' + cardId);
-        if (disp) {
-          disp.innerHTML = price > 0
-            ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-edit-hint">✎</span>`
-            : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
-        }
-        // data-selling 동기화 추가
-        const row = document.getElementById('row-' + cardId);
-        if (row) row.dataset.selling = price;
-        document.getElementById('edit-' + cardId)?.classList.remove('show');
-        disp && (disp.style.display = '');
-      }
-    } catch {}
-  }));
-
-  const msg = skippedCount > 0
-    ? `${successCount}개 적용, ${skippedCount}개 스킵 (${threshold.toLocaleString()}원 이상)`
-    : `${successCount}개 카드에 ${price > 0 ? price.toLocaleString() + '원' : '미설정'} 적용됐습니다.`;
-  showToast(msg);
-  clearBulkSelection();
-  document.getElementById('bulkPriceInput').value = '';
-}
-
-
-let _cardListRarities = new Set({{ selected_rarities|safe }});
-
-function toggleCardListRarity(rarity, btn) {
-  if (_cardListRarities.has(rarity)) {
-    _cardListRarities.delete(rarity);
-    btn.classList.remove('active');
-  } else {
-    _cardListRarities.add(rarity);
-    btn.classList.add('active');
-  }
-  applyCardListRarityFilter();
-}
-
-function selectCardListRarities(rarities) {
-  _cardListRarities = new Set(rarities);
-  document.querySelectorAll('.rarity-chip').forEach(btn => {
-    btn.classList.toggle('active', _cardListRarities.has(btn.dataset.rarity));
-  });
-  applyCardListRarityFilter();
-}
-
-function applyCardListRarityFilter() {
-  const params = new URLSearchParams();
-  params.set('filter', '{{ filter_type }}');
-  params.set('sort', '{{ sort }}');
-  _cardListRarities.forEach(r => params.append('rarities', r));
-  location.href = '?' + params.toString();
 }
 </script>
 </body>
