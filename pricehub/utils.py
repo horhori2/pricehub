@@ -55,6 +55,9 @@ MIRROR_KEYWORDS = {
     '로켓단 미러': '로켓단 미러',
 }
 
+IROCHI_KEYWORDS   = ['이로치', '색이 다른', '색다른']
+_IROCHI_SHINY_S_RE = re.compile(r'(?<![A-Za-z0-9])s(?![A-Za-z0-9])', re.IGNORECASE)
+
 # ════════════════════════════════════════════════════════════════
 # 원피스 한글판 — 레어도/키워드 상수
 # ════════════════════════════════════════════════════════════════
@@ -179,6 +182,7 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
     """포켓몬카드 검색 결과 필터링"""
     is_mirror_rarity  = rarity in MIRROR_RARITIES
     is_general_rarity = rarity in GENERAL_RARITIES
+    is_irochi         = rarity == '이로치'
     card_name_no_space = re.sub(r'\s+', '', card_name).lower()
     valid_items = []
 
@@ -194,6 +198,14 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
                 continue
             if any(_word_boundary_match(h, title) for h in HIGHER_RARITIES.get(rarity, [])):
                 continue
+
+        elif is_irochi:
+            # 이로치/색이 다른/색다른 키워드 또는 단독 s/S 중 하나 이상 포함
+            has_irochi_kw = any(kw in title for kw in IROCHI_KEYWORDS)
+            has_shiny_s   = bool(_IROCHI_SHINY_S_RE.search(title))
+            if not (has_irochi_kw or has_shiny_s):
+                continue
+
         elif rarity and rarity not in EXCLUDED_RARITIES:
             if is_mirror_rarity:
                 required_kw = MIRROR_KEYWORDS.get(rarity)
