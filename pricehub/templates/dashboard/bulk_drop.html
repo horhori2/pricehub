@@ -74,7 +74,7 @@
         <button class="action-btn" onclick="selectRaritiesChips([])">초기화</button>
       </div>
 
-      <!-- 정렬 + 일괄 저장 -->
+      <!-- 정렬 -->
       <div class="control-row">
         <span class="ctrl-label">정렬</span>
         <div class="ctrl-divider"></div>
@@ -84,6 +84,11 @@
                 onclick="changeSort('drop_amt')">하락금액순</button>
         <button class="action-btn {% if sort == 'name' %}active-sort{% endif %}"
                 onclick="changeSort('name')">이름순</button>
+      </div>
+
+      <!-- 수정가 반영 (하락가 저장) -->
+      <div class="control-row">
+        <span class="ctrl-label">수정가 반영</span>
         <div class="ctrl-divider"></div>
         <button class="action-btn success" id="saveAllBtn" onclick="approveChecked()">💾 체크된 카드 저장</button>
         <button class="action-btn" onclick="approveAll()">전체 저장</button>
@@ -98,19 +103,25 @@
                  onfocus="this.style.borderColor='var(--accent2)'"
                  onblur="this.style.borderColor='var(--border2)'"
                  oninput="document.getElementById('approveByPctBtn').textContent='≤'+this.value+'% 일괄 반영'">
-          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">% 이하</span>
+          <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;">% 이하만</span>
           <button class="action-btn" id="approveByPctBtn"
                   onclick="approveByPct()"
                   style="white-space:nowrap;">≤10% 일괄 반영</button>
         </div>
       </div>
 
-      <!-- 일괄 판매가 수정 -->
+      <!-- 수정가 일괄 변경 -->
       <div class="control-row">
-        <span class="ctrl-label">일괄 수정</span>
+        <span class="ctrl-label">수정가 변경</span>
         <div class="ctrl-divider"></div>
+        <!-- 이전 판매가 복원 -->
+        <button class="action-btn" onclick="bulkFillOldPrice()"
+                style="white-space:nowrap;border-color:var(--accent,#7c6af7);color:var(--accent,#7c6af7);"
+                title="체크된 카드의 수정가격 입력란에 이전 판매가를 채웁니다">↩ 이전 판매가 유지</button>
+        <div class="ctrl-divider"></div>
+        <!-- 새 가격으로 덮어쓰기 -->
         <input type="number" id="bulkSetPriceInput"
-               placeholder="가격 입력" min="0" step="100"
+               placeholder="새 가격 입력" min="0" step="100"
                style="width:130px;padding:5px 9px;background:var(--bg);
                       border:1px solid var(--border2);border-radius:6px;
                       color:var(--text);font-family:'JetBrains Mono',monospace;
@@ -118,12 +129,12 @@
                onfocus="this.style.borderColor='var(--accent2)'"
                onblur="this.style.borderColor='var(--border2)'"
                onkeydown="if(event.key==='Enter') bulkSetPriceDrop()">
-        <button class="action-btn success" onclick="bulkSetPriceDrop()" style="white-space:nowrap;">💾 체크된 카드에 적용</button>
+        <button class="action-btn success" onclick="bulkSetPriceDrop()" style="white-space:nowrap;">가격 일괄 적용</button>
         <div class="ctrl-divider"></div>
         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;">
           <input type="checkbox" id="bulkSetUnderOnly"
                  style="accent-color:var(--accent2);cursor:pointer;width:13px;height:13px;">
-          <span style="font-size:12px;color:var(--text-muted);font-weight:600;">판매가 미만만 적용</span>
+          <span style="font-size:12px;color:var(--text-muted);font-weight:600;">판매가 미만만</span>
         </label>
       </div>
     </div>
@@ -325,6 +336,28 @@ const CARD_RAW = (() => {
   catch { return {}; }
 })();
 let selectedRarities = new Set({{ selected_rarities_json|safe }});
+
+/* ── 이전 판매가를 수정 가격 입력란에 채우기 ── */
+function bulkFillOldPrice() {
+  const checked = [...document.querySelectorAll('.row-check:checked')];
+  if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
+
+  let filled = 0;
+  checked.forEach(cb => {
+    const cardId = cb.dataset.id;
+    const row    = document.getElementById('row-' + cardId);
+    const old    = parseInt(row?.dataset.selling || '0', 10);
+    if (!old) return;
+    const input  = document.getElementById('input-' + cardId);
+    if (input) { input.value = old; input.classList.add('prefilled'); filled++; }
+  });
+
+  if (filled === 0) {
+    showIssueToast('이전 판매가 정보가 없습니다.', 'err');
+  } else {
+    showIssueToast(`↩ ${filled}개 카드에 이전 판매가 채워짐 (💾 저장 버튼으로 확정하세요)`, 'ok');
+  }
+}
 </script>
 
 <script src="{% static 'dashboard/dashboard.js' %}"></script>

@@ -74,20 +74,25 @@
         <button class="action-btn" onclick="selectRaritiesChips([])">초기화</button>
       </div>
 
-      <!-- 정렬 + 일괄 저장 -->
+      <!-- 정렬 -->
       <div class="control-row">
         <span class="ctrl-label">정렬</span>
         <div class="ctrl-divider"></div>
         <button class="action-btn {% if sort == 'name' %}active-sort{% endif %}"
                 onclick="changeSort('name')">이름순</button>
+      </div>
+
+      <!-- 판매가 저장 -->
+      <div class="control-row">
+        <span class="ctrl-label">판매가 저장</span>
         <div class="ctrl-divider"></div>
         <button class="action-btn success" id="saveAllBtn" onclick="approveChecked()">💾 체크된 카드 저장</button>
         <button class="action-btn" onclick="approveAll()">전체 저장</button>
       </div>
 
-      <!-- 일괄 판매가 수정 -->
+      <!-- 판매가 일괄 입력 -->
       <div class="control-row">
-        <span class="ctrl-label">일괄 수정</span>
+        <span class="ctrl-label">판매가 일괄 입력</span>
         <div class="ctrl-divider"></div>
         <input type="number" id="bulkSetPriceInput"
                placeholder="가격 입력" min="0" step="100"
@@ -98,7 +103,8 @@
                onfocus="this.style.borderColor='var(--accent2)'"
                onblur="this.style.borderColor='var(--border2)'"
                onkeydown="if(event.key==='Enter') bulkSetPriceUnpriced()">
-        <button class="action-btn success" onclick="bulkSetPriceUnpriced()" style="white-space:nowrap;">💾 체크된 카드에 적용</button>
+        <button class="action-btn success" onclick="bulkSetPriceUnpriced()" style="white-space:nowrap;">체크된 카드에 적용</button>
+        <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">※ 입력한 가격을 체크된 카드에 일괄 설정합니다</span>
       </div>
     </div>
 
