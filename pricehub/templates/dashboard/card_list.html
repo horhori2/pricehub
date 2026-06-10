@@ -24,17 +24,17 @@
   <a href="/logout/" class="logout-btn">로그아웃</a>
 </header>
 
-<div class="{% if card_raw_json != '{}' %}layout-issues{% endif %}"
-     {% if card_raw_json == '{}' %}style="max-width:1200px;margin:0 auto;"{% endif %}>
+<div class="layout-issues">
   <div class="main-area" style="padding: 32px 28px;">
     <div class="page-code">{{ expansion.code }}</div>
     <div class="page-title">{{ expansion.name }}</div>
 
     <div class="action-row">
       <div class="filter-tabs">
-        <a href="?filter=all{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}"      class="filter-tab {% if filter_type == 'all' %}active{% endif %}">전체 {{ total_count }}장</a>
-        <a href="?filter=unpriced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}" class="filter-tab {% if filter_type == 'unpriced' %}active{% endif %}">미설정</a>
-        <a href="?filter=priced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}"   class="filter-tab {% if filter_type == 'priced' %}active{% endif %}">설정 완료</a>
+        <a href="?filter=all{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort={{ sort }}"       class="filter-tab {% if filter_type == 'all' %}active{% endif %}">전체 {{ total_count }}장</a>
+        <a href="?filter=unpriced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort={{ sort }}"  class="filter-tab {% if filter_type == 'unpriced' %}active{% endif %}">미설정</a>
+        <a href="?filter=priced{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort={{ sort }}"    class="filter-tab {% if filter_type == 'priced' %}active{% endif %}">설정 완료</a>
+        <a href="?filter=favorites{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort={{ sort }}" class="filter-tab {% if filter_type == 'favorites' %}active{% endif %}">⭐ 즐겨찾기 <span class="fav-badge" id="favCountBadge">{{ favorite_count }}</span></a>
       </div>
       <div class="action-btns">
         <!-- 일괄 수정 (체크 시 표시) -->
@@ -52,17 +52,13 @@
                          color:#fff;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;white-space:nowrap;">
             💾 적용
           </button>
-          <button onclick="clearBulkSelection()"
-                  style="background:none;border:1px solid var(--border2);border-radius:7px;
-                         color:var(--text-muted);font-size:12px;font-weight:600;font-family:inherit;
-                         cursor:pointer;padding:6px 10px;white-space:nowrap;">
-            해제
-          </button>
           <div style="width:1px;height:20px;background:var(--border2);"></div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap;">
+            <input type="checkbox" id="minPriceToggle" onchange="updateBulkBar()"
+                   style="accent-color:var(--accent2);cursor:pointer;width:14px;height:14px;">
+            <span style="font-size:12px;color:var(--text-muted);font-weight:600;">판매가 미만만 적용</span>
+          </label>
         </div>
-        <a href="{{ favorites_url }}" class="fav-tab-btn">
-          ⭐ 즐겨찾기 <span class="fav-badge" id="favCountBadge">{{ favorite_count }}</span>
-        </a>
         <button class="reset-btn" onclick="showResetModal()">🗑 판매가 초기화</button>
         {% if bulk_price_url %}
         <a href="{{ bulk_price_url }}" class="bulk-btn">⚡ 일괄 판매가 설정</a>
@@ -103,8 +99,24 @@
           <th style="width:52px"></th>
           <th>카드</th>
           <th>레어도</th>
-          <th>시장 최저가</th>
-          <th>판매가</th>
+          <th>
+            {% if sort == 'market_asc' %}
+            <a href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort=market_desc" style="color:var(--accent2);text-decoration:none;">시장 최저가 ↑</a>
+            {% elif sort == 'market_desc' %}
+            <a href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort=number" style="color:var(--accent2);text-decoration:none;">시장 최저가 ↓</a>
+            {% else %}
+            <a href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort=market_asc" style="color:var(--text-muted);text-decoration:none;">시장 최저가 ↕</a>
+            {% endif %}
+          </th>
+          <th>
+            {% if sort == 'price_asc' %}
+            <a href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort=price_desc" style="color:var(--accent2);text-decoration:none;">판매가 ↑</a>
+            {% elif sort == 'price_desc' %}
+            <a href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort=number" style="color:var(--accent2);text-decoration:none;">판매가 ↓</a>
+            {% else %}
+            <a href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort=price_asc" style="color:var(--text-muted);text-decoration:none;">판매가 ↕</a>
+            {% endif %}
+          </th>
           <th>수집일시</th>
           <th style="width:36px"></th>
           <th style="width:60px"></th>
@@ -115,6 +127,7 @@
         <tr id="row-{{ card.id }}"
             style="cursor:pointer;"
             data-id="{{ card.id }}"
+            data-selling="{% if card.selling_price %}{{ card.selling_price|floatformat:0 }}{% else %}0{% endif %}"
             data-name="{{ card.name|escapejs }}"
             data-number="{{ card.shop_product_code|default:card.card_number }}"
             data-rarity="{{ card.rarity }}"
@@ -179,7 +192,7 @@
     {% if total_pages > 1 %}
     <div class="pagination-bar">
       {% if page > 1 %}
-      <a class="pg-btn" href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&page={{ page|add:"-1" }}">← 이전</a>
+      <a class="pg-btn" href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort={{ sort }}&page={{ page|add:"-1" }}">← 이전</a>
       {% else %}
       <span class="pg-btn disabled">← 이전</span>
       {% endif %}
@@ -189,13 +202,13 @@
           {% if p == page %}
           <span class="pg-num active">{{ p }}</span>
           {% else %}
-          <a class="pg-num" href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&page={{ p }}">{{ p }}</a>
+          <a class="pg-num" href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort={{ sort }}&page={{ p }}">{{ p }}</a>
           {% endif %}
         {% endfor %}
       </div>
 
       {% if page < total_pages %}
-      <a class="pg-btn" href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&page={{ page|add:"1" }}">다음 →</a>
+      <a class="pg-btn" href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort={{ sort }}&page={{ page|add:"1" }}">다음 →</a>
       {% else %}
       <span class="pg-btn disabled">다음 →</span>
       {% endif %}
@@ -210,7 +223,7 @@
   </div>
 
   <!-- 사이드 패널 -->
-  {% if card_raw_json != '{}' %}
+
   <div class="side-panel">
     <div class="side-header">
       <img id="sideCardImage" src="" alt=""
@@ -226,7 +239,7 @@
     </div>
     <div class="side-store-list" id="sideStoreList" style="display:none;"></div>
   </div>
-  {% endif %}
+
 </div>
 
 <!-- 모달 -->
@@ -314,13 +327,16 @@ async function saveInlinePrice(cardId) {
       disp.innerHTML = price > 0
         ? `<span class="price-set">${price.toLocaleString()}원</span>`
         : `<span class="price-unset">미설정</span>`;
+      // data-selling 동기화
+      const row = document.getElementById('row-' + cardId);
+      if (row) row.dataset.selling = price;
       closePriceInput(cardId);
-      showFavToast('저장됐습니다.');
+      showToast('저장됐습니다.');
     } else {
-      showFavToast('저장 실패: ' + (data.error || ''));
+      showToast('저장 실패: ' + (data.error || ''));
     }
   } catch (err) {
-    showFavToast('오류가 발생했습니다.');
+    showToast('오류가 발생했습니다.');
   }
 }
 
@@ -353,11 +369,23 @@ async function saveBulkPrice() {
   const checked = [...document.querySelectorAll('.card-check:checked')];
   if (!checked.length) return;
 
+  const useMinFilter = document.getElementById('minPriceToggle').checked;
+  const threshold = price;  // 적용 가격 미만만 변경
+
   const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
   let successCount = 0;
+  let skippedCount = 0;
 
   await Promise.all(checked.map(async cb => {
     const cardId = cb.dataset.id;
+
+    // 미만 필터 체크: 현재 판매가가 threshold 이상이면 스킵
+    if (useMinFilter && threshold > 0) {
+      const row = document.getElementById('row-' + cardId);
+      const currentPrice = row ? (parseInt(row.dataset.selling, 10) || 0) : 0;
+      if (currentPrice >= threshold) { skippedCount++; return; }
+    }
+
     try {
       const res = await fetch(SET_PRICE_BASE + '/' + cardId + '/set-price/', {
         method: 'POST',
@@ -373,14 +401,19 @@ async function saveBulkPrice() {
             ? `<span class="price-set">${price.toLocaleString()}원</span>`
             : `<span class="price-unset">미설정</span>`;
         }
-        // 열려있는 input이 있으면 닫기
+        // data-selling 동기화 추가
+        const row = document.getElementById('row-' + cardId);
+        if (row) row.dataset.selling = price;
         document.getElementById('edit-' + cardId)?.classList.remove('show');
         disp && (disp.style.display = '');
       }
     } catch {}
   }));
 
-  showFavToast(`${successCount}개 카드에 ${price > 0 ? price.toLocaleString() + '원' : '미설정'} 적용됐습니다.`);
+  const msg = skippedCount > 0
+    ? `${successCount}개 적용, ${skippedCount}개 스킵 (${threshold.toLocaleString()}원 이상)`
+    : `${successCount}개 카드에 ${price > 0 ? price.toLocaleString() + '원' : '미설정'} 적용됐습니다.`;
+  showToast(msg);
   clearBulkSelection();
   document.getElementById('bulkPriceInput').value = '';
 }
@@ -410,6 +443,7 @@ function selectCardListRarities(rarities) {
 function applyCardListRarityFilter() {
   const params = new URLSearchParams();
   params.set('filter', '{{ filter_type }}');
+  params.set('sort', '{{ sort }}');
   _cardListRarities.forEach(r => params.append('rarities', r));
   location.href = '?' + params.toString();
 }
