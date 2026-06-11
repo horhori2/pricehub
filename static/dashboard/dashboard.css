@@ -92,6 +92,23 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .price-input:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(124,107,255,0.18); }
 .price-cancel-btn { background: none; border: none; color: var(--text-dim); font-size: 15px; cursor: pointer; padding: 2px 3px; line-height: 1; transition: color 0.12s; flex-shrink: 0; }
 .price-cancel-btn:hover { color: var(--danger); }
+
+/* ── 판매가 수정 완료 표시 ── */
+.card-table tr.row--saved td { background: rgba(61,214,140,0.04); }
+.card-table tr.row--saved td:first-child { border-left: 3px solid var(--success); padding-left: 7px; }
+.card-table tr.row--saved:hover td { background: rgba(61,214,140,0.08); }
+.price-saved-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; font-weight: 700; color: var(--success);
+  background: rgba(61,214,140,0.12); border: 1px solid rgba(61,214,140,0.25);
+  border-radius: 4px; padding: 1px 5px; margin-left: 5px;
+  vertical-align: middle; font-family: 'JetBrains Mono', monospace;
+  animation: badge-in 0.2s ease;
+}
+@keyframes badge-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
 .price-save-btn { padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: 700; border: none; background: var(--success); color: #000; cursor: pointer; font-family: inherit; }
 .price-cancel-btn { padding: 4px 8px; border-radius: 5px; font-size: 12px; border: 1px solid var(--border2); background: none; color: var(--text-muted); cursor: pointer; font-family: inherit; }
 

@@ -1323,6 +1323,9 @@ function openPriceInput(cardId, currentPrice) {
   wrap.classList.add('show');
   const inp = document.getElementById('inp-' + cardId);
   inp.value = currentPrice || '';
+  /* 편집 시작하면 "수정됨" 표시 제거 */
+  const row = document.getElementById('row-' + cardId);
+  if (row) row.classList.remove('row--saved');
   setTimeout(() => { inp.focus(); inp.select(); }, 50);
 }
 
@@ -1352,10 +1355,10 @@ async function saveInlinePrice(cardId) {
     if (data.success) {
       const disp = document.getElementById('disp-' + cardId);
       disp.innerHTML = price > 0
-        ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-edit-hint">✎</span>`
+        ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-saved-badge">✓ 수정됨</span><span class="price-edit-hint">✎</span>`
         : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
       const row = document.getElementById('row-' + cardId);
-      if (row) row.dataset.selling = price;
+      if (row) { row.dataset.selling = price; row.classList.add('row--saved'); }
       closePriceInput(cardId);
       showToast('저장됐습니다.');
     } else {
@@ -1416,11 +1419,11 @@ async function saveBulkPrice() {
         const disp = document.getElementById('disp-' + cardId);
         if (disp) {
           disp.innerHTML = price > 0
-            ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-edit-hint">✎</span>`
+            ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-saved-badge">✓ 수정됨</span><span class="price-edit-hint">✎</span>`
             : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
         }
         const row = document.getElementById('row-' + cardId);
-        if (row) row.dataset.selling = price;
+        if (row) { row.dataset.selling = price; row.classList.add('row--saved'); }
         document.getElementById('edit-' + cardId)?.classList.remove('show');
         disp && (disp.style.display = '');
       }

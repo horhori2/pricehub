@@ -37,8 +37,8 @@ class Expansion(models.Model):
 
     class Meta:
         db_table = 'expansion'
-        verbose_name = '확장팩'
-        verbose_name_plural = '확장팩 목록'
+        verbose_name = '포켓몬 한글판 확장팩'
+        verbose_name_plural = '포켓몬 한글판 확장팩 목록'
         ordering = ['-release_date', '-created_at']
 
     def __str__(self):
@@ -135,8 +135,8 @@ class Card(models.Model):
 
     class Meta:
         db_table = 'card'
-        verbose_name = '싱글카드'
-        verbose_name_plural = '싱글카드 목록'
+        verbose_name = '포켓몬 한글판 카드'
+        verbose_name_plural = '포켓몬 한글판 카드 목록'
         ordering = ['expansion', 'card_number']
         indexes = [
             models.Index(fields=['expansion', 'card_number']),
@@ -174,8 +174,8 @@ class CardPrice(models.Model):
 
     class Meta:
         db_table = 'card_price'
-        verbose_name = '카드가격'
-        verbose_name_plural = '카드가격 히스토리'
+        verbose_name = '포켓몬 한글판 가격'
+        verbose_name_plural = '포켓몬 한글판 가격 목록'
         ordering = ['-collected_at']
         indexes = [
             models.Index(fields=['card', '-collected_at']),
@@ -198,8 +198,8 @@ class OnePieceExpansion(models.Model):
     
     class Meta:
         db_table = 'onepiece_expansion'
-        verbose_name = '원피스 확장팩'
-        verbose_name_plural = '원피스 확장팩 목록'
+        verbose_name = '원피스 한글판 확장팩'
+        verbose_name_plural = '원피스 한글판 확장팩 목록'
         ordering = ['-release_date', '-created_at']
     
     def __str__(self):
@@ -253,8 +253,8 @@ class OnePieceCard(models.Model):
     )
     class Meta:
         db_table = 'onepiece_card'
-        verbose_name = '원피스 카드'
-        verbose_name_plural = '원피스 카드 목록'
+        verbose_name = '원피스 한글판 카드'
+        verbose_name_plural = '원피스 한글판 카드 목록'
         ordering = ['expansion', 'card_number']
     
     def __str__(self):
@@ -281,8 +281,8 @@ class OnePieceCardPrice(models.Model):
     
     class Meta:
         db_table = 'onepiece_card_price'
-        verbose_name = '원피스 카드 가격'
-        verbose_name_plural = '원피스 카드 가격 목록'
+        verbose_name = '원피스 한글판 가격'
+        verbose_name_plural = '원피스 한글판 가격 목록'
         ordering = ['-collected_at']
     
     def __str__(self):
@@ -368,6 +368,8 @@ class JapanCardPrice(models.Model):
 
     class Meta:
         db_table = 'japan_card_price'
+        verbose_name = '포켓몬 일본판 가격'
+        verbose_name_plural = '포켓몬 일본판 가격 목록'
         ordering = ['-collected_at']
         indexes = [
             models.Index(fields=['card', 'source', 'condition', '-collected_at']),
