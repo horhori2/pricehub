@@ -18,6 +18,7 @@ from django.utils import timezone
 # 카드러쉬 확장팩 매핑
 CARDRUSH_EXPANSIONS = {
     # MEGA 시리즈
+    'M5': {'name': 'アビスアイ', 'url': 'https://www.cardrush-pokemon.jp/product-group/569'},
     'M4': {'name': 'ニンジャスピナー', 'url': 'https://www.cardrush-pokemon.jp/product-group/556'},
     'M3': {'name': 'ムニキスゼロ', 'url': 'https://www.cardrush-pokemon.jp/product-group/533'},
     'M2a': {'name': 'MEGAドリームex', 'url': 'https://www.cardrush-pokemon.jp/product-group/509'},
@@ -564,7 +565,7 @@ if __name__ == '__main__':
     elif choice == '2':
         print("\n사용 가능한 확장팩:")
         print("\n[MEGA 시리즈]")
-        for code in ['M4', 'M3', 'M2a', 'M2', 'M1S', 'M1L']:
+        for code in ['M5', 'M4', 'M3', 'M2a', 'M2', 'M1S', 'M1L']:
             info = CARDRUSH_EXPANSIONS[code]
             print(f"  - {code}: {info['name']}")
         
