@@ -73,6 +73,7 @@ EXPANSION_INFO = {
     '2025015': {'code': 'M2A', 'name': 'MEGA드림ex'},
     '2026002': {'code': 'M3', 'name': '니힐제로'},
     '2026003': {'code': 'M4', 'name': '닌자스피너'},
+    '2026004': {'code': 'M5', 'name': '어비스아이'},
 }
 
 def generate_shop_product_code(expansion_code, card_number, rarity):
