@@ -7,6 +7,7 @@ selling_price 필드 추가.
 from rest_framework import serializers
 from .models import Expansion, Card, CardPrice
 from .models import OnePieceExpansion, OnePieceCard
+from .models import DigimonExpansion, DigimonCard
 
 
 # ── CardPrice ────────────────────────────────────────────────
@@ -119,5 +120,25 @@ class OnePieceCardListSerializer(serializers.ModelSerializer):
         model = OnePieceCard
         fields = ['id', 'card_number', 'name', 'rarity', 'selling_price',
                   'shop_product_code', 'image_url', 'expansion']
+    def get_expansion(self, obj):
+        return {'code': obj.expansion.code, 'name': obj.expansion.name}
+
+
+class DigimonExpansionListSerializer(serializers.ModelSerializer):
+    card_count = serializers.IntegerField(read_only=True)
+    class Meta:
+        model = DigimonExpansion
+        fields = ['code', 'name', 'release_date', 'card_count']
+
+
+class DigimonCardListSerializer(serializers.ModelSerializer):
+    expansion = serializers.SerializerMethodField()
+    class Meta:
+        model = DigimonCard
+        fields = [
+            'id', 'card_number', 'name', 'rarity', 'card_type', 'card_level',
+            'is_parallel', 'is_scarce', 'selling_price', 'shop_product_code',
+            'image_url', 'expansion',
+        ]
     def get_expansion(self, obj):
         return {'code': obj.expansion.code, 'name': obj.expansion.name}

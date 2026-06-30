@@ -22,6 +22,7 @@ from .models import (
     Expansion, Card, CardPrice,
     OnePieceExpansion, OnePieceCard, OnePieceCardPrice,
     JapanExpansion, JapanCard, JapanCardPrice,
+    DigimonExpansion, DigimonCard, DigimonCardPrice,
 )
 
 
@@ -65,6 +66,18 @@ CATEGORY_CONFIGS = {
         'card_detail_template': 'dashboard/card_detail.html',
         'card_type_key': 'onepiece_kr',
         'toggle_favorite_url_base': '/onepiece/kr/cards/',
+    },
+    'digimon_kr': {
+        'label': '디지몬 한글판',
+        'expansion_model': DigimonExpansion,
+        'card_model': DigimonCard,
+        'price_model': DigimonCardPrice,
+        'base_url': '/digimon/kr',
+        'high_rarity_list': "['SEC','SR']",
+        'bulk_issues_high_rarity_list': "['SEC','SR']",
+        'card_detail_template': 'dashboard/card_detail.html',
+        'card_type_key': 'digimon_kr',
+        'toggle_favorite_url_base': '/digimon/kr/cards/',
     },
 }
 
@@ -153,8 +166,15 @@ def home(request):
             'game': '디지몬',
             'game_key': 'digimon',
             'icon': '🦕',
-            'regions': [],
-            'coming_soon': True,
+            'regions': [
+                {
+                    'label': '한글판',
+                    'key': 'kr',
+                    'url': _url('digimon_kr', '/expansions/'),
+                    'total': DigimonCard.objects.count(),
+                    'unpriced': DigimonCard.objects.filter(selling_price=0).count(),
+                },
+            ],
         },
     ]
     return render(request, 'dashboard/home.html', {'categories': categories})
@@ -1452,6 +1472,136 @@ def onepiece_kr_toggle_favorite(request, card_id):
     try:
         card = OnePieceCard.objects.get(pk=card_id)
     except OnePieceCard.DoesNotExist:
+        return JsonResponse({'error': '카드를 찾을 수 없습니다.'}, status=404)
+    card.is_favorite = not card.is_favorite
+    card.save(update_fields=['is_favorite'])
+    return JsonResponse({'success': True, 'is_favorite': card.is_favorite})
+
+
+# ════════════════════════════════════════════════════════════════
+# 디지몬 한글판 — 뷰
+# ════════════════════════════════════════════════════════════════
+
+@staff_required
+def digimon_kr_expansion_list(request):
+    return _expansion_list_view(request, 'digimon_kr', {
+        'bulk_price_url':          '/digimon/kr/bulk-price/',
+        'card_search_url':         '/digimon/kr/cards/search/',
+        'reset_prices_url_prefix': '/digimon/kr/expansions/',
+        'reset_all_url':           '/digimon/kr/reset-all-prices/',
+    })
+
+
+@staff_required
+def digimon_kr_card_list(request, code):
+    expansion = get_object_or_404(DigimonExpansion, code=code)
+    return _card_list_view(request, 'digimon_kr', code, {
+        'bulk_price_url':   f'/digimon/kr/bulk-price/?expansion={expansion.code}',
+        'reset_prices_url': f'/digimon/kr/expansions/{expansion.code}/reset-prices/',
+    })
+
+
+@staff_required
+def digimon_kr_card_detail(request, pk):
+    card = get_object_or_404(DigimonCard.objects.select_related('expansion'), pk=pk)
+    latest_price_obj = card.prices.order_by('-collected_at').first()
+    market_items, stats = _parse_market_items(latest_price_obj)
+    base = '/digimon/kr'
+
+    return render(request, 'dashboard/card_detail.html', {
+        'card':                    card,
+        'card_type':               'digimon_kr',
+        'latest_price_obj':        latest_price_obj,
+        'market_items':            market_items,
+        'market_items_json':       json.dumps(market_items, ensure_ascii=False),
+        'stats':                   stats,
+        'set_price_url':           f'{base}/cards/{pk}/set-price/',
+        'back_url':                f'{base}/expansions/{card.expansion.code}/cards/',
+        'price_history_week_json': _price_history_json(card, card.prices),
+        'breadcrumb': [
+            ('홈', '/'),
+            ('디지몬 한글판', f'{base}/expansions/'),
+            (card.expansion.name, f'{base}/expansions/{card.expansion.code}/cards/'),
+            (card.name, None),
+        ],
+    })
+
+
+@staff_required
+@require_POST
+def digimon_kr_set_price(request, pk):
+    return _set_price(DigimonCard, pk, request)
+
+
+@staff_required
+def digimon_kr_card_search(request):
+    return _card_search_view(request, DigimonCard)
+
+
+@staff_required
+@require_POST
+def digimon_kr_reset_prices(request, expansion_code):
+    count = DigimonCard.objects.filter(expansion__code=expansion_code).update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
+
+@staff_required
+@require_POST
+def digimon_kr_reset_all_prices(request):
+    count = DigimonCard.objects.all().update(selling_price=0)
+    return JsonResponse({'success': True, 'count': count})
+
+
+@staff_required
+def digimon_kr_bulk_price(request):
+    return _bulk_price_view(request, 'digimon_kr')
+
+
+@staff_required
+def digimon_kr_bulk_shop_stats(request):
+    return _bulk_shop_stats_api(request, 'digimon_kr')
+
+
+@staff_required
+@require_POST
+def digimon_kr_bulk_run(request):
+    return _bulk_run_view(request, 'digimon_kr')
+
+
+@staff_required
+def digimon_kr_bulk_drop(request):
+    return _bulk_drop_view(request, 'digimon_kr')
+
+
+@staff_required
+def digimon_kr_bulk_unpriced(request):
+    return _bulk_unpriced_view(request, 'digimon_kr')
+
+
+@staff_required
+@require_POST
+def digimon_kr_bulk_approve(request):
+    return _bulk_approve_view(request, 'digimon_kr')
+
+
+@staff_required
+@require_POST
+def digimon_kr_bulk_inline_cards(request):
+    return _bulk_inline_cards_view(request, 'digimon_kr')
+
+
+@staff_required
+@require_POST
+def digimon_kr_bulk_edit(request):
+    return _bulk_edit_view(request, 'digimon_kr')
+
+
+@staff_required
+@require_POST
+def digimon_kr_toggle_favorite(request, card_id):
+    try:
+        card = DigimonCard.objects.get(pk=card_id)
+    except DigimonCard.DoesNotExist:
         return JsonResponse({'error': '카드를 찾을 수 없습니다.'}, status=404)
     card.is_favorite = not card.is_favorite
     card.save(update_fields=['is_favorite'])

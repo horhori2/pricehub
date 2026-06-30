@@ -111,6 +111,25 @@ _onepiece_kr_views = {
     'bulk_inline_cards': v.onepiece_kr_bulk_inline_cards,
 }
 
+_digimon_kr_views = {
+    'expansion_list':    v.digimon_kr_expansion_list,
+    'card_list':         v.digimon_kr_card_list,
+    'card_detail':       v.digimon_kr_card_detail,
+    'set_price':         v.digimon_kr_set_price,
+    'search':            v.digimon_kr_card_search,
+    'reset_prices':      v.digimon_kr_reset_prices,
+    'reset_all':         v.digimon_kr_reset_all_prices,
+    'bulk_price':        v.digimon_kr_bulk_price,
+    'bulk_run':          v.digimon_kr_bulk_run,
+    'bulk_drop':         v.digimon_kr_bulk_drop,
+    'bulk_unpriced':     v.digimon_kr_bulk_unpriced,
+    'toggle_favorite':   v.digimon_kr_toggle_favorite,
+    'bulk_approve':      v.digimon_kr_bulk_approve,
+    'bulk_edit':         v.digimon_kr_bulk_edit,
+    'bulk_shop_stats':   v.digimon_kr_bulk_shop_stats,
+    'bulk_inline_cards': v.digimon_kr_bulk_inline_cards,
+}
+
 
 urlpatterns = [
     path('login/',  v.dashboard_login,  name='dashboard-login'),
@@ -124,6 +143,10 @@ urlpatterns = [
     *_card_urls('pokemon/jp', _pokemon_jp_views),
 
     *_card_urls('onepiece/kr', _onepiece_kr_views,
+                has_search=True, has_reset=True, has_bulk=True,
+                has_favorites=True),
+
+    *_card_urls('digimon/kr', _digimon_kr_views,
                 has_search=True, has_reset=True, has_bulk=True,
                 has_favorites=True),
 

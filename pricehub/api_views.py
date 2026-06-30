@@ -36,6 +36,7 @@ import django_filters
 from .models import (
     Expansion, Card, CardPrice,
     OnePieceExpansion, OnePieceCard, OnePieceCardPrice,
+    DigimonExpansion, DigimonCard, DigimonCardPrice,
 )
 from .serializers import (
     ExpansionListSerializer,
@@ -45,6 +46,8 @@ from .serializers import (
     CardPriceSerializer,
     OnePieceExpansionListSerializer,
     OnePieceCardListSerializer,
+    DigimonExpansionListSerializer,
+    DigimonCardListSerializer,
 )
 from .authentication import APIKeyAuthentication
 from .permissions import HasAPIKey
@@ -334,3 +337,35 @@ class OnePieceCardSearchView(CardSearchMixin):
 def onepiece_card_by_product_code(request, shop_product_code):
     """상품코드로 원피스 카드 조회"""
     return _card_by_product_code_view(request, shop_product_code, OnePieceCard)
+
+
+# ════════════════════════════════════════════════════════════════
+# 디지몬 한글판
+# ════════════════════════════════════════════════════════════════
+
+class DigimonExpansionListView(ExpansionListMixin):
+    serializer_class = DigimonExpansionListSerializer
+    expansion_model = DigimonExpansion
+
+
+class DigimonExpansionDetailView(ExpansionDetailMixin):
+    serializer_class = DigimonExpansionListSerializer
+    expansion_model = DigimonExpansion
+
+
+class DigimonCardListView(CardListMixin):
+    serializer_class = DigimonCardListSerializer
+    card_model = DigimonCard
+
+
+class DigimonCardSearchView(CardSearchMixin):
+    serializer_class = DigimonCardListSerializer
+    card_model = DigimonCard
+
+
+@api_view(['GET'])
+@authentication_classes([APIKeyAuthentication])
+@permission_classes([HasAPIKey])
+def digimon_card_by_product_code(request, shop_product_code):
+    """상품코드로 디지몬 카드 조회"""
+    return _card_by_product_code_view(request, shop_product_code, DigimonCard)

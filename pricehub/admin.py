@@ -5,7 +5,9 @@ from .models import (
     # 원피스
     OnePieceExpansion, OnePieceCard, OnePieceCardPrice,
     # 포켓몬 일본판
-    JapanExpansion, JapanCard, JapanCardPrice
+    JapanExpansion, JapanCard, JapanCardPrice,
+    # 디지몬 한글판
+    DigimonExpansion, DigimonCard, DigimonCardPrice,
 )
 
 # ==================== 포켓몬 ====================
@@ -77,6 +79,31 @@ class JapanCardAdmin(admin.ModelAdmin):
 
 @admin.register(JapanCardPrice)
 class JapanCardPriceAdmin(admin.ModelAdmin):
+    list_display = ['card', 'price', 'source', 'collected_at']
+    list_filter = ['source', 'collected_at']
+    search_fields = ['card__name', 'card__card_number']
+    ordering = ['-collected_at']
+
+
+# ==================== 디지몬 한글판 ====================
+
+@admin.register(DigimonExpansion)
+class DigimonExpansionAdmin(admin.ModelAdmin):
+    list_display = ['code', 'name', 'category_id', 'release_date', 'created_at']
+    search_fields = ['code', 'name']
+    ordering = ['-release_date', '-created_at']
+
+
+@admin.register(DigimonCard)
+class DigimonCardAdmin(admin.ModelAdmin):
+    list_display = ['name', 'card_number', 'expansion', 'rarity', 'is_parallel', 'is_scarce', 'created_at']
+    list_filter = ['expansion', 'rarity', 'is_parallel', 'is_scarce']
+    search_fields = ['name', 'card_number', 'shop_product_code']
+    ordering = ['expansion', 'card_number']
+
+
+@admin.register(DigimonCardPrice)
+class DigimonCardPriceAdmin(admin.ModelAdmin):
     list_display = ['card', 'price', 'source', 'collected_at']
     list_filter = ['source', 'collected_at']
     search_fields = ['card__name', 'card__card_number']

@@ -347,6 +347,113 @@ def filter_onepiece_items(
 
 
 
+# ════════════════════════════════════════════════════════════════
+# 디지몬 한글판
+# ════════════════════════════════════════════════════════════════
+
+def generate_digimon_search_query(
+    card_name: str,
+    card_number: str,
+    is_parallel: bool = False,
+    is_scarce: bool = False,
+    is_special: bool = False,
+) -> str:
+    """
+    디지몬카드 검색어 생성.
+
+    희소/패러렐/스페셜 접두사 → 카드번호 앞에 추가 (희소 > 패러렐 > 스페셜 우선순위)
+    ST* / P-* 카드            → '디지몬 {card_number}'
+    일반 카드                  → '{card_number}'
+    """
+    if is_scarce:
+        prefix = "희소 "
+    elif is_parallel:
+        prefix = "패러렐 "
+    elif is_special:
+        prefix = "스페셜 "
+    else:
+        prefix = ""
+
+    if card_number.startswith(('ST', 'P-')):
+        return f"{prefix}디지몬 {card_number}".strip()
+    return f"{prefix}{card_number}".strip()
+
+
+def filter_digimon_items(
+    items: List[dict],
+    card_number: str,
+    is_parallel: bool = False,
+    is_scarce: bool = False,
+    is_special: bool = False,
+) -> FilterResult:
+    """디지몬카드 검색 결과 필터링"""
+    valid_items = []
+
+    for item in items:
+        if _is_excluded(item):
+            continue
+        title = _clean_title(item['title'])
+
+        if card_number not in title:
+            continue
+        if is_scarce and "희소" not in title:
+            continue
+        if is_parallel and "패러렐" not in title:
+            continue
+        if is_special and "스페셜" not in title:
+            continue
+
+        valid_items.append(item)
+
+    return _build_price_result(valid_items)
+
+
+def get_digimon_all_prices(
+    card_name: str,
+    card_number: str,
+    is_parallel: bool = False,
+    is_scarce: bool = False,
+    is_special: bool = False,
+) -> dict:
+    """
+    디지몬카드 가격 통합 검색 (API 1회 호출).
+
+    Returns:
+        {
+            'general_price': (최저가, 유효상품수, 판매처),
+            'search_query':  검색어,
+            'valid_items':   유효 상품 전체 리스트,
+        }
+    """
+    search_query = generate_digimon_search_query(card_name, card_number, is_parallel, is_scarce, is_special)
+    logger.debug("[디지몬] 검색어: %s", search_query)
+
+    items = search_naver_shopping(search_query)
+    if not items:
+        logger.debug("[디지몬] 검색 결과 없음")
+        return {
+            'general_price': (None, 0, None),
+            'search_query':  search_query,
+            'valid_items':   [],
+        }
+
+    logger.debug("[디지몬] 검색 결과: %d개", len(items))
+
+    min_price, valid_count, min_price_mall, valid_items = filter_digimon_items(
+        items, card_number, is_parallel, is_scarce, is_special,
+    )
+
+    if min_price:
+        logger.debug("[디지몬] 최저가: %d원 (%s) — 유효 %d개",
+                     int(min_price), min_price_mall, valid_count)
+
+    return {
+        'general_price': (min_price, valid_count, min_price_mall),
+        'search_query':  search_query,
+        'valid_items':   valid_items,
+    }
+
+
 def get_onepiece_all_prices(
     card_name: str,
     rarity: str,

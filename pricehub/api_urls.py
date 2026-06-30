@@ -62,10 +62,24 @@ _onepiece_kr_views = {
     'card_by_product_code': api_views.onepiece_card_by_product_code,
 }
 
+_digimon_kr_views = {
+    'expansion_list':       api_views.DigimonExpansionListView,
+    'expansion_detail':     api_views.DigimonExpansionDetailView,
+    'expansion_card_list':  api_views.DigimonCardListView,
+    'card_search':          api_views.DigimonCardSearchView,
+    'card_by_product_code': api_views.digimon_card_by_product_code,
+}
+
 # 원피스 한글판 (별도 include용)
 onepiece_kr_urlpatterns = (
     _tcg_api_urls(_onepiece_kr_views),
     'onepiece_kr',
+)
+
+# 디지몬 한글판 (별도 include용)
+digimon_kr_urlpatterns = (
+    _tcg_api_urls(_digimon_kr_views),
+    'digimon_kr',
 )
 
 # 포켓몬 한글판 (기본 include 대상)
