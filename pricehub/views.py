@@ -15,6 +15,11 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.db.models import OuterRef, Subquery, F
 
+try:
+    import openpyxl
+except ImportError:
+    openpyxl = None
+
 from django.utils import timezone
 from datetime import timedelta
 
@@ -177,7 +182,21 @@ def home(request):
             ],
         },
     ]
-    return render(request, 'dashboard/home.html', {'categories': categories})
+
+    tools = [
+        {
+            'icon': '📋',
+            'title': '엑셀-DB 상품코드 검증',
+            'desc': '가격 일괄 수정용 엑셀을 업로드해 DB에 등록된 카드명·이미지와 상품코드 기준으로 비교합니다.',
+            'items': [
+                {'label': '포켓몬 한글판', 'url': _url('pokemon_kr', '/bulk-price/verify/')},
+                {'label': '원피스 한글판', 'url': _url('onepiece_kr', '/bulk-price/verify/')},
+                {'label': '디지몬 한글판', 'url': _url('digimon_kr', '/bulk-price/verify/')},
+            ],
+        },
+    ]
+
+    return render(request, 'dashboard/home.html', {'categories': categories, 'tools': tools})
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1121,6 +1140,238 @@ def _bulk_edit_view(request, cfg_key):
 
 
 # ════════════════════════════════════════════════════════════════
+# 공통 뷰 로직 — 엑셀 ↔ DB 상품코드 검증
+# ════════════════════════════════════════════════════════════════
+
+# 고정 엑셀 레이아웃: 1~5행은 제목/안내 행, 6행부터 실데이터
+# B열 = 상품코드, D열 = 상품명, Z열 = 이미지URL (0-based 인덱스)
+VERIFY_DATA_START_ROW = 6   # 1-based, 이 행부터 데이터
+VERIFY_CODE_COL  = 1   # B열
+VERIFY_NAME_COL  = 3   # D열
+VERIFY_IMAGE_COL = 25  # Z열
+
+# 상품코드 끝의 '-V숫자'(미러/패러렐 버전) 패턴
+_VERIFY_VERSION_SUFFIX_RE = re.compile(r'-V\d+$', re.IGNORECASE)
+
+
+def _verify_base_code(code):
+    """'DGM-RB1-034-K-V1' → 'DGM-RB1-034-K' (끝의 -V숫자만 제거)"""
+    return _VERIFY_VERSION_SUFFIX_RE.sub('', code or '')
+
+
+def _verify_read_excel(uploaded_file):
+    """
+    업로드된 엑셀에서 고정 레이아웃 기준으로 데이터 행을 읽어옴.
+    1~5행은 건너뛰고 6행부터 데이터로 처리. (header_row 없음, data_rows만 반환)
+    """
+    wb = openpyxl.load_workbook(uploaded_file, data_only=True, read_only=False)
+    ws = wb.worksheets[0]
+
+    data_rows = []
+    for row in ws.iter_rows(min_row=VERIFY_DATA_START_ROW, values_only=True):
+        if row is None or all(c is None or str(c).strip() == '' for c in row):
+            continue
+        data_rows.append(row)
+
+    wb.close()
+    return data_rows
+
+
+def _bulk_verify_view(request, cfg_key):
+    """
+    엑셀 업로드 → 상품코드(B열, 6행부터) 기준으로 DB 카드와 1:1 비교.
+    상품명은 D열, 이미지URL은 Z열로 고정.
+    GET: 업로드 폼 표시
+    POST: 엑셀 파싱 + 비교 결과 표시
+    """
+    cfg = _cfg(cfg_key)
+    card_model = cfg['card_model']
+    base_url = cfg['base_url']
+
+    ctx = {
+        'config': {
+            'label':           cfg['label'],
+            'bulk_price_url':  f'{base_url}/bulk-price/',
+            'verify_url':      f'{base_url}/bulk-price/verify/',
+            'candidates_url':  f'{base_url}/bulk-price/verify/candidates/',
+        },
+        'breadcrumb': [
+            ('홈', '/'),
+            (cfg['label'], f"{base_url}/expansions/"),
+            ('엑셀-DB 상품코드 검증', None),
+        ],
+        'uploaded': False,
+    }
+
+    if request.method != 'POST':
+        return render(request, 'dashboard/bulk_verify.html', ctx)
+
+    if openpyxl is None:
+        ctx['error'] = '서버에 openpyxl이 설치되어 있지 않습니다. 관리자에게 문의하세요.'
+        return render(request, 'dashboard/bulk_verify.html', ctx)
+
+    excel_file = request.FILES.get('excel_file')
+    if not excel_file:
+        ctx['error'] = '엑셀 파일을 선택해주세요.'
+        return render(request, 'dashboard/bulk_verify.html', ctx)
+
+    try:
+        data_rows = _verify_read_excel(excel_file)
+    except Exception as e:
+        ctx['error'] = f'엑셀 파일을 읽는 중 오류가 발생했습니다: {e}'
+        return render(request, 'dashboard/bulk_verify.html', ctx)
+
+    if not data_rows:
+        ctx['error'] = f'{VERIFY_DATA_START_ROW}행부터 데이터를 찾을 수 없습니다. 엑셀 양식을 확인해주세요.'
+        return render(request, 'dashboard/bulk_verify.html', ctx)
+
+    def _cell(row, idx):
+        if idx >= len(row):
+            return ''
+        val = row[idx]
+        return '' if val is None else str(val).strip()
+
+    excel_rows = []
+    excel_codes = []
+    for row in data_rows:
+        code = _cell(row, VERIFY_CODE_COL)
+        if not code:
+            continue
+        excel_rows.append({
+            'code':  code,
+            'name':  _cell(row, VERIFY_NAME_COL),
+            'image': _cell(row, VERIFY_IMAGE_COL),
+        })
+        excel_codes.append(code)
+
+    if not excel_rows:
+        ctx['error'] = '엑셀에서 유효한 상품코드(B열)를 찾지 못했습니다.'
+        return render(request, 'dashboard/bulk_verify.html', ctx)
+
+    # DB에서 해당 상품코드들을 일괄 조회 (대소문자 구분 없이 매칭)
+    db_cards = (
+        card_model.objects
+        .filter(shop_product_code__in=excel_codes)
+        .select_related('expansion')
+    )
+    db_map_exact = {c.shop_product_code: c for c in db_cards}
+    # 대소문자 차이로 못 찾은 코드 보강 조회
+    missing_codes = [c for c in excel_codes if c not in db_map_exact]
+    if missing_codes:
+        extra = (
+            card_model.objects
+            .filter(shop_product_code__iregex=r'^(' + '|'.join(re.escape(c) for c in missing_codes) + r')$')
+            .select_related('expansion')
+        )
+        for c in extra:
+            db_map_exact.setdefault(c.shop_product_code, c)
+
+    db_map_lower = {code.lower(): card for code, card in db_map_exact.items()}
+
+    results = []
+    auto_match_count = 0    # 이미지 URL이 완전히 동일 → 자동 확인 완료
+    needs_check_count = 0   # 등록은 되어 있으나 이미지 URL이 달라 육안 확인 필요
+    notfound_count = 0      # DB에 상품코드 자체가 없음
+
+    for row in excel_rows:
+        code = row['code']
+        card = db_map_exact.get(code) or db_map_lower.get(code.lower())
+
+        if not card:
+            notfound_count += 1
+            results.append({
+                'code':         code,
+                'base_code':    _verify_base_code(code),
+                'excel_name':   row['name'],
+                'excel_image':  row['image'],
+                'db_name':      None,
+                'db_image':     None,
+                'db_expansion': None,
+                'status':       'notfound',
+            })
+            continue
+
+        # 이미지 URL이 글자 그대로 동일하면 같은 이미지로 간주해 자동 통과.
+        # 그 외(이미지가 다르거나 비어있는 경우)는 작업자가 직접 눈으로 비교해야 함.
+        image_url_same = bool(row['image']) and bool(card.image_url) and row['image'] == card.image_url
+        status = 'auto_match' if image_url_same else 'needs_check'
+
+        if status == 'auto_match':
+            auto_match_count += 1
+        else:
+            needs_check_count += 1
+
+        results.append({
+            'code':         code,
+            'base_code':    _verify_base_code(code),
+            'excel_name':   row['name'],
+            'excel_image':  row['image'],
+            'db_name':      card.name,
+            'db_image':     card.image_url,
+            'db_expansion': card.expansion.name if card.expansion_id else '',
+            'status':       status,
+            'card_id':      card.pk,
+        })
+
+    # 보기 좋게: 확인이 필요한 항목 우선 정렬 (DB 미등록 → 육안확인 필요 → 자동일치)
+    status_order = {'notfound': 0, 'needs_check': 1, 'auto_match': 2}
+    results.sort(key=lambda r: status_order.get(r['status'], 9))
+
+    only_problems = request.GET.get('only_problems') == '1' or request.POST.get('only_problems') == '1'
+    display_results = [r for r in results if r['status'] != 'auto_match'] if only_problems else results
+
+    ctx.update({
+        'uploaded':              True,
+        'results':               display_results,
+        'total_count':           len(results),
+        'auto_match_count':      auto_match_count,
+        'needs_check_count':     needs_check_count,
+        'notfound_count':        notfound_count,
+        'only_problems':         only_problems,
+        'file_name':             getattr(excel_file, 'name', ''),
+    })
+    return render(request, 'dashboard/bulk_verify.html', ctx)
+
+
+def _bulk_verify_candidates_view(request, cfg_key):
+    """
+    같은 베이스 상품코드(끝의 -V숫자 제거)를 가진 DB 카드 후보 전체를 반환.
+    예: base_code='DGM-RB1-034-K' → DGM-RB1-034-K, -V1, -V2, -V3 ... 전부 조회.
+    엑셀-DB 검증 페이지에서 "확인 필요" 카드를 클릭했을 때 AJAX로 호출.
+    """
+    cfg = _cfg(cfg_key)
+    card_model = cfg['card_model']
+
+    base_code = request.GET.get('base_code', '').strip()
+    if not base_code:
+        return JsonResponse({'error': 'base_code가 필요합니다.'}, status=400)
+
+    # base_code 자체이거나, base_code 뒤에 -V숫자가 붙은 코드들을 전부 조회
+    pattern = r'^' + re.escape(base_code) + r'(-V\d+)?$'
+    candidates = (
+        card_model.objects
+        .filter(shop_product_code__iregex=pattern)
+        .select_related('expansion')
+        .order_by('shop_product_code')
+    )
+
+    return JsonResponse({
+        'base_code': base_code,
+        'candidates': [
+            {
+                'card_id':           c.pk,
+                'shop_product_code': c.shop_product_code,
+                'name':              c.name,
+                'image_url':         c.image_url,
+                'expansion':         c.expansion.name if c.expansion_id else '',
+                'rarity':            c.rarity,
+            }
+            for c in candidates
+        ],
+    })
+
+
+# ════════════════════════════════════════════════════════════════
 # 포켓몬 한글판 — 뷰
 # ════════════════════════════════════════════════════════════════
 
@@ -1197,6 +1448,16 @@ def pokemon_kr_reset_all_prices(request):
 @staff_required
 def pokemon_kr_bulk_price(request):
     return _bulk_price_view(request, 'pokemon_kr')
+
+
+@staff_required
+def pokemon_kr_bulk_verify(request):
+    return _bulk_verify_view(request, 'pokemon_kr')
+
+
+@staff_required
+def pokemon_kr_bulk_verify_candidates(request):
+    return _bulk_verify_candidates_view(request, 'pokemon_kr')
 
 
 @staff_required
@@ -1419,6 +1680,16 @@ def onepiece_kr_bulk_price(request):
 
 
 @staff_required
+def onepiece_kr_bulk_verify(request):
+    return _bulk_verify_view(request, 'onepiece_kr')
+
+
+@staff_required
+def onepiece_kr_bulk_verify_candidates(request):
+    return _bulk_verify_candidates_view(request, 'onepiece_kr')
+
+
+@staff_required
 def onepiece_kr_bulk_shop_stats(request):
     return _bulk_shop_stats_api(request, 'onepiece_kr')
 
@@ -1555,6 +1826,16 @@ def digimon_kr_reset_all_prices(request):
 @staff_required
 def digimon_kr_bulk_price(request):
     return _bulk_price_view(request, 'digimon_kr')
+
+
+@staff_required
+def digimon_kr_bulk_verify(request):
+    return _bulk_verify_view(request, 'digimon_kr')
+
+
+@staff_required
+def digimon_kr_bulk_verify_candidates(request):
+    return _bulk_verify_candidates_view(request, 'digimon_kr')
 
 
 @staff_required

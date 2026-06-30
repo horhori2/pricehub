@@ -71,6 +71,34 @@
     {% endif %}
   </div>
   {% endfor %}
+
+  {% if tools %}
+  <div style="margin-top:8px;padding-top:32px;border-top:1px solid var(--border2);">
+    <div class="page-title" style="font-size:20px;margin-bottom:4px;">🛠 도구</div>
+    <div class="page-sub" style="margin-bottom:16px;">카드 가격 설정과는 별개인 보조 기능입니다.</div>
+
+    {% for tool in tools %}
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span style="font-size:22px;">{{ tool.icon }}</span>
+        <span style="font-size:16px;font-weight:800;">{{ tool.title }}</span>
+      </div>
+      <div style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">{{ tool.desc }}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        {% for item in tool.items %}
+        <a href="{{ item.url }}"
+           style="display:inline-flex;align-items:center;gap:6px;padding:7px 16px;
+                  background:rgba(124,107,255,0.1);border:1px solid var(--accent2);
+                  border-radius:8px;color:var(--accent2);text-decoration:none;
+                  font-size:13px;font-weight:700;transition:all 0.15s;">
+          {{ item.label }} →
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 </main>
 </body>
 </html>
