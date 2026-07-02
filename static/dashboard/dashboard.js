@@ -1369,8 +1369,39 @@ async function saveInlinePrice(cardId) {
   }
 }
 
+/* ── Shift+클릭 범위 선택 ──────────────────────────────────────
+   onclick의 stopPropagation() 이전에 실행되도록 capture phase 사용.
+   캡처 시점엔 checkbox가 아직 토글 전이므로 targetState = !cb.checked.
+   실제 클릭된 cb는 네이티브 클릭이 처리하므로 범위에서 제외.
+   ─────────────────────────────────────────────────────────── */
+let _lastCardChecked = null;
+
+document.addEventListener('click', function(e) {
+  const cb = e.target;
+  if (!cb.classList.contains('card-check')) return;
+
+  if (_lastCardChecked && e.shiftKey && _lastCardChecked !== cb) {
+    const targetState = !cb.checked; // 클릭 후 될 상태
+    const visible = [...document.querySelectorAll('.card-check')].filter(el => {
+      const row = el.closest('tr');
+      return !row || !row.classList.contains('hidden');
+    });
+    const a = visible.indexOf(_lastCardChecked);
+    const b = visible.indexOf(cb);
+    if (a !== -1 && b !== -1) {
+      const [lo, hi] = a < b ? [a, b] : [b, a];
+      for (let i = lo; i <= hi; i++) {
+        if (visible[i] !== cb) visible[i].checked = targetState;
+      }
+    }
+  }
+
+  _lastCardChecked = cb;
+}, true); // capture phase
+
 function toggleAllCards(masterCb) {
   document.querySelectorAll('.card-check').forEach(cb => cb.checked = masterCb.checked);
+  _lastCardChecked = null;
   updateBulkBar();
 }
 
@@ -1387,6 +1418,7 @@ function clearBulkSelection() {
   document.querySelectorAll('.card-check').forEach(cb => cb.checked = false);
   document.getElementById('checkAll').checked = false;
   document.getElementById('checkAll').indeterminate = false;
+  _lastCardChecked = null;
   updateBulkBar();
 }
 

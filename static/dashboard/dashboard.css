@@ -477,14 +477,17 @@ canvas { max-height: 280px; }
 .stat-max { background: rgba(91,141,239,0.08); color: var(--accent); border-color: rgba(91,141,239,0.2); }
 .stat-pill:hover { filter: brightness(1.3); }
 .stat-label-sm { font-size: 10px; color: var(--text-dim); }
-.price-cell { display: flex; align-items: center; gap: 5px; }
-.price-input-issues { width: 95px; padding: 5px 8px; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none; transition: border-color 0.15s; -moz-appearance: textfield; min-width: 70px; }
+.price-cell { display: flex; align-items: center; gap: 5px; position: relative; }
+.price-input-issues { width: 95px; padding: 5px 34px 5px 8px; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; outline: none; transition: border-color 0.15s; -moz-appearance: textfield; min-width: 70px; }
 .price-input-issues::-webkit-outer-spin-button, .price-input-issues::-webkit-inner-spin-button { -webkit-appearance: none; }
 .price-input-issues:focus { border-color: var(--accent2); }
 .price-input-issues.saved { border-color: var(--success); color: var(--success); }
 .price-input-issues.prefilled { border-color: var(--warning); }
 .saved-badge { font-size: 11px; color: var(--success); font-family: 'JetBrains Mono', monospace; display: none; }
 .saved-badge.show { display: inline; }
+.revert-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: #0f2518; border: 1px solid #166534; border-radius: 4px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; color: #4ade80; padding: 0; line-height: 1; flex-shrink: 0; }
+.revert-btn:hover { background: #1a3a28; border-color: #22c55e; }
+.revert-keep { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #4ade80; font-weight: 700; pointer-events: none; }
 
 /* 하락 통계 필 */
 .drop-stat-pill  { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 14px; }

@@ -222,8 +222,13 @@
               <input type="number" class="price-input-issues" id="input-{{ item.card.id }}"
                      value="{{ item.modified_price }}" min="1" step="100"
                      style="color:#e86060;font-weight:700;width:100%;"
-                     onkeydown="if(event.key==='Enter') saveIssueEdit({{ item.card.id }})">
+                     onkeydown="if(event.key==='Enter') saveIssueEdit({{ item.card.id }})"
+                     oninput="onDropPriceInput({{ item.card.id }}, this)">
               <span class="saved-badge" id="badge-{{ item.card.id }}">✓</span>
+              <button class="revert-btn" id="revert-{{ item.card.id }}"
+                      title="이전 판매가로 복원 ({{ item.selling_price|floatformat:0 }}원)"
+                      onclick="revertToSelling({{ item.card.id }})">↩</button>
+              <span class="revert-keep" id="keep-{{ item.card.id }}" style="display:none;">유지</span>
             </div>
           </td>
           <td style="padding-right:8px;">
@@ -337,6 +342,34 @@ const CARD_RAW = (() => {
 })();
 let selectedRarities = new Set({{ selected_rarities_json|safe }});
 
+/* ── 행별 ↩ 버튼: 이전 판매가로 복원 ── */
+function revertToSelling(cardId) {
+  const input   = document.getElementById('input-' + cardId);
+  const row     = document.getElementById('row-' + cardId);
+  const selling = parseInt(row?.dataset.selling || '0', 10);
+  if (!selling || !input) return;
+  input.value = selling;
+  input.classList.add('prefilled');
+  document.getElementById('revert-' + cardId).style.display = 'none';
+  document.getElementById('keep-'   + cardId).style.display = '';
+}
+
+/* ── 가격 입력 변경 시 ↩/유지 뱃지 갱신 ── */
+function onDropPriceInput(cardId, input) {
+  const row     = document.getElementById('row-' + cardId);
+  const selling = parseInt(row?.dataset.selling || '0', 10);
+  const current = parseInt(input.value || '0', 10);
+  const revertBtn = document.getElementById('revert-' + cardId);
+  const keepSpan  = document.getElementById('keep-'   + cardId);
+  if (current === selling) {
+    revertBtn.style.display = 'none';
+    keepSpan.style.display  = '';
+  } else {
+    revertBtn.style.display = '';
+    keepSpan.style.display  = 'none';
+  }
+}
+
 /* ── 이전 판매가를 수정 가격 입력란에 채우기 ── */
 function bulkFillOldPrice() {
   const checked = [...document.querySelectorAll('.row-check:checked')];
@@ -349,7 +382,15 @@ function bulkFillOldPrice() {
     const old    = parseInt(row?.dataset.selling || '0', 10);
     if (!old) return;
     const input  = document.getElementById('input-' + cardId);
-    if (input) { input.value = old; input.classList.add('prefilled'); filled++; }
+    if (input) {
+      input.value = old;
+      input.classList.add('prefilled');
+      filled++;
+      const revertBtn = document.getElementById('revert-' + cardId);
+      const keepSpan  = document.getElementById('keep-'   + cardId);
+      if (revertBtn) revertBtn.style.display = 'none';
+      if (keepSpan)  keepSpan.style.display  = '';
+    }
   });
 
   if (filled === 0) {
