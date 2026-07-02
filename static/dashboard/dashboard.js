@@ -1370,37 +1370,41 @@ async function saveInlinePrice(cardId) {
 }
 
 /* ── Shift+클릭 범위 선택 ──────────────────────────────────────
-   onclick의 stopPropagation() 이전에 실행되도록 capture phase 사용.
-   캡처 시점엔 checkbox가 아직 토글 전이므로 targetState = !cb.checked.
-   실제 클릭된 cb는 네이티브 클릭이 처리하므로 범위에서 제외.
+   ⚠ bulk_drop.html 은 자체 완결형 핸들러(window.__rangeSelectBound)를
+     내부 인라인 스크립트로 사용합니다. 이 파일의 아래 핸들러는
+     그 가드를 존중하여, 이미 바인딩됐으면 다시 붙지 않습니다.
    ─────────────────────────────────────────────────────────── */
 let _lastCardChecked = null;
 
-document.addEventListener('click', function(e) {
-  const cb = e.target;
-  const isCard = cb.classList.contains('card-check');
-  const isRow  = cb.classList.contains('row-check');
-  if (!isCard && !isRow) return;
+if (!window.__rangeSelectBound) {
+  window.__rangeSelectBound = true;
+  document.addEventListener('click', function(e) {
+    const cb = e.target;
+    if (!cb || !cb.classList) return;
+    const isCard = cb.classList.contains('card-check');
+    const isRow  = cb.classList.contains('row-check');
+    if (!isCard && !isRow) return;
 
-  if (_lastCardChecked && e.shiftKey && _lastCardChecked !== cb) {
     const sel = isCard ? '.card-check' : '.row-check';
-    const targetState = !cb.checked;
     const visible = [...document.querySelectorAll(sel)].filter(el => {
       const row = el.closest('tr');
-      return !row || !row.classList.contains('hidden');
+      return !row || (!row.classList.contains('hidden') && !row.classList.contains('resolved'));
     });
-    const a = visible.indexOf(_lastCardChecked);
-    const b = visible.indexOf(cb);
-    if (a !== -1 && b !== -1) {
-      const [lo, hi] = a < b ? [a, b] : [b, a];
-      for (let i = lo; i <= hi; i++) {
-        if (visible[i] !== cb) visible[i].checked = targetState;
-      }
-    }
-  }
 
-  _lastCardChecked = cb;
-}, true); // capture phase
+    if (_lastCardChecked && e.shiftKey && _lastCardChecked !== cb && visible.includes(_lastCardChecked)) {
+      const a = visible.indexOf(_lastCardChecked);
+      const b = visible.indexOf(cb);
+      if (a !== -1 && b !== -1) {
+        const targetState = cb.checked;
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        for (let i = lo; i <= hi; i++) visible[i].checked = targetState;
+        if (window.getSelection) window.getSelection().removeAllRanges();
+      }
+      return;
+    }
+    _lastCardChecked = cb;
+  }, true);
+}
 
 function toggleAllCards(masterCb) {
   document.querySelectorAll('.card-check').forEach(cb => cb.checked = masterCb.checked);

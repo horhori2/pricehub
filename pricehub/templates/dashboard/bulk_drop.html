@@ -404,6 +404,45 @@ function bulkFillOldPrice() {
     showIssueToast(`↩ ${filled}개 카드에 이전 판매가 채워짐 (💾 저장 버튼으로 확정하세요)`, 'ok');
   }
 }
+
+/* ── Shift+클릭 범위 일괄 체크 (자체 완결형) ─────────────────────────
+   · dashboard.js 캐싱/오류와 무관하게 이 페이지 안에서 독립 동작.
+   · 하나를 클릭(anchor) → shift 누른 채 다른 체크박스 클릭 → 그 사이 전부 동일 상태로.
+   · capture 페이즈 사용: <td onclick="stopPropagation()"> 보다 먼저 실행됨.
+   · window.__rangeSelectBound 가드로 중복 바인딩 방지. */
+(function () {
+  if (window.__rangeSelectBound) return;
+  window.__rangeSelectBound = true;
+
+  let _anchor = null;
+
+  document.addEventListener('click', function (e) {
+    const cb = e.target;
+    if (!cb || !cb.classList) return;
+    const isRow  = cb.classList.contains('row-check');
+    const isCard = cb.classList.contains('card-check');
+    if (!isRow && !isCard) return;
+
+    const sel = isCard ? '.card-check' : '.row-check';
+    const boxes = [...document.querySelectorAll(sel)].filter(el => {
+      const row = el.closest('tr');
+      return !row || (!row.classList.contains('hidden') && !row.classList.contains('resolved'));
+    });
+
+    if (e.shiftKey && _anchor && _anchor !== cb && boxes.includes(_anchor)) {
+      const a = boxes.indexOf(_anchor);
+      const b = boxes.indexOf(cb);
+      if (a !== -1 && b !== -1) {
+        const targetState = cb.checked;              // 브라우저가 클릭 직전 이미 토글한 상태
+        const [lo, hi] = a < b ? [a, b] : [b, a];
+        for (let i = lo; i <= hi; i++) boxes[i].checked = targetState;
+        if (window.getSelection) window.getSelection().removeAllRanges(); // shift 드래그 텍스트 선택 제거
+      }
+      return;                                        // shift 클릭은 anchor 유지
+    }
+    _anchor = cb;                                    // 일반 클릭만 anchor 갱신
+  }, true);
+})();
 </script>
 
 <script src="{% static 'dashboard/dashboard.js' %}"></script>

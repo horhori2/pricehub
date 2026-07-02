@@ -21,8 +21,8 @@ class ExpansionAdmin(admin.ModelAdmin):
 
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
-    list_display = ['name', 'card_number', 'expansion', 'rarity', 'created_at']
-    list_filter = ['expansion', 'rarity']
+    list_display = ['name', 'card_number', 'expansion', 'rarity', 'is_teukil', 'created_at']
+    list_filter = ['expansion', 'rarity', 'is_teukil']
     search_fields = ['name', 'card_number']
     ordering = ['expansion', 'card_number']
 

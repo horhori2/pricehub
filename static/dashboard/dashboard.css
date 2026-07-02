@@ -429,6 +429,8 @@ canvas { max-height: 280px; }
 .issues-table tr.done td { background: rgba(61,214,140,0.04); }
 .issues-table tr.active-row td { background: rgba(124,107,255,0.06) !important; }
 .issues-table tr.hidden { display: none; }
+.issues-table tr:has(.row-check:checked) td { background: rgba(124,107,255,0.1); }
+.issues-table tr:has(.card-check:checked) td { background: rgba(124,107,255,0.1); }
 .issues-table tr.resolved { opacity: .35; pointer-events: none; transition: opacity .4s; }
 .warning-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--warning); margin-right: 6px; flex-shrink: 0; }
 .done .warning-dot { background: var(--success); }

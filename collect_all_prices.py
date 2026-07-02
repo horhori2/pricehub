@@ -34,14 +34,15 @@ def collect_all_prices_integrated():
             result = get_all_prices_for_card(
                 card_name=card.name,
                 rarity=card.rarity,
-                expansion_name=card.expansion.name
+                expansion_name=card.expansion.name,
+                is_teukil=card.is_teukil,
             )
-            
+
             api_calls += 1
-            
+
             general_price, valid_count, general_mall = result['general_price']
             valid_items = result['valid_items']
-            
+
             if general_price is not None and general_mall:
                 CardPrice.objects.create(
                     card=card,
@@ -98,14 +99,15 @@ def collect_expansion_prices_integrated(expansion_code: str):
             result = get_all_prices_for_card(
                 card_name=card.name,
                 rarity=card.rarity,
-                expansion_name=card.expansion.name
+                expansion_name=card.expansion.name,
+                is_teukil=card.is_teukil,
             )
-            
+
             api_calls += 1
-            
+
             general_price, valid_count, general_mall = result['general_price']
             valid_items = result['valid_items']
-            
+
             if general_price is not None and general_mall:
                 CardPrice.objects.create(
                     card=card,
@@ -142,9 +144,10 @@ def test_single_card_integrated(card_id: int):
         result = get_all_prices_for_card(
             card_name=card.name,
             rarity=card.rarity,
-            expansion_name=card.expansion.name
+            expansion_name=card.expansion.name,
+            is_teukil=card.is_teukil,
         )
-        
+
         general_price, valid_count, general_mall = result['general_price']
         valid_items = result['valid_items']
 

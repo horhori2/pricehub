@@ -134,32 +134,6 @@ def _build_price_result(valid_items: List[dict]) -> FilterResult:
     )
 
 
-def _get_prices(query_fn, filter_fn, *args, log_prefix: str = '') -> dict:
-    """검색어 생성 → API 호출 → 필터링 → 결과 반환 공통 흐름"""
-    search_query = query_fn(*args)
-    logger.debug("%s 검색어: %s", log_prefix, search_query)
-
-    items = search_naver_shopping(search_query)
-    if not items:
-        logger.debug("%s 검색 결과 없음", log_prefix)
-        return {'general_price': (None, 0, None), 'search_query': search_query, 'valid_items': []}
-
-    logger.debug("%s 검색 결과: %d개", log_prefix, len(items))
-    min_price, valid_count, min_price_mall, valid_items = filter_fn(items, *args[:2])
-
-    if min_price:
-        logger.debug("%s 최저가: %d원 (%s) — 유효 %d개",
-                     log_prefix, int(min_price), min_price_mall, valid_count)
-    else:
-        logger.debug("%s 최저가 없음", log_prefix)
-
-    return {
-        'general_price': (min_price, valid_count, min_price_mall),
-        'search_query': search_query,
-        'valid_items': valid_items,
-    }
-
-
 # ════════════════════════════════════════════════════════════════
 # 포켓몬 한글판
 # ════════════════════════════════════════════════════════════════
@@ -178,7 +152,8 @@ def _has_high_rarity_keyword(clean_title: str) -> bool:
     return any(_word_boundary_match(kw, clean_title) for kw in HIGH_RARITY_KEYWORDS)
 
 
-def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str]) -> FilterResult:
+def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str],
+                          is_teukil: bool = False) -> FilterResult:
     """포켓몬카드 검색 결과 필터링"""
     is_mirror_rarity  = rarity in MIRROR_RARITIES
     is_general_rarity = rarity in GENERAL_RARITIES
@@ -191,6 +166,8 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
             continue
         title = _clean_title(item['title'])
         if re.sub(r'\s+', '', title).lower().find(card_name_no_space) == -1:
+            continue
+        if is_teukil and '특일' not in title:
             continue
 
         if is_general_rarity:
@@ -225,14 +202,33 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
     return _build_price_result(valid_items)
 
 
-def get_all_prices_for_card(card_name: str, rarity: str, expansion_name: str) -> dict:
+def get_all_prices_for_card(card_name: str, rarity: str, expansion_name: str,
+                             is_teukil: bool = False) -> dict:
     """포켓몬카드 가격 통합 검색"""
-    return _get_prices(
-        generate_pokemon_search_query,
-        filter_pokemon_items,
-        card_name, rarity, expansion_name,
-        log_prefix='[포켓몬]',
+    search_query = generate_pokemon_search_query(card_name, rarity, expansion_name)
+    logger.debug("[포켓몬] 검색어: %s", search_query)
+
+    items = search_naver_shopping(search_query)
+    if not items:
+        logger.debug("[포켓몬] 검색 결과 없음")
+        return {'general_price': (None, 0, None), 'search_query': search_query, 'valid_items': []}
+
+    logger.debug("[포켓몬] 검색 결과: %d개", len(items))
+    min_price, valid_count, min_price_mall, valid_items = filter_pokemon_items(
+        items, card_name, rarity, is_teukil,
     )
+
+    if min_price:
+        logger.debug("[포켓몬] 최저가: %d원 (%s) — 유효 %d개",
+                     int(min_price), min_price_mall, valid_count)
+    else:
+        logger.debug("[포켓몬] 최저가 없음")
+
+    return {
+        'general_price': (min_price, valid_count, min_price_mall),
+        'search_query': search_query,
+        'valid_items': valid_items,
+    }
 
 
 # ════════════════════════════════════════════════════════════════

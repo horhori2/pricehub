@@ -38,7 +38,7 @@ class CardListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
         fields = [
-            'id', 'card_number', 'name', 'rarity',
+            'id', 'card_number', 'name', 'rarity', 'is_teukil',
             'shop_product_code', 'image_url',
             'expansion_code', 'expansion_name',
             'selling_price',        # ← 관리자 설정 판매가
@@ -61,7 +61,7 @@ class CardDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Card
         fields = [
-            'id', 'card_number', 'name', 'rarity',
+            'id', 'card_number', 'name', 'rarity', 'is_teukil',
             'shop_product_code', 'image_url',
             'selling_price',        # ← 관리자 설정 판매가
             'created_at', 'updated_at',

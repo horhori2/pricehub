@@ -62,6 +62,7 @@ class Card(models.Model):
         ('HR', 'HR'),
         ('MUR', 'MUR'),
         ('MA', 'MA'),
+        ('K', 'K'),
         ('R', 'R'),
         ('U', 'U'),
         ('C', 'C'),
@@ -106,12 +107,13 @@ class Card(models.Model):
         verbose_name='이미지주소'
     )
     is_favorite = models.BooleanField(default=False, verbose_name='즐겨찾기', db_index=True)
+    is_teukil = models.BooleanField(default=False, verbose_name='특일', db_index=True)
     created_at = models.DateTimeField(
-        auto_now_add=True, 
+        auto_now_add=True,
         verbose_name='생성일시'
     )
     updated_at = models.DateTimeField(
-        auto_now=True, 
+        auto_now=True,
         verbose_name='수정일시'
     )
     selling_price = models.PositiveIntegerField(
