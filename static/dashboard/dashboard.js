@@ -1378,11 +1378,14 @@ let _lastCardChecked = null;
 
 document.addEventListener('click', function(e) {
   const cb = e.target;
-  if (!cb.classList.contains('card-check')) return;
+  const isCard = cb.classList.contains('card-check');
+  const isRow  = cb.classList.contains('row-check');
+  if (!isCard && !isRow) return;
 
   if (_lastCardChecked && e.shiftKey && _lastCardChecked !== cb) {
-    const targetState = !cb.checked; // 클릭 후 될 상태
-    const visible = [...document.querySelectorAll('.card-check')].filter(el => {
+    const sel = isCard ? '.card-check' : '.row-check';
+    const targetState = !cb.checked;
+    const visible = [...document.querySelectorAll(sel)].filter(el => {
       const row = el.closest('tr');
       return !row || !row.classList.contains('hidden');
     });
