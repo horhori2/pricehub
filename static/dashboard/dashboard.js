@@ -697,36 +697,47 @@ async function runBulk() {
     document.getElementById('rSet').textContent    = data.set_count.toLocaleString();
     document.getElementById('rReview').textContent = data.needs_review_count.toLocaleString();
     document.getElementById('rSkip').textContent   = data.skipped_count.toLocaleString();
-    /* 하락 대기 카운트 표시 (신규) */
+    /* 하락/상승 대기 카운트 표시 */
     const rDrop = document.getElementById('rDrop');
     if (rDrop) rDrop.textContent = (data.drop_count || 0).toLocaleString();
+    const rRise = document.getElementById('rRise');
+    if (rRise) rRise.textContent = (data.rise_count || 0).toLocaleString();
     const expCode = document.getElementById('expansionSelect').value;
     const dropSuffix = expCode ? `?expansion=${expCode}` : '';
     const btnDrop = document.getElementById('btnDrop');
+    const btnRise = document.getElementById('btnRise');
     const btnUnpriced = document.getElementById('btnUnpriced');
     if (btnDrop) btnDrop.href = BULK_DROP_URL + dropSuffix;
+    if (btnRise) btnRise.href = BULK_RISE_URL + dropSuffix;
     if (btnUnpriced) btnUnpriced.href = BULK_UNPRICED_URL + dropSuffix;
     /* 버튼은 항상 표시 — 카운트 0이면 흐리게만 */
     if (btnDrop)     btnDrop.style.opacity     = data.drop_count          > 0 ? '1' : '0.4';
+    if (btnRise)     btnRise.style.opacity     = data.rise_count         > 0 ? '1' : '0.4';
     if (btnUnpriced) btnUnpriced.style.opacity = data.needs_review_count  > 0 ? '1' : '0.4';
     document.getElementById('resultBox').classList.add('show');
 
     /* ── result-box 버튼 카운트 + 강조 ── */
     const dropCount     = data.drop_count || 0;
+    const riseCount     = data.rise_count || 0;
     const unpricedCount = data.needs_review_count || 0;
     const btnDropCount     = document.getElementById('btnDropCount');
+    const btnRiseCount     = document.getElementById('btnRiseCount');
     const btnUnpricedCount = document.getElementById('btnUnpricedCount');
     if (btnDropCount)     btnDropCount.textContent     = dropCount > 0     ? dropCount + '개'     : '';
+    if (btnRiseCount)     btnRiseCount.textContent     = riseCount > 0     ? riseCount + '개'     : '';
     if (btnUnpricedCount) btnUnpricedCount.textContent = unpricedCount > 0 ? unpricedCount + '개' : '';
 
     /* 해당 카운트가 있는 버튼만 pulse 강조 */
     const btnDrop2     = document.getElementById('btnDrop');
+    const btnRise2      = document.getElementById('btnRise');
     const btnUnpriced2 = document.getElementById('btnUnpriced');
     if (btnDrop2)     btnDrop2.classList.toggle('issues-link-urgent',     dropCount > 0);
+    if (btnRise2)     btnRise2.classList.toggle('issues-link-urgent',     riseCount > 0);
     if (btnUnpriced2) btnUnpriced2.classList.toggle('issues-link-urgent', unpricedCount > 0);
 
     /* r-mini 칸도 강조 */
     document.querySelector('.r-mini-drop')?.classList.toggle('r-mini-urgent',   dropCount > 0);
+    document.querySelector('.r-mini-rise')?.classList.toggle('r-mini-urgent',   riseCount > 0);
     document.querySelector('.r-mini-review')?.classList.toggle('r-mini-urgent', unpricedCount > 0);
   } catch (e) { alert('오류: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '⚡ 일괄 판매가 설정 실행'; }
@@ -734,14 +745,19 @@ async function runBulk() {
 function resetBulkResult() {
   document.getElementById('resultBox').classList.remove('show');
   const btnDrop     = document.getElementById('btnDrop');
+  const btnRise     = document.getElementById('btnRise');
   const btnUnpriced = document.getElementById('btnUnpriced');
   if (btnDrop)     { btnDrop.style.display = '';     btnDrop.classList.remove('issues-link-urgent'); }
+  if (btnRise)     { btnRise.style.display = '';     btnRise.classList.remove('issues-link-urgent'); }
   if (btnUnpriced) { btnUnpriced.style.display = ''; btnUnpriced.classList.remove('issues-link-urgent'); }
   document.querySelector('.r-mini-drop')?.classList.remove('r-mini-urgent');
+  document.querySelector('.r-mini-rise')?.classList.remove('r-mini-urgent');
   document.querySelector('.r-mini-review')?.classList.remove('r-mini-urgent');
   const btnDropCount     = document.getElementById('btnDropCount');
+  const btnRiseCount     = document.getElementById('btnRiseCount');
   const btnUnpricedCount = document.getElementById('btnUnpricedCount');
   if (btnDropCount)     btnDropCount.textContent = '';
+  if (btnRiseCount)     btnRiseCount.textContent = '';
   if (btnUnpricedCount) btnUnpricedCount.textContent = '';
 }
 
@@ -848,25 +864,28 @@ function showIssuesSidePanel(cardId) {
   document.getElementById('sideCardInfo').textContent =
     `${row.dataset.number} · ${row.dataset.rarity}`;
 
-  /* 하락 요약 */
+  /* 하락/상승 요약 (부호로 방향 판단) */
   const summaryEl = document.getElementById('sidePriceSummary');
   if (summaryEl) {
     const selling  = parseInt(row.dataset.selling);
     const modified = parseInt(row.dataset.modified);
-    const dropAmt  = selling - modified;
-    const dropPct  = ((dropAmt / selling) * 100).toFixed(1);
+    const diff     = modified - selling;
+    const isRise   = diff > 0;
+    const diffPct  = ((Math.abs(diff) / selling) * 100).toFixed(1);
     document.getElementById('sideOldPrice').textContent = selling.toLocaleString() + '원';
     document.getElementById('sideNewPrice').textContent = modified.toLocaleString() + '원';
-    document.getElementById('sideDropPct').textContent  = `-${dropPct}%`;
-    document.getElementById('sideDropAmt').textContent  = `▼ ${dropAmt.toLocaleString()}원`;
+    document.getElementById('sideDropPct').textContent  = `${isRise ? '+' : '-'}${diffPct}%`;
+    document.getElementById('sideDropAmt').textContent  = `${isRise ? '▲' : '▼'} ${Math.abs(diff).toLocaleString()}원`;
     const sideBar = document.getElementById('sideDropBar');
-    sideBar.style.width = Math.min(parseFloat(dropPct), 100) + '%';
-    const pct = parseFloat(dropPct);
-    sideBar.style.background = pct < 10
-      ? 'linear-gradient(90deg,#f5a623,#f06060)'
-      : pct < 30
-        ? 'linear-gradient(90deg,#f06060,#c43c3c)'
-        : 'linear-gradient(90deg,#c43c3c,#9b1f1f)';
+    sideBar.style.width = Math.min(parseFloat(diffPct), 100) + '%';
+    const pct = parseFloat(diffPct);
+    sideBar.style.background = isRise
+      ? (pct < 10 ? 'linear-gradient(90deg,#4ade80,#22c55e)'
+         : pct < 30 ? 'linear-gradient(90deg,#22c55e,#16a34a)'
+         : 'linear-gradient(90deg,#16a34a,#15803d)')
+      : (pct < 10 ? 'linear-gradient(90deg,#f5a623,#f06060)'
+         : pct < 30 ? 'linear-gradient(90deg,#f06060,#c43c3c)'
+         : 'linear-gradient(90deg,#c43c3c,#9b1f1f)');
     summaryEl.style.display = 'block';
   }
 
@@ -984,8 +1003,9 @@ async function approveAll() {
   await _runParallel(ids, saveIssueEdit);
 }
 
-/* ── N% 이하 하락 카드만 일괄 approve (bulk_drop 페이지) ── */
+/* ── N% 이하 변동 카드만 일괄 approve (bulk_drop / bulk_rise 페이지 공용) ── */
 async function approveByPct() {
+  const trend = document.body.dataset.trend === 'rise' ? '상승' : '하락';
   const threshold = parseFloat(document.getElementById('dropPctThreshold')?.value) || 10;
   const rows = [...document.querySelectorAll('#cardTableBody tr:not(.resolved):not(.done)')]
     .filter(r => {
@@ -993,10 +1013,10 @@ async function approveByPct() {
       return !isNaN(pct) && pct <= threshold;
     });
   if (!rows.length) {
-    showIssueToast(`하락폭 ${threshold}% 이하 카드가 없습니다.`, 'err');
+    showIssueToast(`${trend}폭 ${threshold}% 이하 카드가 없습니다.`, 'err');
     return;
   }
-  if (!confirm(`하락폭 ${threshold}% 이하 카드 ${rows.length}개에 하락가를 반영할까요?`)) return;
+  if (!confirm(`${trend}폭 ${threshold}% 이하 카드 ${rows.length}개에 ${trend}가를 반영할까요?`)) return;
 
   const btn = document.getElementById('approveByPctBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>처리 중...'; }

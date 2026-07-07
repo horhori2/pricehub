@@ -359,6 +359,7 @@ canvas { max-height: 280px; }
 .result-box.show { display: block; }
 .result-mini-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
 .result-mini-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.result-mini-grid-5 { grid-template-columns: repeat(5, 1fr); }
 .r-mini { background: var(--surface2); border-radius: 8px; padding: 10px; text-align: center; border: 1px solid transparent; transition: all 0.2s; }
 .r-mini-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; font-family: 'JetBrains Mono', monospace; margin-bottom: 3px; }
 .r-mini-value { font-size: 20px; font-weight: 900; font-family: 'JetBrains Mono', monospace; }
@@ -503,6 +504,7 @@ canvas { max-height: 280px; }
 .drop-amt-text   { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
 .drop-bar-bg     { height: 5px; background: var(--border2); border-radius: 3px; overflow: hidden; }
 .drop-bar-fill   { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #e86060, #c43c3c); transition: width .4s ease; }
+.rise-bar-fill   { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #4ade80, #16a34a); transition: width .4s ease; }
 
 /* 저장 버튼 */
 .issue-save-btn  { padding: 5px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; border: none; transition: all .15s; white-space: nowrap; font-family: inherit; background: var(--surface2); border: 1px solid var(--border2); color: var(--text-muted); }

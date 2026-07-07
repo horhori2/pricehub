@@ -167,8 +167,12 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
         title = _clean_title(item['title'])
         if re.sub(r'\s+', '', title).lower().find(card_name_no_space) == -1:
             continue
-        if is_teukil and '특일' not in title:
-            continue
+        if is_teukil:
+            if '특일' not in title and '특별' not in title:
+                continue
+        else:
+            if '특일' in title or '특별' in title:
+                continue
 
         if is_general_rarity:
             if _has_high_rarity_keyword(title):

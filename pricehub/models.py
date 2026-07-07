@@ -3,6 +3,8 @@ import secrets
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 class Expansion(models.Model):
     """확장팩 모델"""
@@ -521,3 +523,132 @@ class APIKey(models.Model):
         raw_key = secrets.token_urlsafe(32)
         instance = cls.objects.create(name=name, key=raw_key)
         return instance, raw_key
+
+
+# ==================== 매입리스트 관리 ====================
+# 포켓몬/원피스/디지몬 등 게임별로 "매입리스트"를 만들고,
+# 개별 카드를 담아 판매가와 별도로 매입가를 결정한다.
+# 여러 카드 모델(Card, JapanCard, OnePieceCard, DigimonCard)을
+# 하나의 항목 모델로 다루기 위해 GenericForeignKey를 사용한다.
+
+def round_to_100(value):
+    """100원 단위로 반올림 (예: 149 -> 100, 150 -> 200)"""
+    return int((value + 50) // 100) * 100
+
+
+class PurchaseList(models.Model):
+    """매입리스트 — 게임별로 관리하는 카드 매입 목록"""
+
+    GAME_TYPE_CHOICES = [
+        ('pokemon_kr', '포켓몬 한글판'),
+        ('pokemon_jp', '포켓몬 일본판'),
+        ('onepiece_kr', '원피스 한글판'),
+        ('digimon_kr', '디지몬 한글판'),
+    ]
+
+    name = models.CharField(
+        max_length=200,
+        verbose_name='매입리스트명',
+        help_text='예: 2026년 7월 매입'
+    )
+    game_type = models.CharField(
+        max_length=20,
+        choices=GAME_TYPE_CHOICES,
+        db_index=True,
+        verbose_name='게임 구분'
+    )
+    description = models.TextField(blank=True, verbose_name='설명')
+    default_purchase_ratio = models.DecimalField(
+        max_digits=5, decimal_places=2, default=50,
+        verbose_name='기본 매입가 비율(%)',
+        help_text='카드를 추가할 때 추천 매입가를 계산하는 기본 비율. 보통 판매가의 50%.'
+    )
+    is_active = models.BooleanField(default=True, verbose_name='활성 여부')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='생성일시')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='수정일시')
+
+    class Meta:
+        db_table = 'purchase_list'
+        verbose_name = '매입리스트'
+        verbose_name_plural = '매입리스트 목록'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.get_game_type_display()}] {self.name}"
+
+
+class PurchaseListItem(models.Model):
+    """매입리스트에 담긴 개별 카드 + 매입가 결정 정보"""
+
+    purchase_list = models.ForeignKey(
+        PurchaseList, on_delete=models.CASCADE,
+        related_name='items', verbose_name='매입리스트'
+    )
+
+    # 여러 카드 모델(Card / JapanCard / OnePieceCard / DigimonCard)을
+    # 하나의 항목 모델에서 다루기 위한 GenericForeignKey
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, verbose_name='카드 종류')
+    object_id = models.PositiveIntegerField(verbose_name='카드 ID')
+    card = GenericForeignKey('content_type', 'object_id')
+
+    selling_price_snapshot = models.PositiveIntegerField(
+        default=0, verbose_name='추가 시점 판매가'
+    )
+    purchase_ratio = models.DecimalField(
+        max_digits=5, decimal_places=2, default=50,
+        verbose_name='적용 매입가 비율(%)'
+    )
+    recommended_purchase_price = models.PositiveIntegerField(
+        default=0, verbose_name='추천 매입가',
+        help_text='판매가 × 매입가 비율로 자동 계산됨'
+    )
+    purchase_price = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name='확정 매입가',
+        help_text='가격 관리자가 최종 결정한 매입가. 비어있으면 미확정(추천가만 있는 상태).'
+    )
+    memo = models.CharField(max_length=200, blank=True, verbose_name='메모')
+
+    added_at = models.DateTimeField(auto_now_add=True, verbose_name='추가일시')
+    decided_at = models.DateTimeField(null=True, blank=True, verbose_name='매입가 확정일시')
+
+    class Meta:
+        db_table = 'purchase_list_item'
+        verbose_name = '매입리스트 항목'
+        verbose_name_plural = '매입리스트 항목 목록'
+        ordering = ['-added_at']
+        unique_together = [['purchase_list', 'content_type', 'object_id']]
+        indexes = [
+            models.Index(fields=['content_type', 'object_id']),
+        ]
+
+    def __str__(self):
+        return f"{self.purchase_list.name} - card#{self.object_id}"
+
+    def compute_recommended_price(self):
+        ratio = self.purchase_ratio if self.purchase_ratio is not None else 50
+        base = self.selling_price_snapshot or 0
+        raw = base * float(ratio) / 100
+        return round_to_100(raw)
+
+    @property
+    def is_decided(self):
+        return self.purchase_price is not None
+
+    @property
+    def final_purchase_price(self):
+        """확정 매입가가 없으면 추천가를 잠정값으로 제공 (외부 API용)"""
+        return self.purchase_price if self.purchase_price is not None else self.recommended_purchase_price
+
+    @property
+    def cached_card(self):
+        """
+        N+1 방지를 위해 purchase_config.attach_cards() 가 미리 채워둔
+        _card_cache 가 있으면 그걸 쓰고, 없으면 GenericForeignKey로 직접 조회.
+        """
+        if hasattr(self, '_card_cache'):
+            return self._card_cache
+        return self.card
+
+    def save(self, *args, **kwargs):
+        self.recommended_purchase_price = self.compute_recommended_price()
+        super().save(*args, **kwargs)

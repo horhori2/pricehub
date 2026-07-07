@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>매입리스트 관리</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
+<style>
+  .pl-game-section { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px 24px; margin-bottom:18px; }
+  .pl-game-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
+  .pl-game-title { font-size:16px; font-weight:800; }
+  .pl-list-row { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; text-decoration:none; color:inherit; }
+  .pl-list-row:hover { border-color:var(--accent2); }
+  .pl-list-name { font-weight:700; font-size:14px; }
+  .pl-list-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .pl-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; white-space:nowrap; }
+  .pl-badge.active { background:rgba(61,214,140,0.15); color:var(--success); }
+  .pl-badge.inactive { background:rgba(90,96,128,0.15); color:var(--text-muted); }
+  .pl-create-form { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .pl-create-form input { padding:7px 10px; background:var(--bg); border:1px solid var(--border2); border-radius:7px; color:var(--text); font-family:inherit; font-size:13px; }
+  .pl-create-form input[name="name"] { flex:1; min-width:180px; }
+  .pl-create-form input[name="default_purchase_ratio"] { width:110px; }
+  .pl-btn { padding:7px 16px; background:var(--accent2); border:none; border-radius:7px; color:#fff; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; }
+  .pl-empty { color:var(--text-dim); font-size:13px; padding:8px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-badge">💰</span>
+    <span class="logo-text">매입리스트 관리</span>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <a href="/" class="back-btn">← 홈</a>
+    <a href="/logout/" class="logout-btn">로그아웃</a>
+  </div>
+</header>
+
+<main>
+  <div class="page-title" style="font-size:24px;">매입리스트 관리</div>
+  <div class="page-sub" style="margin-bottom:24px;color:var(--text-muted);font-size:13px;">
+    게임별로 매입리스트를 만들고, 카드를 담아 매입가를 결정하세요.
+    추천 매입가는 판매가의 <strong style="color:var(--accent2);">50%</strong>가 기본값이며, 리스트마다 비율을 바꿀 수 있습니다.
+    최종 매입가는 가격 관리자가 리스트 상세 화면에서 직접 확정합니다.
+  </div>
+
+  {% for g in games %}
+  <div class="pl-game-section">
+    <div class="pl-game-head">
+      <span class="pl-game-title">{{ g.label }}</span>
+      <span style="font-size:12px;color:var(--text-muted);">리스트 {{ g.list_count }}개 · 활성 {{ g.active_count }}개</span>
+    </div>
+
+    {% if g.lists %}
+      {% for l in g.lists %}
+      <a href="/purchase-lists/detail/{{ l.id }}/" class="pl-list-row">
+        <div>
+          <div class="pl-list-name">{{ l.name }}</div>
+          <div class="pl-list-meta">
+            카드 {{ l.item_count }}장 · 매입가 확정 {{ l.decided_count }}장 · 기본 비율 {{ l.default_purchase_ratio|floatformat:0 }}%
+          </div>
+        </div>
+        <span class="pl-badge {% if l.is_active %}active{% else %}inactive{% endif %}">
+          {% if l.is_active %}활성{% else %}비활성{% endif %}
+        </span>
+      </a>
+      {% endfor %}
+    {% else %}
+      <div class="pl-empty">아직 매입리스트가 없습니다.</div>
+    {% endif %}
+
+    <form class="pl-create-form" method="post" action="/purchase-lists/{{ g.game_type }}/create/">
+      {% csrf_token %}
+      <input type="text" name="name" placeholder="새 매입리스트 이름 (예: 2026년 7월 매입)" required>
+      <input type="number" name="default_purchase_ratio" value="50" min="0" max="100" step="1" title="기본 매입가 비율(%)">
+      <button type="submit" class="pl-btn">+ 새 매입리스트</button>
+    </form>
+  </div>
+  {% endfor %}
+</main>
+</body>
+</html>

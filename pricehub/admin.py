@@ -8,6 +8,8 @@ from .models import (
     JapanExpansion, JapanCard, JapanCardPrice,
     # 디지몬 한글판
     DigimonExpansion, DigimonCard, DigimonCardPrice,
+    # 매입리스트
+    PurchaseList, PurchaseListItem,
 )
 
 # ==================== 포켓몬 ====================
@@ -108,3 +110,25 @@ class DigimonCardPriceAdmin(admin.ModelAdmin):
     list_filter = ['source', 'collected_at']
     search_fields = ['card__name', 'card__card_number']
     ordering = ['-collected_at']
+
+
+# ==================== 매입리스트 ====================
+
+@admin.register(PurchaseList)
+class PurchaseListAdmin(admin.ModelAdmin):
+    list_display = ['name', 'game_type', 'default_purchase_ratio', 'is_active', 'created_at']
+    list_filter = ['game_type', 'is_active']
+    search_fields = ['name']
+    ordering = ['-created_at']
+
+
+@admin.register(PurchaseListItem)
+class PurchaseListItemAdmin(admin.ModelAdmin):
+    list_display = [
+        'purchase_list', 'content_type', 'object_id',
+        'selling_price_snapshot', 'recommended_purchase_price', 'purchase_price',
+        'added_at',
+    ]
+    list_filter = ['purchase_list__game_type', 'content_type']
+    search_fields = ['purchase_list__name']
+    ordering = ['-added_at']

@@ -3,6 +3,7 @@ pricehub/urls.py
 """
 from django.urls import path, include
 from . import views as v
+from . import purchase_views as pv
 from pricehub import api_docs_views
 
 app_name = 'pricehub'
@@ -48,6 +49,7 @@ def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
             path('bulk-price/stats/',               views['bulk_shop_stats'],         name=f'{name}-bulk-shop-stats'),
             path('bulk-price/run/',                 views['bulk_run'],                name=f'{name}-bulk-run'),
             path('bulk-price/drop/',                views['bulk_drop'],               name=f'{name}-bulk-drop'),
+            path('bulk-price/rise/',                views['bulk_rise'],               name=f'{name}-bulk-rise'),
             path('bulk-price/unpriced/',            views['bulk_unpriced'],           name=f'{name}-bulk-unpriced'),
             path('bulk-price/approve/',             views['bulk_approve'],            name=f'{name}-bulk-approve'),
             path('bulk-price/edit/',                views['bulk_edit'],               name=f'{name}-bulk-edit'),
@@ -79,6 +81,7 @@ _pokemon_kr_views = {
     'bulk_verify_candidates': v.pokemon_kr_bulk_verify_candidates,
     'bulk_run':          v.pokemon_kr_bulk_run,
     'bulk_drop':         v.pokemon_kr_bulk_drop,
+    'bulk_rise':         v.pokemon_kr_bulk_rise,
     'bulk_unpriced':     v.pokemon_kr_bulk_unpriced,
     'shop_stats':        v.pokemon_kr_shop_stats,
     'shop_stats_detail': v.pokemon_kr_shop_stats_detail,
@@ -109,6 +112,7 @@ _onepiece_kr_views = {
     'bulk_verify_candidates': v.onepiece_kr_bulk_verify_candidates,
     'bulk_run':        v.onepiece_kr_bulk_run,
     'bulk_drop':       v.onepiece_kr_bulk_drop,
+    'bulk_rise':       v.onepiece_kr_bulk_rise,
     'bulk_unpriced':   v.onepiece_kr_bulk_unpriced,
     'toggle_favorite':  v.onepiece_kr_toggle_favorite,
     'bulk_approve':     v.onepiece_kr_bulk_approve,
@@ -130,6 +134,7 @@ _digimon_kr_views = {
     'bulk_verify_candidates': v.digimon_kr_bulk_verify_candidates,
     'bulk_run':          v.digimon_kr_bulk_run,
     'bulk_drop':         v.digimon_kr_bulk_drop,
+    'bulk_rise':         v.digimon_kr_bulk_rise,
     'bulk_unpriced':     v.digimon_kr_bulk_unpriced,
     'toggle_favorite':   v.digimon_kr_toggle_favorite,
     'bulk_approve':      v.digimon_kr_bulk_approve,
@@ -159,4 +164,24 @@ urlpatterns = [
                 has_favorites=True),
 
     path('api-docs/', api_docs_views.api_docs, name='api-docs'),
+
+    # ── 매입리스트 관리 ──
+    path('purchase-lists/',
+         pv.purchase_list_index, name='purchase-list-index'),
+    path('purchase-lists/<str:game_type>/create/',
+         pv.purchase_list_create, name='purchase-list-create'),
+    path('purchase-lists/detail/<int:list_id>/',
+         pv.purchase_list_detail, name='purchase-list-detail'),
+    path('purchase-lists/detail/<int:list_id>/search-cards/',
+         pv.purchase_list_search_cards, name='purchase-list-search-cards'),
+    path('purchase-lists/detail/<int:list_id>/add-card/',
+         pv.purchase_list_add_card, name='purchase-list-add-card'),
+    path('purchase-lists/detail/<int:list_id>/toggle-active/',
+         pv.purchase_list_toggle_active, name='purchase-list-toggle-active'),
+    path('purchase-lists/detail/<int:list_id>/delete/',
+         pv.purchase_list_delete, name='purchase-list-delete'),
+    path('purchase-lists/items/<int:item_id>/set-price/',
+         pv.purchase_list_set_price, name='purchase-list-set-price'),
+    path('purchase-lists/items/<int:item_id>/remove/',
+         pv.purchase_list_remove_item, name='purchase-list-remove-item'),
 ]

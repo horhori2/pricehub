@@ -4,6 +4,7 @@ pricehub/api_urls.py — REST API + API 문서 (개발자용)
 from django.urls import path, include
 from pricehub import api_docs_views
 from . import api_views
+from . import purchase_api_views as pav
 
 
 def _tcg_api_urls(views):
@@ -85,3 +86,18 @@ digimon_kr_urlpatterns = (
 # 포켓몬 한글판 (기본 include 대상)
 app_name = 'pokemon_kr'
 urlpatterns = _tcg_api_urls(_pokemon_kr_views)
+
+
+# ════════════════════════════════════════════════════════════════
+# 매입리스트 (외부 연동용, 별도 include)
+# ════════════════════════════════════════════════════════════════
+
+_purchase_list_patterns = [
+    path('', pav.PurchaseListListView.as_view(), name='purchase-list-list'),
+    path('<int:pk>/', pav.PurchaseListDetailView.as_view(), name='purchase-list-detail'),
+    path('<int:pk>/items/', pav.PurchaseListItemsView.as_view(), name='purchase-list-items'),
+]
+
+# 프로젝트 루트 urls.py에서 아래처럼 include:
+#   path('api/purchase-lists/', include(api_urls.purchase_list_urlpatterns)),
+purchase_list_urlpatterns = (_purchase_list_patterns, 'purchase_lists')

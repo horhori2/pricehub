@@ -194,6 +194,14 @@ def home(request):
                 {'label': '디지몬 한글판', 'url': _url('digimon_kr', '/bulk-price/verify/')},
             ],
         },
+        {
+            'icon': '💰',
+            'title': '매입리스트 관리',
+            'desc': '게임별 매입리스트를 만들어 카드를 담고, 판매가 대비 매입가 비율(기본 50%)로 추천 매입가를 받아 가격 관리자가 최종 확정합니다.',
+            'items': [
+                {'label': '매입리스트 바로가기', 'url': '/purchase-lists/'},
+            ],
+        },
     ]
 
     return render(request, 'dashboard/home.html', {'categories': categories, 'tools': tools})
@@ -646,8 +654,12 @@ def _bulk_price_view(request, cfg_key):
         selling_price__gt=0,
         modified_price__lt=F('selling_price'),
     ).count()
+    rise_pending = card_model.objects.filter(
+        selling_price__gt=0,
+        modified_price__gt=F('selling_price'),
+    ).count()
     new_pending = card_model.objects.filter(modified_price__gt=0, selling_price=0).count()
-    needs_review = drop_pending + new_pending
+    needs_review = drop_pending + rise_pending + new_pending
 
     return render(request, 'dashboard/bulk_price.html', {
         'mall_names': json.dumps(mall_names),
@@ -674,6 +686,7 @@ def _bulk_price_view(request, cfg_key):
             'bulk_shop_stats_url':  f'{base_url}/bulk-price/stats/',
             'bulk_run_url':         f'{base_url}/bulk-price/run/',
             'drop_url':             f'{base_url}/bulk-price/drop/',
+            'rise_url':             f'{base_url}/bulk-price/rise/',
             'unpriced_url':         f'{base_url}/bulk-price/unpriced/',
             'inline_cards_url':     f'{base_url}/bulk-price/inline-cards/',
             'approve_url':          f'{base_url}/bulk-price/approve/',
@@ -688,9 +701,11 @@ def _bulk_run_view(request, cfg_key):
     """
     1. 가격 추출 성공 → modified_price 항상 저장
     2. 신규(selling_price=0)  → selling_price도 바로 저장
-    3. 유지/상승              → selling_price 바로 업데이트
-    4. 하락                   → modified_price만 저장, selling_price 유지 (하락 대기)
-    5. 매칭 없음              → 변경 없음 (needs_review)
+    3. 유지(동일가)            → selling_price 바로 업데이트 (변화 없음)
+    4. 상승                   → modified_price만 저장, selling_price 유지 (상승 대기 — 레어도 오매칭 등 확인 필요)
+    5. 하락                   → modified_price만 저장, selling_price 유지 (하락 대기)
+    6. 매칭 없음              → 변경 없음 (needs_review)
+    ※ overwrite=True 인 경우 상승/하락 관계없이 즉시 덮어씀 (관리자가 명시적으로 동의한 경우)
     """
     cfg = _cfg(cfg_key)
     card_model = cfg['card_model']
@@ -734,9 +749,10 @@ def _bulk_run_view(request, cfg_key):
     to_update  = []
     skipped    = []
     drop_wait  = []
+    rise_wait  = []
     no_match   = []
 
-    result_detail = {'new': 0, 'same_or_up': 0, 'drop': 0}
+    result_detail = {'new': 0, 'same_or_up': 0, 'rise': 0, 'drop': 0}
 
     for card in cards_list:
         if skip_priced and card.selling_price != 0:
@@ -787,12 +803,19 @@ def _bulk_run_view(request, cfg_key):
         if old_selling == 0:
             card.selling_price = matched_price
             result_detail['new'] += 1
-        elif overwrite or matched_price >= old_selling:
+        elif overwrite:
             card.selling_price = matched_price
             result_detail['same_or_up'] += 1
-        else:
+        elif matched_price > old_selling:
+            # 레어도 오매칭 등으로 잘못 상승하는 경우가 있어 바로 반영하지 않고 관리자 확인을 거친다.
+            rise_wait.append(card.id)
+            result_detail['rise'] += 1
+        elif matched_price < old_selling:
             drop_wait.append(card.id)
             result_detail['drop'] += 1
+        else:
+            card.selling_price = matched_price
+            result_detail['same_or_up'] += 1
 
         to_update.append(card)
 
@@ -810,11 +833,14 @@ def _bulk_run_view(request, cfg_key):
         'needs_review_ids': no_match[:100],
         'drop_count': result_detail['drop'],
         'drop_ids': drop_wait[:100],
+        'rise_count': result_detail['rise'],
+        'rise_ids': rise_wait[:100],
         'detail': result_detail,
         'message': (
             f"완료: 반영 {applied_count}개 "
-            f"(신규 {result_detail['new']} / 유지·상승 {result_detail['same_or_up']}) | "
-            f"하락 대기 {result_detail['drop']}개 | 매칭 없음 {len(no_match)}개 | 스킵 {len(skipped)}개"
+            f"(신규 {result_detail['new']} / 유지 {result_detail['same_or_up']}) | "
+            f"상승 대기 {result_detail['rise']}개 | 하락 대기 {result_detail['drop']}개 | "
+            f"매칭 없음 {len(no_match)}개 | 스킵 {len(skipped)}개"
         ),
     })
 
@@ -830,6 +856,7 @@ def _common_issues_config(cfg):
         'set_price_url_prefix': f'{base_url}/cards/',
         'high_rarity_list':     cfg.get('bulk_issues_high_rarity_list', cfg.get('high_rarity_list', '[]')),
         'drop_url':             f'{base_url}/bulk-price/drop/',
+        'rise_url':             f'{base_url}/bulk-price/rise/',
         'unpriced_url':         f'{base_url}/bulk-price/unpriced/',
         'inline_cards_url':     f'{base_url}/bulk-price/inline-cards/',
     }
@@ -936,6 +963,112 @@ def _bulk_drop_view(request, cfg_key):
             (cfg['label'], f'{base_url}/expansions/'),
             ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
             ('하락 대기 목록', None),
+        ],
+        'config': _common_issues_config(cfg),
+    })
+
+
+def _bulk_rise_view(request, cfg_key):
+    """가격 상승 대기 목록 — modified_price > selling_price 인 카드 (레어도 오매칭 등 확인 후 반영)"""
+    cfg = _cfg(cfg_key)
+    card_model  = cfg['card_model']
+    price_model = cfg['price_model']
+    base_url    = cfg['base_url']
+
+    expansion_code    = request.GET.get('expansion', '')
+    selected_rarities = request.GET.getlist('rarities')
+    sort              = request.GET.get('sort', 'rise_pct')
+    page              = max(1, int(request.GET.get('page', 1) or 1))
+    per_page          = 100
+
+    all_rarities = _get_rarities(card_model, expansion_code or None)
+    expansions   = cfg['expansion_model'].objects.order_by('-release_date')
+
+    qs = card_model.objects.filter(
+        modified_price__gt=0,
+        selling_price__gt=0,
+    ).select_related('expansion')
+
+    if expansion_code:
+        qs = qs.filter(expansion__code=expansion_code)
+    if selected_rarities:
+        qs = qs.filter(rarity__in=selected_rarities)
+
+    all_rise_cards = []
+    for card in qs:
+        mod  = int(card.modified_price)
+        sell = int(card.selling_price)
+        if mod > sell:
+            rise_amt = mod - sell
+            rise_pct = round((rise_amt / sell) * 100, 1)
+            all_rise_cards.append({
+                'card':           card,
+                'modified_price': mod,
+                'selling_price':  sell,
+                'rise_amt':       rise_amt,
+                'rise_pct':       rise_pct,
+            })
+
+    if sort == 'rise_pct':
+        all_rise_cards.sort(key=lambda x: -x['rise_pct'])
+    elif sort == 'rise_amt':
+        all_rise_cards.sort(key=lambda x: -x['rise_amt'])
+    else:
+        all_rise_cards.sort(key=lambda x: getattr(x['card'], 'name_kr', None) or x['card'].name or '')
+
+    total_count  = len(all_rise_cards)
+    avg_rise_pct = round(sum(d['rise_pct'] for d in all_rise_cards) / total_count, 1) if total_count else 0
+    max_rise     = max((d['rise_pct'] for d in all_rise_cards), default=0)
+
+    # ── 페이지네이션 ──
+    total_pages  = max(1, -(-total_count // per_page))   # ceiling division
+    page         = min(page, total_pages)
+    offset       = (page - 1) * per_page
+    rise_cards   = all_rise_cards[offset:offset + per_page]
+
+    # 페이지 번호 목록 (최대 7개, 현재 페이지 중심)
+    _half = 3
+    _start = max(1, page - _half)
+    _end   = min(total_pages, page + _half)
+    if _end - _start < 6:
+        if _start == 1:
+            _end = min(total_pages, _start + 6)
+        else:
+            _start = max(1, _end - 6)
+    page_range = list(range(_start, _end + 1))
+
+    rise_card_ids = [d['card'].pk for d in rise_cards]
+    seen_raw = {}
+    for cp in (
+        price_model.objects.filter(card_id__in=rise_card_ids)
+        .exclude(raw_data={}).exclude(raw_data=[])
+        .order_by('-collected_at')
+        .values('card_id', 'raw_data')
+    ):
+        if cp['card_id'] not in seen_raw:
+            seen_raw[cp['card_id']] = cp['raw_data']
+
+    return render(request, 'dashboard/bulk_rise.html', {
+        'rise_cards':             rise_cards,
+        'expansions':             expansions,
+        'expansion_code':         expansion_code,
+        'sort':                   sort,
+        'total_count':            total_count,
+        'avg_rise_pct':           avg_rise_pct,
+        'max_rise':               max_rise,
+        'all_rarities':           all_rarities,
+        'selected_rarities':      selected_rarities,
+        'selected_rarities_json': json.dumps(selected_rarities),
+        'card_raw_json':          json.dumps(seen_raw, ensure_ascii=False),
+        'page':                   page,
+        'total_pages':            total_pages,
+        'per_page':               per_page,
+        'page_range':             page_range,
+        'breadcrumb': [
+            ('홈', '/'),
+            (cfg['label'], f'{base_url}/expansions/'),
+            ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
+            ('상승 대기 목록', None),
         ],
         'config': _common_issues_config(cfg),
     })
@@ -1477,6 +1610,11 @@ def pokemon_kr_bulk_drop(request):
 
 
 @staff_required
+def pokemon_kr_bulk_rise(request):
+    return _bulk_rise_view(request, 'pokemon_kr')
+
+
+@staff_required
 def pokemon_kr_bulk_unpriced(request):
     return _bulk_unpriced_view(request, 'pokemon_kr')
 
@@ -1706,6 +1844,11 @@ def onepiece_kr_bulk_drop(request):
 
 
 @staff_required
+def onepiece_kr_bulk_rise(request):
+    return _bulk_rise_view(request, 'onepiece_kr')
+
+
+@staff_required
 def onepiece_kr_bulk_unpriced(request):
     return _bulk_unpriced_view(request, 'onepiece_kr')
 
@@ -1852,6 +1995,11 @@ def digimon_kr_bulk_run(request):
 @staff_required
 def digimon_kr_bulk_drop(request):
     return _bulk_drop_view(request, 'digimon_kr')
+
+
+@staff_required
+def digimon_kr_bulk_rise(request):
+    return _bulk_rise_view(request, 'digimon_kr')
 
 
 @staff_required

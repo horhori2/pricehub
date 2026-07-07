@@ -82,6 +82,7 @@
     </div>
     <div style="display:flex;gap:8px;">
       <a href="{{ config.drop_url }}" class="review-link">📉 하락 대기 →</a>
+      <a href="{{ config.rise_url }}" class="review-link">📈 상승 대기 →</a>
       <a href="{{ config.unpriced_url }}" class="review-link">❓ 미설정 →</a>
     </div>
   </div>
@@ -205,13 +206,19 @@
         <button class="run-btn" id="runBtn" onclick="runBulk()">⚡ 일괄 판매가 설정 실행</button>
 
         <div class="result-box" id="resultBox">
-          <div class="result-mini-grid result-mini-grid-4">
+          <div class="result-mini-grid result-mini-grid-5">
             <div class="r-mini"><div class="r-mini-label">완료</div><div class="r-mini-value c-green" id="rSet">0</div></div>
+            <div class="r-mini r-mini-rise"><div class="r-mini-label">상승 대기</div><div class="r-mini-value" style="color:#4ade80;" id="rRise">0</div></div>
             <div class="r-mini r-mini-drop"><div class="r-mini-label">하락 대기</div><div class="r-mini-value" style="color:#e86060;" id="rDrop">0</div></div>
             <div class="r-mini r-mini-review"><div class="r-mini-label">미설정</div><div class="r-mini-value c-yellow" id="rReview">0</div></div>
             <div class="r-mini"><div class="r-mini-label">스킵</div><div class="r-mini-value" style="color:var(--text-muted);" id="rSkip">0</div></div>
           </div>
           <div id="resultActions" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;">
+            <a href="{{ config.rise_url }}" class="issues-link issues-link-rise" id="btnRise">
+              <span>📈 상승 대기 확인</span>
+              <span class="issues-link-count" id="btnRiseCount"></span>
+              <span class="issues-link-arrow">→</span>
+            </a>
             <a href="{{ config.drop_url }}" class="issues-link issues-link-drop" id="btnDrop">
               <span>📉 하락 대기 확인</span>
               <span class="issues-link-count" id="btnDropCount"></span>
@@ -268,6 +275,7 @@ const BULK_RUN_URL        = '{{ config.bulk_run_url }}';
 const BULK_PRICE_URL      = '{{ config.bulk_price_url }}';
 const BULK_SHOP_STATS_URL = '{{ config.bulk_shop_stats_url }}';
 const BULK_DROP_URL       = '{{ config.drop_url }}';
+const BULK_RISE_URL       = '{{ config.rise_url }}';
 const BULK_UNPRICED_URL   = '{{ config.unpriced_url }}';
 
 const BULK_INLINE_CARDS_URL        = '{{ config.inline_cards_url }}';
