@@ -351,6 +351,10 @@ def filter_onepiece_items(
 # 디지몬 한글판
 # ════════════════════════════════════════════════════════════════
 
+_DIGIMON_PARALLEL_KEYWORDS = [
+    '패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레',
+]
+
 def generate_digimon_search_query(
     card_name: str,
     card_number: str,
@@ -398,7 +402,10 @@ def filter_digimon_items(
             continue
         if is_scarce and "희소" not in title:
             continue
-        if is_parallel and "패러렐" not in title:
+        has_parallel_kw = any(kw in title for kw in _DIGIMON_PARALLEL_KEYWORDS)
+        if is_parallel and not has_parallel_kw:
+            continue
+        if not is_parallel and has_parallel_kw:
             continue
         if is_special and "스페셜" not in title:
             continue
