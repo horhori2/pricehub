@@ -5,7 +5,6 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import re
-from collections import defaultdict
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
@@ -38,9 +37,11 @@ EXPANSION_INFO = {
     43359: {'code': 'BTK-17', 'name': '시크릿 크라이시스'},
     44257: {'code': 'EXK-07', 'name': '디지몬 리버레이터'},
     45019: {'code': 'BTK-18', 'name': '엘리멘트 석세서'},
+    45492: {'code': 'LMK-1.0', 'name': '스페셜 리미티드 카드 팩 vol.1'},
     45777: {'code': 'BTK-19', 'name': '크로스 에볼루션'},
     46212: {'code': 'EXK-08', 'name': 'CHAIN OF LIBERATION'},
     46837: {'code': 'BTK-20', 'name': 'OVER THE X'},
+    47520: {'code': 'LMK-2.0', 'name': '스페셜 리미티드 카드 팩 vol.2'},
     47744: {'code': 'BTK-21', 'name': 'WORLD CONVERGENCE'},
     48269: {'code': 'EXK-09', 'name': 'VERSUS MONSTERS'},
     488: {'code': 'PROMO', 'name': '프로모션 카드'},
@@ -50,16 +51,14 @@ BASE_URL = "https://digimoncard.co.kr"
 CARD_LIST_URL = "https://digimoncard.co.kr/index.php?mid=cardlist&category={}&page={}"
 
 
-def generate_shop_product_code(card_number, count, region='K'):
+def generate_shop_product_code(card_number, version=0, region='K'):
     """
     상품코드 생성: DGM-{카드번호}-{region}[-V{n}]
     한글판: region='K', 일본판: region='J'
-    동일 카드번호 2번째부터 -V1, -V2, -V3 ... 순으로 부여
+    version=0(기본)은 접미사 없음. 1=패러렐, 2=희소(추정), 3=스페셜 자리 관례.
     """
     base = f'DGM-{card_number}-{region}'
-    if count == 1:
-        return base
-    return f'{base}-V{count - 1}'
+    return base if version == 0 else f'{base}-V{version}'
 
 
 def get_or_create_expansion(category_id):
@@ -91,7 +90,6 @@ def crawl_and_save_cards(category_id):
     print(f'크롤링 시작: {info["name"]} ({info["code"]})')
     print(f'{"="*80}')
 
-    card_counter = defaultdict(int)
     saved_count = 0
 
     for page_num in range(1, 1000):
@@ -144,7 +142,8 @@ def crawl_and_save_cards(category_id):
                 rarity    = rarity_tag.get_text(strip=True) if rarity_tag else ''
                 card_type = type_tag.get_text(strip=True)   if type_tag   else ''
 
-                # 패러렐/스페셜 텍스트 여부
+                # 패러렐 여부: parallel_icon 존재가 확실한 신호 (텍스트 태그는 보조 신호로 병행)
+                has_parallel_icon = item.select_one('img.parallel_icon') is not None
                 has_parallel_text = any(
                     ('페러렐' in c.get_text(strip=True) or '패러렐' in c.get_text(strip=True))
                     for c in contents if hasattr(c, 'get_text')
@@ -153,6 +152,8 @@ def crawl_and_save_cards(category_id):
                     '스페셜' in c.get_text(strip=True)
                     for c in contents if hasattr(c, 'get_text')
                 )
+                is_parallel = has_parallel_icon or has_parallel_text
+                is_special  = has_special_text
 
                 # 카드레벨 (테이머/옵션은 레벨 없음)
                 if card_type in ['테이머', '옵션']:
@@ -167,21 +168,30 @@ def crawl_and_save_cards(category_id):
                 img_src   = img_tag['src']
                 image_url = BASE_URL + img_src if img_src.startswith('/') else img_src
 
-                # 카운트 증가 (동일 카드번호 등장 횟수로 패러렐/희소/스페셜 구분)
-                card_counter[card_number] += 1
-                count       = card_counter[card_number]
-                is_parallel = has_parallel_text or (count == 2)
-                is_scarce   = (count == 3)
-                is_special  = has_special_text or (count == 4)
-
                 valid_rarities = {r[0] for r in DigimonCard.RARITY_CHOICES}
 
-                # 기존 DB 코드와 충돌 시 다음 버전으로 이동 (기존 데이터 건드리지 않음)
-                shop_product_code = generate_shop_product_code(card_number, count)
-                suffix = count
+                # 상품코드: 기본=접미사 없음, 패러렐=V1, 스페셜=V3.
+                # 희소는 크롤링만으론 구분할 방법이 없어서, 패러렐도 스페셜도 아닌데
+                # 기본 자리가 이미 차있으면 V2부터 시도하고(희소는 경험상 V2에 있을 확률이
+                # 높음), 실제로 V2에 저장되면 희소로 추정한다. 이후 확인/수정은 수동으로 진행.
+                if is_parallel:
+                    version = 1
+                elif is_special:
+                    version = 3
+                else:
+                    version = 0
+
+                shop_product_code = generate_shop_product_code(card_number, version)
+
+                if version == 0 and DigimonCard.objects.filter(shop_product_code=shop_product_code).exists():
+                    version = 2
+                    shop_product_code = generate_shop_product_code(card_number, version)
+
                 while DigimonCard.objects.filter(shop_product_code=shop_product_code).exists():
-                    suffix += 1
-                    shop_product_code = generate_shop_product_code(card_number, suffix)
+                    version += 1
+                    shop_product_code = generate_shop_product_code(card_number, version)
+
+                is_scarce = not is_parallel and not is_special and version == 2
 
                 DigimonCard.objects.create(
                     shop_product_code=shop_product_code,
