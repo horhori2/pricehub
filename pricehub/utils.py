@@ -400,14 +400,23 @@ def filter_digimon_items(
 
         if card_number not in title:
             continue
-        if is_scarce and "희소" not in title:
+
+        has_scarce_kw = "희소" in title
+        if is_scarce and not has_scarce_kw:
             continue
+        if not is_scarce and has_scarce_kw:
+            continue
+
         has_parallel_kw = any(kw in title for kw in _DIGIMON_PARALLEL_KEYWORDS)
         if is_parallel and not has_parallel_kw:
             continue
         if not is_parallel and has_parallel_kw:
             continue
-        if is_special and "스페셜" not in title:
+
+        has_special_kw = "스페셜" in title or _word_boundary_match('SP', title.upper())
+        if is_special and not has_special_kw:
+            continue
+        if not is_special and has_special_kw:
             continue
 
         valid_items.append(item)
