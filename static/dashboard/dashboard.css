@@ -61,6 +61,12 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .card-name-text:hover { color: var(--accent); }
 .card-number-text { font-size: 11px; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
 .rarity-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; background: rgba(91,141,239,0.1); color: var(--accent); border: 1px solid rgba(91,141,239,0.2); font-family: 'JetBrains Mono', monospace; }
+.tag-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; margin: 1px 4px 1px 0; white-space: nowrap; }
+.tag-badge.tag-parallel { background: rgba(124,107,255,0.12); color: var(--accent2); border: 1px solid rgba(124,107,255,0.3); }
+.tag-badge.tag-scarce   { background: rgba(245,166,35,0.12); color: var(--warning); border: 1px solid rgba(245,166,35,0.3); }
+.tag-badge.tag-special  { background: rgba(61,214,140,0.12); color: var(--success); border: 1px solid rgba(61,214,140,0.3); }
+.tag-badge.tag-teukil   { background: rgba(240,96,96,0.12); color: var(--danger); border: 1px solid rgba(240,96,96,0.3); }
+.tag-badge.tag-manga    { background: rgba(90,96,128,0.15); color: var(--text-muted); border: 1px solid var(--border2); }
 .price-set { color: var(--success); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 .price-unset { color: var(--text-dim); font-size: 12px; }
 .market-price { color: var(--text-muted); font-size: 13px; font-family: 'JetBrains Mono', monospace; }

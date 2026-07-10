@@ -99,6 +99,7 @@
           <th style="width:52px"></th>
           <th>카드</th>
           <th>레어도</th>
+          {% if show_tag_column %}<th>구분</th>{% endif %}
           <th>
             {% if sort == 'market_asc' %}
             <a href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort=market_desc" style="color:var(--accent2);text-decoration:none;">시장 최저가 ↑</a>
@@ -144,6 +145,13 @@
             <div class="card-number-text">{{ card.shop_product_code }}</div>
           </td>
           <td><span class="rarity-badge">{{ card.rarity }}</span></td>
+          {% if show_tag_column %}
+          <td>
+            {% for label, css_class in card.tag_badges %}
+            <span class="tag-badge {{ css_class }}">{{ label }}</span>
+            {% endfor %}
+          </td>
+          {% endif %}
           <td>
             {% if card.latest_market_price %}<span class="market-price">{{ card.latest_market_price|floatformat:0 }}원</span>
             {% else %}<span class="price-unset">미수집</span>{% endif %}

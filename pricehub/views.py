@@ -434,6 +434,39 @@ def _expansion_list_view(request, cfg_key, extra_ctx=None):
     return render(request, 'dashboard/expansion_list.html', ctx)
 
 
+def _digimon_tags(card):
+    tags = []
+    if card.is_parallel:
+        tags.append(('패러렐', 'tag-parallel'))
+    if card.is_scarce:
+        tags.append(('희소', 'tag-scarce'))
+    if card.is_special:
+        tags.append(('스페셜', 'tag-special'))
+    return tags
+
+
+def _onepiece_tags(card):
+    if card.rarity == 'MANGA':
+        return [('망가', 'tag-manga')]
+    if card.rarity == 'SP':
+        return [('스페셜', 'tag-special')]
+    if card.rarity.startswith('P-'):
+        return [('패러렐', 'tag-parallel')]
+    return []
+
+
+def _pokemon_kr_tags(card):
+    return [('특일', 'tag-teukil')] if card.is_teukil else []
+
+
+# 카드 종류별 뱃지 태그 계산 함수 (없는 종류는 태그 컬럼 자체를 숨김)
+_TAG_FUNCS = {
+    'digimon_kr':  _digimon_tags,
+    'onepiece_kr': _onepiece_tags,
+    'pokemon_kr':  _pokemon_kr_tags,
+}
+
+
 def _card_list_view(request, cfg_key, code, extra_ctx=None):
     cfg = _cfg(cfg_key)
     expansion_model = cfg['expansion_model']
@@ -511,6 +544,13 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
     offset      = (page - 1) * per_page
     cards_list  = list(cards_qs[offset:offset + per_page])
 
+    # 카드 종류별 뱃지 태그 (패러렐/희소/스페셜/특일 등)
+    tag_func = _TAG_FUNCS.get(cfg_key)
+    show_tag_column = tag_func is not None
+    if tag_func:
+        for c in cards_list:
+            c.tag_badges = tag_func(c)
+
     _half  = 3
     _start = max(1, page - _half)
     _end   = min(total_pages, page + _half)
@@ -555,6 +595,7 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
         'total_pages':      total_pages,
         'page_range':       page_range,
         'sort':             sort,
+        'show_tag_column':  show_tag_column,
         'breadcrumb': [
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
