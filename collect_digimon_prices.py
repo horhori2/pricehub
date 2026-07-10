@@ -194,6 +194,7 @@ def test_single_card(card_id: int):
     print(f"  레어도: {card.rarity}")
     print(f"  패러렐: {card.is_parallel}")
     print(f"  희소: {card.is_scarce}")
+    print(f"  스페셜: {card.is_special}")
     print()
 
     result = get_digimon_all_prices(
@@ -201,6 +202,7 @@ def test_single_card(card_id: int):
         card_number=card.card_number,
         is_parallel=card.is_parallel,
         is_scarce=card.is_scarce,
+        is_special=card.is_special,
     )
 
     general_price, valid_count, mall_name = result['general_price']
@@ -280,6 +282,8 @@ if __name__ == '__main__':
                         tags.append("패러렐")
                     if card.is_scarce:
                         tags.append("희소")
+                    if card.is_special:
+                        tags.append("스페셜")
                     tag_str = f" [{', '.join(tags)}]" if tags else ""
                     print(f"  ID {card.id}: {card.name} ({card.card_number}) - {card.expansion.name}{tag_str}")
                 card_id = int(input("\n카드 ID를 입력하세요: ").strip())

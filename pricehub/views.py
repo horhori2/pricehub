@@ -211,45 +211,32 @@ def home(request):
 # 공통 헬퍼 — 가격 데이터
 # ════════════════════════════════════════════════════════════════
 
-def _load_raw_data(price_model, expansion_code=None, rarities=None):
-    """카드별 최신 raw_data 1건씩 반환 — GROUP BY MAX(id) 2단계 조회"""
-    from django.db.models import Max
+def _load_raw_data(card_model, expansion_code=None, rarities=None):
+    """
+    카드별 최신 raw_data 반환.
 
-    qs = price_model.objects.exclude(raw_data={}).exclude(raw_data=[])
+    Card.latest_raw_data 캐시(가격 수집 시마다 자동 갱신됨)를 그대로 읽는다.
+    예전엔 price_model(가격 히스토리 전체 테이블)을 GROUP BY MAX(id)로 스캔했는데,
+    히스토리가 누적될수록(카드당 수백 건) 매 요청마다 전체 테이블을 훑어야 해서
+    데이터가 쌓일수록 점점 느려지는 문제가 있었다.
+    """
+    qs = card_model.objects.exclude(latest_raw_data__isnull=True).exclude(latest_raw_data=[])
     if expansion_code:
-        qs = qs.filter(card__expansion__code=expansion_code)
+        qs = qs.filter(expansion__code=expansion_code)
     if rarities:
-        qs = qs.filter(card__rarity__in=rarities)
+        qs = qs.filter(rarity__in=rarities)
 
-    latest_ids = list(
-        qs.values('card_id')
-          .annotate(latest_id=Max('id'))
-          .values_list('latest_id', flat=True)
-    )
-
-    return list(
-        price_model.objects
-        .filter(id__in=latest_ids)
-        .values_list('raw_data', flat=True)
-    )
+    return list(qs.values_list('latest_raw_data', flat=True))
 
 
-def _collect_mall_names(price_model, expansion_code=None, limit=500):
-    """raw_data에서 mallName 빈도 집계 — GROUP BY MAX(id) 2단계 조회"""
-    from django.db.models import Max
-
-    qs = price_model.objects.exclude(raw_data={}).exclude(raw_data=[])
+def _collect_mall_names(card_model, expansion_code=None, limit=500):
+    """raw_data에서 mallName 빈도 집계 — Card.latest_raw_data 캐시 사용"""
+    qs = card_model.objects.exclude(latest_raw_data__isnull=True).exclude(latest_raw_data=[])
     if expansion_code:
-        qs = qs.filter(card__expansion__code=expansion_code)
-
-    latest_ids = list(
-        qs.values('card_id')
-          .annotate(latest_id=Max('id'))
-          .values_list('latest_id', flat=True)
-    )
+        qs = qs.filter(expansion__code=expansion_code)
 
     name_count = {}
-    for raw in price_model.objects.filter(id__in=latest_ids).values_list('raw_data', flat=True)[:limit]:
+    for raw in qs.values_list('latest_raw_data', flat=True)[:limit]:
         if isinstance(raw, list):
             for item in raw:
                 name = item.get('mallName', '').strip()
@@ -652,14 +639,13 @@ def _card_search_view(request, card_model):
 def _bulk_shop_stats_api(request, cfg_key):
     """bulk-price/stats/ — shop_stats + mall_names AJAX 엔드포인트"""
     cfg = _cfg(cfg_key)
-    price_model = cfg['price_model']
     card_model  = cfg['card_model']
 
     expansion_code    = request.GET.get('expansion', '') or None
     selected_rarities = request.GET.getlist('rarities') or None
 
-    mall_names = _collect_mall_names(price_model, expansion_code=expansion_code)
-    raw_list   = _load_raw_data(price_model, expansion_code=expansion_code, rarities=selected_rarities)
+    mall_names = _collect_mall_names(card_model, expansion_code=expansion_code)
+    raw_list   = _load_raw_data(card_model, expansion_code=expansion_code, rarities=selected_rarities)
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
 
     return JsonResponse({
@@ -1680,7 +1666,7 @@ def pokemon_kr_bulk_edit(request):
 
 @staff_required
 def pokemon_kr_shop_stats(request):
-    raw_list = _load_raw_data(CardPrice)
+    raw_list = _load_raw_data(Card)
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
     expansions = Expansion.objects.order_by('-release_date')
     return render(request, 'dashboard/shop_stats.html', {
@@ -1702,7 +1688,7 @@ def pokemon_kr_shop_stats(request):
 @staff_required
 def pokemon_kr_shop_stats_detail(request, code):
     expansion = get_object_or_404(Expansion, code=code)
-    raw_list = _load_raw_data(CardPrice, expansion_code=code)
+    raw_list = _load_raw_data(Card, expansion_code=code)
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
     expansions = Expansion.objects.order_by('-release_date')
     return render(request, 'dashboard/shop_stats.html', {
