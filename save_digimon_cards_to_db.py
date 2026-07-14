@@ -45,6 +45,7 @@ EXPANSION_INFO = {
     47744: {'code': 'BTK-21', 'name': 'WORLD CONVERGENCE'},
     48269: {'code': 'EXK-09', 'name': 'VERSUS MONSTERS'},
     488: {'code': 'PROMO', 'name': '프로모션 카드'},
+    49006: {'code': 'BTK-22', 'name': 'CYBER EDEN'},
 }
 
 BASE_URL = "https://digimoncard.co.kr"
