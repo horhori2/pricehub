@@ -119,7 +119,7 @@ def crawl_and_save_cards(category_id):
                 card_name_tag_text = card_name_tag.get_text(strip=True)
 
                 match = re.search(
-                    r'((BT|EX|ST|RB|TM|DR|AC)\d{1,2}-\d{2,3}|P-\d{2,3}|PR-\d{2,3}|LM-\d{2,3}|token\w*)',
+                    r'((BT|EX|ST|RB|TM|DR|AC)\d{1,2}-(?:\d{2,3}|TOKEN)|P-\d{2,3}|PR-\d{2,3}|LM-\d{2,3}|token\w*)',
                     card_name_tag_text
                 )
                 if not match:
