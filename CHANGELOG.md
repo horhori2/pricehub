@@ -3,6 +3,28 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.4] - 2026-07-21
+
+디자인 시스템 정리 3차 — 레거시 버튼 클래스를 .btn 시스템으로 통합.
+
+### Changed
+- `back-btn`/`logout-btn`/`quick-btn`/`quick-chip-btn`/`again-btn`/`action-btn`/`rank-filter-btn`/
+  `filter-btn`/`inline-tab`/`set-btn`/`issue-save-btn`/`pg-btn`/`pg-num`(고스트 계열),
+  `bulk-btn`/`reset-btn`/`exp-reset-btn`/`fav-tab-btn`/`action-btn.success`(틴트 계열),
+  `save-btn`/`search-btn`/`modal-confirm`(솔리드 계열) — 총 20개 레거시 버튼 클래스를
+  그룹 셀렉터로 `.btn-ghost`/`.btn-soft`/`.btn-solid`에 합류시켜 CSS 선언을 한 곳으로 모음.
+  마크업(템플릿 class=)은 전혀 안 건드림 — 클래스 이름은 그대로, CSS 내부 선언만 정리.
+  `.run-btn`/`.revert-btn`/`.star-toggle`/`.modal-cancel` 등 호버 효과가 이미 있거나
+  구조가 근본적으로 다른 것들은 대상에서 제외.
+
+  **일관성을 위해 의도적으로 통일한 작은 시각적 차이**(기능/레이아웃 영향 없음, 호버 색상 수준):
+  - `back-btn`/`again-btn`/`quick-chip-btn`의 호버 색이 제각각(`--accent`+`--text` 등)이던 걸 `--accent2`로 통일
+  - `logout-btn`에 없던 호버 피드백 추가
+  - `issue-save-btn`/`pg-btn`/`pg-num`에 호버 시 배경 틴트 추가(`set-btn`엔 이미 있었음)
+  - `exp-reset-btn`의 틴트 alpha를 `reset-btn`과 동일하게 정규화(0.06/0.15 → 0.08/0.18)
+  - `save-btn`/`search-btn`/`modal-confirm`의 호버를 `filter: brightness(1.1)`로 통일
+    (기존: `brightness(1.15)`, 하드코딩 `#6b5aee`, `opacity(0.85)` 각각 달랐음)
+
 ## [0.2.3] - 2026-07-21
 
 디자인 시스템 정리 2차 — 버튼 컴포넌트 베이스 추가.
