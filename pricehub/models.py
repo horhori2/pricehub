@@ -1,5 +1,6 @@
 # pricehub/models.py
-import secrets 
+import hashlib
+import secrets
 from django.db import models
 from django.core.validators import MinValueValidator
 from django.utils import timezone
@@ -492,13 +493,17 @@ class APIKey(models.Model):
     """
     외부 클라이언트용 API Key.
 
+    DB에는 원본 키가 아니라 SHA-256 해시만 저장된다 (key 필드).
+    DB가 유출돼도 저장된 값만으로는 원본 키를 복원할 수 없다.
+
     발급:
         python manage.py shell
         >>> from pricehub.models import APIKey
-        >>> APIKey.objects.create_key(name='카드관리프로그램')
+        >>> instance, raw_key = APIKey.objects.create_key(name='카드관리프로그램')
+        >>> raw_key  # 이 시점에만 확인 가능 — 다시 조회 불가능하니 클라이언트에 바로 전달할 것
     """
     name = models.CharField(max_length=100, verbose_name='클라이언트명', help_text='예: 카드관리프로그램')
-    key = models.CharField(max_length=64, unique=True, verbose_name='API Key')
+    key = models.CharField(max_length=64, unique=True, verbose_name='API Key 해시 (SHA-256)')
     is_active = models.BooleanField(default=True, verbose_name='활성 여부')
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True, verbose_name='마지막 사용')
@@ -513,15 +518,19 @@ class APIKey(models.Model):
     def __str__(self):
         return f"{self.name} ({'활성' if self.is_active else '비활성'})"
 
+    @staticmethod
+    def hash_key(raw_key: str) -> str:
+        return hashlib.sha256(raw_key.encode()).hexdigest()
+
     @classmethod
     def create_key(cls, name: str) -> tuple:
         """
         새 API Key 발급.
         Returns: (APIKey instance, raw_key)
-        raw_key는 이 시점에만 확인 가능 — DB에는 저장되지 않음.
+        raw_key는 이 시점에만 확인 가능 — DB에는 해시만 저장된다.
         """
         raw_key = secrets.token_urlsafe(32)
-        instance = cls.objects.create(name=name, key=raw_key)
+        instance = cls.objects.create(name=name, key=cls.hash_key(raw_key))
         return instance, raw_key
 
 

@@ -288,7 +288,7 @@ const CARD_RAW = (() => {
 })();
 
 /* 레어도 필터 상태 */
-let _cardListRarities   = new Set({{ selected_rarities|safe }});
+let _cardListRarities   = new Set({{ selected_rarities_json|safe }});
 const _cardListFilterType = '{{ filter_type }}';
 const _cardListSort       = '{{ sort }}';
 

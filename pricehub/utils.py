@@ -17,6 +17,32 @@ NAVER_CLIENT_SECRET = os.environ.get('NAVER_CLIENT_SECRET', '')
 EXCLUDED_MALLS    = {'네이버', '쿠팡'}
 EXCLUDED_KEYWORDS = ['일본', '일본판', 'JP', 'JPN', '일판']
 
+# 우리 자신의 매장 — 시장 최저가(경쟁사 최저가) 계산에서 반드시 제외해야
+# "판매가가 시장 최저가보다 낮다"는 비교가 의미를 가진다.
+OUR_SHOPS = ['화성스토어-TCG-', '카드 베이스']
+
+
+# ── 템플릿에 안전하게 심을 JSON 직렬화 ──────────────────────────────
+_JSON_SCRIPT_ESCAPES = {
+    ord('>'): '\\u003E',
+    ord('<'): '\\u003C',
+    ord('&'): '\\u0026',
+}
+
+
+def safe_json_dumps(obj, **kwargs) -> str:
+    """<script> 태그 안에 심어도 안전한 JSON 문자열을 만든다.
+
+    표준 json.dumps는 '<' '>' '&'를 이스케이프하지 않는다. 그래서 값 안에
+    '</script>'가 섞여 들어오면(네이버 쇼핑 판매자명·상품명, URL 쿼리스트링 등
+    외부/사용자 입력) HTML 파서가 그 지점에서 스크립트 태그를 조기 종료시켜
+    뒤에 이어지는 내용이 그대로 실행되는 XSS로 이어진다.
+    Django의 json_script 필터와 동일한 방식으로 <, >, & 를 유니코드
+    이스케이프해 이 문제를 막는다. 반환값은 |safe 로 <script> 안에 그대로
+    출력해도 안전하다.
+    """
+    return json.dumps(obj, **kwargs).translate(_JSON_SCRIPT_ESCAPES)
+
 # ════════════════════════════════════════════════════════════════
 # 포켓몬 한글판 — 레어도 상수
 # ════════════════════════════════════════════════════════════════
@@ -90,7 +116,7 @@ def search_naver_shopping(search_query: str) -> List[dict]:
         req = urllib.request.Request(url)
         req.add_header("X-Naver-Client-Id", NAVER_CLIENT_ID)
         req.add_header("X-Naver-Client-Secret", NAVER_CLIENT_SECRET)
-        response = urllib.request.urlopen(req)
+        response = urllib.request.urlopen(req, timeout=15)
         if response.getcode() == 200:
             return json.loads(response.read()).get('items', [])
         logger.error("네이버 API 요청 실패: %s", response.getcode())
@@ -115,17 +141,33 @@ def _clean_title(raw_title: str) -> str:
 
 
 def _is_excluded(item: dict) -> bool:
-    """공통 제외 조건 (판매처·일본판 키워드)"""
+    """공통 제외 조건 (판매처·일본판 키워드).
+
+    주의: 우리 자신의 매장(OUR_SHOPS)은 여기서 걸러내지 않는다.
+    raw_data(valid_items)에는 우리 매장 항목도 남겨둬야 카드 상세의
+    판매처 목록에서 "우리 매장가"를 함께 보여줄 수 있다.
+    시장 최저가 계산에서 우리 매장을 제외하는 로직은 _build_price_result()에 있다.
+    """
     if item.get('mallName', '') in EXCLUDED_MALLS:
         return True
     return any(kw in item.get('title', '') for kw in EXCLUDED_KEYWORDS)
 
 
 def _build_price_result(valid_items: List[dict]) -> FilterResult:
-    """유효 상품 리스트에서 최저가·최저가 판매처를 추출해 반환"""
+    """유효 상품 리스트에서 최저가·최저가 판매처를 추출해 반환.
+
+    "시장 최저가"는 경쟁사 기준으로 계산한다 — 우리 매장(OUR_SHOPS) 항목은
+    최저가 후보에서 제외한다 (우리가 제일 싸게 걸어도 그게 "시장 최저가"로
+    잡히면 안 됨). 단, 매칭된 판매처가 우리 매장뿐이라면 비교할 경쟁사가
+    없다는 뜻이므로 예외적으로 우리 매장가를 그대로 사용한다.
+    raw_data로 저장되는 valid_items 자체는 우리 매장 항목을 포함해 그대로 반환
+    (카드 상세 판매처 목록에서 우리 매장가를 함께 보여주기 위함).
+    """
     if not valid_items:
         return None, 0, None, []
-    min_item = min(valid_items, key=lambda x: float(x['lprice']))
+    competitor_items = [i for i in valid_items if i.get('mallName') not in OUR_SHOPS]
+    price_pool = competitor_items or valid_items
+    min_item = min(price_pool, key=lambda x: float(x['lprice']))
     return (
         float(min_item['lprice']),
         len(valid_items),

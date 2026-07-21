@@ -26,6 +26,25 @@ ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost').spli
 # CSRF 검증 실패 시 기본 403 디버그 화면 대신 로그인 페이지로 안내
 CSRF_FAILURE_VIEW = 'pricehub.views.csrf_failure'
 
+# HTTPS 하드닝 — nginx 등 리버스 프록시가 TLS를 종료하고 서비스하는 배포라면
+# .env에 USE_HTTPS=True 로 켤 것. 기본값 False라 아직 HTTP로만 운영 중이어도
+# 이 설정 때문에 접속이 막히지는 않는다 (그런 경우엔 반드시 켜야 세션/CSRF
+# 쿠키가 Secure 플래그 없이 평문 HTTP로 새어나가는 걸 막을 수 있다).
+USE_HTTPS = os.getenv('USE_HTTPS', 'False') == 'True'
+
+SESSION_COOKIE_SECURE = USE_HTTPS
+CSRF_COOKIE_SECURE = USE_HTTPS
+CSRF_COOKIE_HTTPONLY = True
+SECURE_SSL_REDIRECT = USE_HTTPS
+
+if USE_HTTPS:
+    # nginx/ALB 등이 TLS 종료 후 X-Forwarded-Proto 헤더로 넘겨주는 구성을 가정.
+    # 리버스 프록시 없이 Django가 TLS를 직접 종료한다면 이 줄은 지울 것.
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_SECONDS = 31536000  # 1년
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -34,8 +53,23 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'django_filters',
     'pricehub',
 ]
+
+# DRF — 외부 연동 API(Authorization: Api-Key ...)에 기본 레이트리밋 적용.
+# 캐시 백엔드를 따로 지정하지 않으면 Django 기본 LocMemCache를 쓰는데,
+# 이건 프로세스 로컬이라 워커가 여러 개면(gunicorn -w N 등) 워커별로 한도가
+# 따로 적용된다. 정확한 전역 제한이 필요하면 CACHES에 Redis 등 공유 캐시를 설정할 것.
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_CLASSES': [
+        'pricehub.throttling.APIKeyRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'api_key': os.getenv('API_THROTTLE_RATE', '300/min'),
+    },
+}
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',

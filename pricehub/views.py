@@ -33,9 +33,7 @@ from .models import (
     JapanExpansion, JapanCard, JapanCardPrice,
     DigimonExpansion, DigimonCard, DigimonCardPrice,
 )
-
-
-OUR_SHOPS = ['화성스토어-TCG-', '카드 베이스']
+from .utils import OUR_SHOPS, safe_json_dumps
 
 
 # ════════════════════════════════════════════════════════════════
@@ -382,7 +380,7 @@ def _price_history_json(card, price_model_relation):
         .order_by('collected_at')
         .values('collected_at', 'raw_data')
     )
-    return json.dumps(
+    return safe_json_dumps(
         [
             {
                 'date': p['collected_at'].strftime('%m/%d %H:%M'),
@@ -631,7 +629,8 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
         'filter_type':      filter_type,
         'all_rarities':     all_rarities,
         'selected_rarities': selected_rarities,
-        'card_raw_json':    json.dumps(seen_raw, ensure_ascii=False),
+        'selected_rarities_json': safe_json_dumps(selected_rarities),
+        'card_raw_json':    safe_json_dumps(seen_raw, ensure_ascii=False),
         'total_count':      total_count,
         'page':             page,
         'total_pages':      total_pages,
@@ -746,19 +745,19 @@ def _bulk_price_view(request, cfg_key):
     underpriced_pending = _underpriced_count(cfg)
 
     return render(request, 'dashboard/bulk_price.html', {
-        'mall_names': json.dumps(mall_names),
+        'mall_names': safe_json_dumps(mall_names),
         'mall_names_display': mall_names,
         'expansions': expansions,
         'needs_review': needs_review,
         'underpriced_pending': underpriced_pending,
-        'shop_stats_json': json.dumps(shop_stats, ensure_ascii=False),
+        'shop_stats_json': safe_json_dumps(shop_stats, ensure_ascii=False),
         'shop_stats': shop_stats,
         'overall_avg': overall_avg,
         'selected_expansion': selected_expansion,
         'expansion_code': expansion_code,
         'all_rarities': all_rarities,
         'selected_rarities': selected_rarities,
-        'selected_rarities_json': json.dumps(selected_rarities),
+        'selected_rarities_json': safe_json_dumps(selected_rarities),
         'breadcrumb': [
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
@@ -1039,8 +1038,8 @@ def _bulk_drop_view(request, cfg_key):
         'max_drop':               max_drop,
         'all_rarities':           all_rarities,
         'selected_rarities':      selected_rarities,
-        'selected_rarities_json': json.dumps(selected_rarities),
-        'card_raw_json':          json.dumps(seen_raw, ensure_ascii=False),
+        'selected_rarities_json': safe_json_dumps(selected_rarities),
+        'card_raw_json':          safe_json_dumps(seen_raw, ensure_ascii=False),
         'page':                   page,
         'total_pages':            total_pages,
         'per_page':               per_page,
@@ -1145,8 +1144,8 @@ def _bulk_rise_view(request, cfg_key):
         'max_rise':               max_rise,
         'all_rarities':           all_rarities,
         'selected_rarities':      selected_rarities,
-        'selected_rarities_json': json.dumps(selected_rarities),
-        'card_raw_json':          json.dumps(seen_raw, ensure_ascii=False),
+        'selected_rarities_json': safe_json_dumps(selected_rarities),
+        'card_raw_json':          safe_json_dumps(seen_raw, ensure_ascii=False),
         'page':                   page,
         'total_pages':            total_pages,
         'per_page':               per_page,
@@ -1251,7 +1250,7 @@ def _underpriced_view(request, cfg_key):
         'max_under':              max_under,
         'all_rarities':           all_rarities,
         'selected_rarities':      selected_rarities,
-        'selected_rarities_json': json.dumps(selected_rarities),
+        'selected_rarities_json': safe_json_dumps(selected_rarities),
         'page':                   page,
         'total_pages':            total_pages,
         'per_page':               per_page,
@@ -1327,8 +1326,8 @@ def _bulk_unpriced_view(request, cfg_key):
         'total_count':            total_count,
         'all_rarities':           all_rarities,
         'selected_rarities':      selected_rarities,
-        'selected_rarities_json': json.dumps(selected_rarities),
-        'card_raw_json':          json.dumps(seen_raw, ensure_ascii=False),
+        'selected_rarities_json': safe_json_dumps(selected_rarities),
+        'card_raw_json':          safe_json_dumps(seen_raw, ensure_ascii=False),
         'page':                   page,
         'total_pages':            total_pages,
         'per_page':               per_page,
@@ -1731,7 +1730,7 @@ def pokemon_kr_card_detail(request, pk):
         'card_type':              'pokemon_kr',
         'latest_price_obj':       latest_price_obj,
         'market_items':           market_items,
-        'market_items_json':      json.dumps(market_items, ensure_ascii=False),
+        'market_items_json':      safe_json_dumps(market_items, ensure_ascii=False),
         'stats':                  stats,
         'set_price_url':          f'{base}/cards/{pk}/set-price/',
         'back_url':               f'{base}/expansions/{card.expansion.code}/cards/',
@@ -1840,7 +1839,7 @@ def pokemon_kr_shop_stats(request):
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
     expansions = Expansion.objects.order_by('-release_date')
     return render(request, 'dashboard/shop_stats.html', {
-        'shop_stats_json':  json.dumps(shop_stats, ensure_ascii=False),
+        'shop_stats_json':  safe_json_dumps(shop_stats, ensure_ascii=False),
         'shop_stats':       shop_stats,
         'overall_avg':      overall_avg,
         'expansion':        None,
@@ -1862,7 +1861,7 @@ def pokemon_kr_shop_stats_detail(request, code):
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
     expansions = Expansion.objects.order_by('-release_date')
     return render(request, 'dashboard/shop_stats.html', {
-        'shop_stats_json':  json.dumps(shop_stats, ensure_ascii=False),
+        'shop_stats_json':  safe_json_dumps(shop_stats, ensure_ascii=False),
         'shop_stats':       shop_stats,
         'overall_avg':      overall_avg,
         'expansion':        expansion,
@@ -1894,6 +1893,7 @@ def pokemon_kr_toggle_favorite(request, card_id):
     return JsonResponse({'success': True, 'is_favorite': card.is_favorite})
 
 
+@staff_required
 def pokemon_jp_expansion_list(request):
     return _expansion_list_view(request, 'pokemon_jp', {
         'card_search_url': '/pokemon/jp/cards/search/',
@@ -1975,7 +1975,7 @@ def onepiece_kr_card_detail(request, pk):
         'card_type':               'onepiece_kr',
         'latest_price_obj':        latest_price_obj,
         'market_items':            market_items,
-        'market_items_json':       json.dumps(market_items, ensure_ascii=False),
+        'market_items_json':       safe_json_dumps(market_items, ensure_ascii=False),
         'stats':                   stats,
         'set_price_url':           f'{base}/cards/{pk}/set-price/',
         'back_url':                f'{base}/expansions/{card.expansion.code}/cards/',
@@ -2129,7 +2129,7 @@ def digimon_kr_card_detail(request, pk):
         'card_type':               'digimon_kr',
         'latest_price_obj':        latest_price_obj,
         'market_items':            market_items,
-        'market_items_json':       json.dumps(market_items, ensure_ascii=False),
+        'market_items_json':       safe_json_dumps(market_items, ensure_ascii=False),
         'stats':                   stats,
         'set_price_url':           f'{base}/cards/{pk}/set-price/',
         'back_url':                f'{base}/expansions/{card.expansion.code}/cards/',

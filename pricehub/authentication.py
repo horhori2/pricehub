@@ -28,7 +28,7 @@ class APIKeyAuthentication(BaseAuthentication):
 
     def _validate_key(self, raw_key: str):
         try:
-            api_key = APIKey.objects.get(key=raw_key, is_active=True)
+            api_key = APIKey.objects.get(key=APIKey.hash_key(raw_key), is_active=True)
         except APIKey.DoesNotExist:
             raise AuthenticationFailed('유효하지 않은 API Key입니다.')
 
