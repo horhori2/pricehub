@@ -1,0 +1,37 @@
+<!-- 확장팩 -->
+<div class="control-row">
+  <span class="ctrl-label">확장팩</span>
+  <form method="get" id="filterForm" style="display:contents;">
+    <select name="expansion" class="ctrl-select" onchange="submitIssuesFilter()">
+      <option value="" {% if not expansion_code %}selected{% endif %}>전체</option>
+      {% for exp in expansions %}
+      <option value="{{ exp.code }}" {% if expansion_code == exp.code %}selected{% endif %}>
+        {{ exp.code }} — {{ exp.name }}
+      </option>
+      {% endfor %}
+    </select>
+    {% for r in selected_rarities %}
+    <input type="hidden" name="rarities" value="{{ r }}">
+    {% endfor %}
+    <input type="hidden" name="sort" id="sortInput" value="{{ sort }}">
+  </form>
+</div>
+
+<!-- 레어도 -->
+<div class="control-row">
+  <span class="ctrl-label">레어도</span>
+  <div class="ctrl-divider"></div>
+  {% for rarity in all_rarities %}
+  <label class="rarity-chip {% if rarity in selected_rarities %}active{% endif %}">
+    <input type="checkbox" value="{{ rarity }}"
+           {% if rarity in selected_rarities %}checked{% endif %}
+           onchange="toggleRarityChip('{{ rarity }}', this)">
+    {{ rarity }}
+  </label>
+  {% endfor %}
+  <div class="ctrl-divider"></div>
+  {% if config.high_rarity_list %}
+  <button class="action-btn" onclick="selectRaritiesChips({{ config.high_rarity_list|safe }})">고레어</button>
+  {% endif %}
+  <button class="action-btn" onclick="selectRaritiesChips([])">초기화</button>
+</div>

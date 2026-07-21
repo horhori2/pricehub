@@ -1,0 +1,12 @@
+<header>
+  <div class="header-left">
+    <a href="{{ config.bulk_price_url }}" class="back-btn">← 일괄 설정</a>
+    <div class="breadcrumb">
+      {% for crumb in breadcrumb %}
+        {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
+        {% if not forloop.last %}<span>/</span>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <a href="/logout/" class="logout-btn">로그아웃</a>
+</header>

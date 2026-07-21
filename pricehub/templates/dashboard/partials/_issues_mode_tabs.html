@@ -1,0 +1,7 @@
+<!-- 모드 탭 -->
+<div style="display:flex;gap:8px;margin-bottom:14px;">
+  <a href="{{ config.drop_url }}" class="filter-tab {% if active_tab == 'drop' %}active{% endif %}">📉 가격 하락 대기</a>
+  <a href="{{ config.rise_url }}" class="filter-tab {% if active_tab == 'rise' %}active{% endif %}">📈 가격 상승 대기</a>
+  <a href="{{ config.unpriced_url }}" class="filter-tab {% if active_tab == 'unpriced' %}active{% endif %}">❓ 판매가 미설정</a>
+  <a href="{{ config.underpriced_url }}" class="filter-tab {% if active_tab == 'underpriced' %}active{% endif %}">🔻 저가 경고</a>
+</div>

@@ -3,6 +3,17 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.0] - 2026-07-21
+
+리팩토링 2차 정리 — 게임별 위임 뷰 팩토리화, 판매가 관리 템플릿 4종 공통화, 저가 경고 페이지 인라인 편집 추가.
+
+### Added
+- **저가 경고 페이지에서 판매가 바로 수정 가능**: 그동안은 "카드 열기"로 카드 상세 페이지까지 이동해야 판매가를 고칠 수 있었는데, 이제 다른 일괄 관리 페이지(하락 대기/상승 대기)와 동일하게 목록에서 바로 수정 가격을 입력(시장 최저가로 자동 채움)하고 개별/일괄 저장할 수 있다. 행 클릭 시 판매처 목록 사이드패널도 함께 뜬다.
+
+### Changed
+- `pricehub/views.py`: `pokemon_kr_bulk_price`처럼 게임(포켓몬/원피스/디지몬 한글판)별로 `cfg_key`만 다르고 나머지는 동일했던 위임 뷰 39개(bulk_* 12종 + card_detail × 3게임)를 `_make_game_view` 팩토리 + `game_views(cfg_key)` 함수로 대체. `urls.py`에서 `**v.game_views('pokemon_kr')`로 병합. 기존 `@staff_required`/`@require_POST` 데코레이터 순서(인증 체크가 바깥쪽)를 그대로 유지해 동작은 완전히 동일. `views.py`+`urls.py` 합쳐서 188줄 감소.
+- `pricehub/templates/dashboard/bulk_drop.html`/`bulk_rise.html`/`bulk_unpriced.html`/`bulk_underpriced.html`: 4개 페이지에서 100% 동일했던 헤더·모드탭·확장팩/레어도 필터·페이지네이션을 `templates/dashboard/partials/`의 공용 partial 4개로 분리. 가격 입력/저장/승인 로직 등 페이지마다 실제로 다른 부분(및 실제 판매가에 영향을 주는 부분)은 그대로 각 파일에 남겨둠 — 렌더링 결과가 리팩토링 전후 동일한지 fixture 데이터로 diff 검증함. 리팩토링 전 원본은 `templates/dashboard/_pre_consolidation_backup/`에 보관.
+
 ## [0.1.2] - 2026-07-21
 
 리팩토링 1차 정리 — 죽은 코드/깨진 스크립트 제거, `card_detail` 뷰 중복 제거.

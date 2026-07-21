@@ -1057,6 +1057,7 @@ def _bulk_drop_view(request, cfg_key):
             seen_raw[cp['card_id']] = cp['raw_data']
 
     return render(request, 'dashboard/bulk_drop.html', {
+        'active_tab':             'drop',
         'drop_cards':             drop_cards,
         'expansions':             expansions,
         'expansion_code':         expansion_code,
@@ -1163,6 +1164,7 @@ def _bulk_rise_view(request, cfg_key):
             seen_raw[cp['card_id']] = cp['raw_data']
 
     return render(request, 'dashboard/bulk_rise.html', {
+        'active_tab':             'rise',
         'rise_cards':             rise_cards,
         'expansions':             expansions,
         'expansion_code':         expansion_code,
@@ -1268,8 +1270,21 @@ def _underpriced_view(request, cfg_key):
             _start = max(1, _end - 6)
     page_range = list(range(_start, _end + 1))
 
+    under_card_ids = [d['card'].pk for d in under_cards]
+    seen_raw = {}
+    for cp in (
+        price_model.objects.filter(card_id__in=under_card_ids)
+        .exclude(raw_data={}).exclude(raw_data=[])
+        .order_by('-collected_at')
+        .values('card_id', 'raw_data')
+    ):
+        if cp['card_id'] not in seen_raw:
+            seen_raw[cp['card_id']] = cp['raw_data']
+
     return render(request, 'dashboard/bulk_underpriced.html', {
+        'active_tab':             'underpriced',
         'under_cards':            under_cards,
+        'card_raw_json':          safe_json_dumps(seen_raw, ensure_ascii=False),
         'expansions':             expansions,
         'expansion_code':         expansion_code,
         'sort':                   sort,
@@ -1347,6 +1362,7 @@ def _bulk_unpriced_view(request, cfg_key):
             seen_raw[cp['card_id']] = cp['raw_data']
 
     return render(request, 'dashboard/bulk_unpriced.html', {
+        'active_tab':             'unpriced',
         'cards':                  cards_page,
         'expansions':             expansions,
         'expansion_code':         expansion_code,
@@ -1724,6 +1740,61 @@ def _bulk_verify_candidates_view(request, cfg_key):
 
 
 # ════════════════════════════════════════════════════════════════
+# 게임별 얇은 위임 뷰 생성 — bulk_* 12종 + card_detail
+#
+# 게임 카테고리(포켓몬/원피스/디지몬 한글판) 간 차이가 cfg_key 하나뿐인
+# 뷰들만 대상으로 한다. expansion_list/card_list는 게임별 extra_ctx가
+# 실제로 다르고, set_price/card_search는 시그니처가 다르고,
+# reset_prices/toggle_favorite/shop_stats는 자체 로직을 가지고 있어서
+# 이 팩토리로 일반화하면 오히려 read 하기 어려워진다 — 대상에서 제외.
+# ════════════════════════════════════════════════════════════════
+
+def _make_game_view(base_view, cfg_key, require_post=False):
+    """base_view(request, cfg_key, *args, **kwargs)를 호출하는 얇은 위임 뷰 생성.
+
+    기존 코드의 `@staff_required` `@require_POST` 데코레이터 순서(staff_required가
+    바깥쪽)를 그대로 유지한다 — require_POST를 먼저 적용해 감싸고, 그 결과를
+    staff_required로 한 번 더 감싼다.
+    """
+    def _view(request, *args, **kwargs):
+        return base_view(request, cfg_key, *args, **kwargs)
+    _view.__name__ = f"{cfg_key}__{base_view.__name__.lstrip('_')}"
+    if require_post:
+        _view = require_POST(_view)
+    _view = staff_required(_view)
+    return _view
+
+
+_GAME_VIEW_TYPES = [
+    # (urls.py views dict의 key, 위임할 공용 뷰, POST 전용 여부)
+    ('bulk_price',             _bulk_price_view,             False),
+    ('bulk_verify',            _bulk_verify_view,            False),
+    ('bulk_verify_candidates', _bulk_verify_candidates_view, False),
+    ('bulk_shop_stats',        _bulk_shop_stats_api,         False),
+    ('bulk_run',               _bulk_run_view,                True),
+    ('bulk_drop',              _bulk_drop_view,              False),
+    ('bulk_rise',              _bulk_rise_view,              False),
+    ('bulk_unpriced',          _bulk_unpriced_view,          False),
+    ('bulk_underpriced',       _underpriced_view,            False),
+    ('bulk_approve',           _bulk_approve_view,            True),
+    ('bulk_inline_cards',      _bulk_inline_cards_view,       True),
+    ('bulk_edit',              _bulk_edit_view,               True),
+    ('card_detail',            _card_detail_view,            False),
+]
+
+
+def game_views(cfg_key):
+    """cfg_key(pokemon_kr/onepiece_kr/digimon_kr)의 bulk_*/card_detail 위임 뷰 dict 생성.
+
+    urls.py에서 `**v.game_views('pokemon_kr')`처럼 풀어서 views dict에 병합해 쓴다.
+    """
+    return {
+        name: _make_game_view(base_view, cfg_key, require_post)
+        for name, base_view, require_post in _GAME_VIEW_TYPES
+    }
+
+
+# ════════════════════════════════════════════════════════════════
 # 포켓몬 한글판 — 뷰
 # ════════════════════════════════════════════════════════════════
 
@@ -1744,11 +1815,6 @@ def pokemon_kr_card_list(request, code):
         'bulk_price_url':   f'/pokemon/kr/bulk-price/?expansion={expansion.code}',
         'reset_prices_url': f'/pokemon/kr/expansions/{expansion.code}/reset-prices/',
     })
-
-
-@staff_required
-def pokemon_kr_card_detail(request, pk):
-    return _card_detail_view(request, 'pokemon_kr', pk)
 
 
 @staff_required
@@ -1774,70 +1840,6 @@ def pokemon_kr_reset_prices(request, expansion_code):
 def pokemon_kr_reset_all_prices(request):
     count = Card.objects.all().update(selling_price=0)
     return JsonResponse({'success': True, 'count': count})
-
-
-@staff_required
-def pokemon_kr_bulk_price(request):
-    return _bulk_price_view(request, 'pokemon_kr')
-
-
-@staff_required
-def pokemon_kr_bulk_verify(request):
-    return _bulk_verify_view(request, 'pokemon_kr')
-
-
-@staff_required
-def pokemon_kr_bulk_verify_candidates(request):
-    return _bulk_verify_candidates_view(request, 'pokemon_kr')
-
-
-@staff_required
-def pokemon_kr_bulk_shop_stats(request):
-    return _bulk_shop_stats_api(request, 'pokemon_kr')
-
-
-@staff_required
-@require_POST
-def pokemon_kr_bulk_run(request):
-    return _bulk_run_view(request, 'pokemon_kr')
-
-
-@staff_required
-def pokemon_kr_bulk_drop(request):
-    return _bulk_drop_view(request, 'pokemon_kr')
-
-
-@staff_required
-def pokemon_kr_bulk_rise(request):
-    return _bulk_rise_view(request, 'pokemon_kr')
-
-
-@staff_required
-def pokemon_kr_bulk_unpriced(request):
-    return _bulk_unpriced_view(request, 'pokemon_kr')
-
-
-@staff_required
-def pokemon_kr_bulk_underpriced(request):
-    return _underpriced_view(request, 'pokemon_kr')
-
-
-@staff_required
-@require_POST
-def pokemon_kr_bulk_approve(request):
-    return _bulk_approve_view(request, 'pokemon_kr')
-
-
-@staff_required
-@require_POST
-def pokemon_kr_bulk_inline_cards(request):
-    return _bulk_inline_cards_view(request, 'pokemon_kr')
-
-
-@staff_required
-@require_POST
-def pokemon_kr_bulk_edit(request):
-    return _bulk_edit_view(request, 'pokemon_kr')
 
 
 @staff_required
@@ -1971,11 +1973,6 @@ def onepiece_kr_card_list(request, code):
 
 
 @staff_required
-def onepiece_kr_card_detail(request, pk):
-    return _card_detail_view(request, 'onepiece_kr', pk)
-
-
-@staff_required
 @require_POST
 def onepiece_kr_set_price(request, pk):
     return _set_price(OnePieceCard, pk, request)
@@ -1993,70 +1990,6 @@ def onepiece_kr_reset_prices(request, expansion_code):
 def onepiece_kr_reset_all_prices(request):
     count = OnePieceCard.objects.all().update(selling_price=0)
     return JsonResponse({'success': True, 'count': count})
-
-
-@staff_required
-def onepiece_kr_bulk_price(request):
-    return _bulk_price_view(request, 'onepiece_kr')
-
-
-@staff_required
-def onepiece_kr_bulk_verify(request):
-    return _bulk_verify_view(request, 'onepiece_kr')
-
-
-@staff_required
-def onepiece_kr_bulk_verify_candidates(request):
-    return _bulk_verify_candidates_view(request, 'onepiece_kr')
-
-
-@staff_required
-def onepiece_kr_bulk_shop_stats(request):
-    return _bulk_shop_stats_api(request, 'onepiece_kr')
-
-
-@staff_required
-@require_POST
-def onepiece_kr_bulk_run(request):
-    return _bulk_run_view(request, 'onepiece_kr')
-
-
-@staff_required
-def onepiece_kr_bulk_drop(request):
-    return _bulk_drop_view(request, 'onepiece_kr')
-
-
-@staff_required
-def onepiece_kr_bulk_rise(request):
-    return _bulk_rise_view(request, 'onepiece_kr')
-
-
-@staff_required
-def onepiece_kr_bulk_unpriced(request):
-    return _bulk_unpriced_view(request, 'onepiece_kr')
-
-
-@staff_required
-def onepiece_kr_bulk_underpriced(request):
-    return _underpriced_view(request, 'onepiece_kr')
-
-
-@staff_required
-@require_POST
-def onepiece_kr_bulk_approve(request):
-    return _bulk_approve_view(request, 'onepiece_kr')
-
-
-@staff_required
-@require_POST
-def onepiece_kr_bulk_inline_cards(request):
-    return _bulk_inline_cards_view(request, 'onepiece_kr')
-
-
-@staff_required
-@require_POST
-def onepiece_kr_bulk_edit(request):
-    return _bulk_edit_view(request, 'onepiece_kr')
 
 
 @staff_required
@@ -2104,11 +2037,6 @@ def digimon_kr_card_list(request, code):
 
 
 @staff_required
-def digimon_kr_card_detail(request, pk):
-    return _card_detail_view(request, 'digimon_kr', pk)
-
-
-@staff_required
 @require_POST
 def digimon_kr_set_price(request, pk):
     return _set_price(DigimonCard, pk, request)
@@ -2131,70 +2059,6 @@ def digimon_kr_reset_prices(request, expansion_code):
 def digimon_kr_reset_all_prices(request):
     count = DigimonCard.objects.all().update(selling_price=0)
     return JsonResponse({'success': True, 'count': count})
-
-
-@staff_required
-def digimon_kr_bulk_price(request):
-    return _bulk_price_view(request, 'digimon_kr')
-
-
-@staff_required
-def digimon_kr_bulk_verify(request):
-    return _bulk_verify_view(request, 'digimon_kr')
-
-
-@staff_required
-def digimon_kr_bulk_verify_candidates(request):
-    return _bulk_verify_candidates_view(request, 'digimon_kr')
-
-
-@staff_required
-def digimon_kr_bulk_shop_stats(request):
-    return _bulk_shop_stats_api(request, 'digimon_kr')
-
-
-@staff_required
-@require_POST
-def digimon_kr_bulk_run(request):
-    return _bulk_run_view(request, 'digimon_kr')
-
-
-@staff_required
-def digimon_kr_bulk_drop(request):
-    return _bulk_drop_view(request, 'digimon_kr')
-
-
-@staff_required
-def digimon_kr_bulk_rise(request):
-    return _bulk_rise_view(request, 'digimon_kr')
-
-
-@staff_required
-def digimon_kr_bulk_unpriced(request):
-    return _bulk_unpriced_view(request, 'digimon_kr')
-
-
-@staff_required
-def digimon_kr_bulk_underpriced(request):
-    return _underpriced_view(request, 'digimon_kr')
-
-
-@staff_required
-@require_POST
-def digimon_kr_bulk_approve(request):
-    return _bulk_approve_view(request, 'digimon_kr')
-
-
-@staff_required
-@require_POST
-def digimon_kr_bulk_inline_cards(request):
-    return _bulk_inline_cards_view(request, 'digimon_kr')
-
-
-@staff_required
-@require_POST
-def digimon_kr_bulk_edit(request):
-    return _bulk_edit_view(request, 'digimon_kr')
 
 
 @staff_required

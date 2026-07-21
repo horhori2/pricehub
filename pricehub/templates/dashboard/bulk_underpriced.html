@@ -11,70 +11,17 @@
 </head>
 <body>
 
-<header>
-  <div class="header-left">
-    <a href="{{ config.bulk_price_url }}" class="back-btn">← 일괄 설정</a>
-    <div class="breadcrumb">
-      {% for crumb in breadcrumb %}
-        {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
-        {% if not forloop.last %}<span>/</span>{% endif %}
-      {% endfor %}
-    </div>
-  </div>
-  <a href="/logout/" class="logout-btn">로그아웃</a>
-</header>
+{% include 'dashboard/partials/_issues_header.html' %}
 
-<div class="layout-issues" style="grid-template-columns:1fr;">
+<div class="layout-issues">
   <div class="main-area">
 
-    <!-- 모드 탭 -->
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <a href="{{ config.drop_url }}" class="filter-tab">📉 가격 하락 대기</a>
-      <a href="{{ config.rise_url }}" class="filter-tab">📈 가격 상승 대기</a>
-      <a href="{{ config.unpriced_url }}" class="filter-tab">❓ 판매가 미설정</a>
-      <a href="{{ config.underpriced_url }}" class="filter-tab active">🔻 저가 경고</a>
-    </div>
+    {% include 'dashboard/partials/_issues_mode_tabs.html' %}
 
     <!-- 필터/정렬 컨트롤 바 -->
     <div class="control-bar">
 
-      <!-- 확장팩 -->
-      <div class="control-row">
-        <span class="ctrl-label">확장팩</span>
-        <form method="get" id="filterForm" style="display:contents;">
-          <select name="expansion" class="ctrl-select" onchange="submitIssuesFilter()">
-            <option value="" {% if not expansion_code %}selected{% endif %}>전체</option>
-            {% for exp in expansions %}
-            <option value="{{ exp.code }}" {% if expansion_code == exp.code %}selected{% endif %}>
-              {{ exp.code }} — {{ exp.name }}
-            </option>
-            {% endfor %}
-          </select>
-          {% for r in selected_rarities %}
-          <input type="hidden" name="rarities" value="{{ r }}">
-          {% endfor %}
-          <input type="hidden" name="sort" id="sortInput" value="{{ sort }}">
-        </form>
-      </div>
-
-      <!-- 레어도 -->
-      <div class="control-row">
-        <span class="ctrl-label">레어도</span>
-        <div class="ctrl-divider"></div>
-        {% for rarity in all_rarities %}
-        <label class="rarity-chip {% if rarity in selected_rarities %}active{% endif %}">
-          <input type="checkbox" value="{{ rarity }}"
-                 {% if rarity in selected_rarities %}checked{% endif %}
-                 onchange="toggleRarityChip('{{ rarity }}', this)">
-          {{ rarity }}
-        </label>
-        {% endfor %}
-        <div class="ctrl-divider"></div>
-        {% if config.high_rarity_list %}
-        <button class="action-btn" onclick="selectRaritiesChips({{ config.high_rarity_list|safe }})">고레어</button>
-        {% endif %}
-        <button class="action-btn" onclick="selectRaritiesChips([])">초기화</button>
-      </div>
+      {% include 'dashboard/partials/_issues_filter_row.html' %}
 
       <!-- 정렬 -->
       <div class="control-row">
@@ -87,6 +34,14 @@
         <button class="action-btn {% if sort == 'name' %}active-sort{% endif %}"
                 onclick="changeSort('name')">이름순</button>
       </div>
+
+      <!-- 판매가 저장 -->
+      <div class="control-row">
+        <span class="ctrl-label">판매가 반영</span>
+        <div class="ctrl-divider"></div>
+        <button class="action-btn success" id="saveAllBtn" onclick="approveChecked()">💾 체크된 카드 저장</button>
+        <button class="action-btn" onclick="approveAll()">전체 저장</button>
+      </div>
     </div>
 
     <!-- 페이지 헤더 + 통계 -->
@@ -94,7 +49,7 @@
       <div style="display:flex;align-items:baseline;gap:8px;">
         <div class="page-title" style="margin-bottom:0;">🔻 저가 경고</div>
         <div style="font-size:15px;font-weight:800;color:var(--warning);
-                    font-family:'JetBrains Mono',monospace;">{{ total_count }}개</div>
+                    font-family:'JetBrains Mono',monospace;" id="remainCount">{{ total_count }}개</div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;">
         <div class="drop-stat-pill">
@@ -108,27 +63,45 @@
       </div>
     </div>
     <div style="font-size:12px;color:var(--text-muted);margin:-6px 0 14px;">
-      매일 자동 수집되는 시장 최저가보다 현재 판매가가 낮은 카드입니다. 판매가를 올릴 여지가 있는지 확인해보세요.
+      매일 자동 수집되는 시장 최저가보다 현재 판매가가 낮은 카드입니다. 수정 가격은 시장 최저가로 미리 채워져 있습니다 — 확인 후 저장하세요.
     </div>
 
     {% if under_cards %}
     <table class="issues-table">
       <thead>
         <tr>
+          <th style="width:32px;">
+            <input type="checkbox" id="checkAll" onchange="toggleAllIssues(this)"
+                   style="accent-color:var(--accent2);cursor:pointer;">
+          </th>
           <th style="width:42px;"></th>
-          <th style="width:180px;">카드</th>
+          <th style="width:170px;">카드</th>
           <th style="width:70px;">레어도</th>
-          <th style="width:110px;">확장팩</th>
-          <th style="width:120px;">현재 판매가</th>
-          <th style="width:120px;">시장 최저가</th>
-          <th style="width:170px;">차이</th>
-          <th style="width:120px;">수집일시</th>
-          <th style="width:90px;">액션</th>
+          <th style="width:100px;">확장팩</th>
+          <th style="width:110px;">이전 판매가</th>
+          <th style="width:130px;">수정 가격</th>
+          <th style="width:150px;">차이</th>
+          <th style="width:100px;">수집일시</th>
+          <th style="width:80px;">액션</th>
         </tr>
       </thead>
-      <tbody>
+      <tbody id="cardTableBody">
         {% for item in under_cards %}
-        <tr>
+        <tr id="row-{{ item.card.id }}"
+            data-id="{{ item.card.id }}"
+            data-name="{{ item.card.name|escapejs }}"
+            data-number="{{ item.card.card_number }}"
+            data-rarity="{{ item.card.rarity }}"
+            data-expansion="{{ item.card.expansion.code }}"
+            data-image="{{ item.card.image_url|default:'' }}"
+            data-selling="{{ item.selling_price }}"
+            data-drop-pct="{{ item.under_pct }}"
+            onclick="showIssuesSidePanel({{ item.card.id }})">
+
+          <td onclick="event.stopPropagation()">
+            <input type="checkbox" class="row-check" data-id="{{ item.card.id }}"
+                   style="accent-color:var(--accent2);cursor:pointer;width:14px;height:14px;">
+          </td>
           <td>
             {% if item.card.image_url %}
             <img src="{{ item.card.image_url }}" class="card-thumb" loading="lazy">
@@ -147,25 +120,28 @@
           <td><span class="rarity-badge">{{ item.card.rarity }}</span></td>
           <td style="font-size:12px;color:var(--text-muted);">{{ item.card.expansion.name }}</td>
           <td>
-            <span style="font-size:13px;font-weight:700;color:#e86060;
-                         font-family:'JetBrains Mono',monospace;">
+            <span style="font-size:13px;font-weight:700;color:var(--text-muted);
+                         text-decoration:line-through;font-family:'JetBrains Mono',monospace;">
               {{ item.selling_price|floatformat:0 }}원
             </span>
           </td>
-          <td>
-            <span style="font-size:13px;font-weight:700;color:#4ade80;
-                         font-family:'JetBrains Mono',monospace;">
-              {{ item.market_price|floatformat:0 }}원
-            </span>
+          <td onclick="event.stopPropagation()" style="padding-right:6px;">
+            <div class="price-cell">
+              <input type="number" class="price-input-issues" id="input-{{ item.card.id }}"
+                     value="{{ item.market_price|floatformat:0 }}" min="1" step="100"
+                     style="color:#4ade80;font-weight:700;width:100%;"
+                     onkeydown="if(event.key==='Enter') saveIssueEdit({{ item.card.id }})">
+              <span class="saved-badge" id="badge-{{ item.card.id }}">✓</span>
+            </div>
           </td>
           <td style="padding-right:8px;">
             <div class="drop-bar-wrap">
               <div class="drop-bar-labels">
-                <span class="drop-pct-text">-{{ item.under_pct }}%</span>
+                <span class="drop-pct-text" style="color:#4ade80;">-{{ item.under_pct }}%</span>
                 <span class="drop-amt-text">▲ {{ item.under_amt|floatformat:0 }}원</span>
               </div>
               <div class="drop-bar-bg">
-                <div class="drop-bar-fill"
+                <div class="rise-bar-fill"
                      data-pct="{{ item.under_pct }}"
                      style="width:{% if item.under_pct > 100 %}100{% else %}{{ item.under_pct }}{% endif %}%"></div>
               </div>
@@ -174,42 +150,16 @@
           <td style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">
             {% if item.collected_at %}{{ item.collected_at|date:"m/d H:i" }}{% endif %}
           </td>
-          <td style="text-align:center;">
-            <a class="issue-save-btn" style="padding:6px 14px;width:100%;display:inline-block;text-align:center;"
-               href="{{ config.set_price_url_prefix }}{{ item.card.id }}/">카드 열기</a>
+          <td onclick="event.stopPropagation()" style="text-align:center;">
+            <button class="issue-save-btn" style="padding:6px 10px;width:100%;"
+                    onclick="saveIssueEdit({{ item.card.id }})">💾 저장</button>
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
 
-    {% if total_pages > 1 %}
-    <div class="pagination-bar">
-      {% if page > 1 %}
-      <a class="pg-btn" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ page|add:"-1" }}">← 이전</a>
-      {% else %}
-      <span class="pg-btn disabled">← 이전</span>
-      {% endif %}
-
-      <div class="pg-pages">
-        {% for p in page_range %}
-          {% if p == page %}
-          <span class="pg-num active">{{ p }}</span>
-          {% else %}
-          <a class="pg-num" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ p }}">{{ p }}</a>
-          {% endif %}
-        {% endfor %}
-      </div>
-
-      {% if page < total_pages %}
-      <a class="pg-btn" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ page|add:"1" }}">다음 →</a>
-      {% else %}
-      <span class="pg-btn disabled">다음 →</span>
-      {% endif %}
-
-      <span class="pg-info">{{ page }} / {{ total_pages }}페이지 · 총 {{ total_count }}개</span>
-    </div>
-    {% endif %}
+    {% include 'dashboard/partials/_issues_pagination.html' %}
 
     {% else %}
     <div class="empty">
@@ -219,15 +169,42 @@
     </div>
     {% endif %}
   </div>
+
+  <!-- 사이드 패널 -->
+  <div class="side-panel">
+    <div class="side-header">
+      <img id="sideCardImage" src="" alt=""
+           style="display:none;width:100%;max-height:200px;object-fit:contain;border-radius:10px;
+                  background:var(--surface2);border:1px solid var(--border);margin-bottom:12px;">
+      <div class="side-title">판매처 목록 (클릭하면 가격 반영)</div>
+      <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
+      <div class="side-card-info" id="sideCardInfo"></div>
+    </div>
+    <div class="side-empty" id="sideEmpty">
+      <div class="side-empty-icon">🏪</div>
+      <div class="side-empty-text" id="sideEmptyText">카드 행을 클릭하면<br>판매처 목록이 표시됩니다</div>
+    </div>
+    <div class="side-store-list" id="sideStoreList" style="display:none;"></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
+<script id="cardRawData" type="application/json">{{ card_raw_json|safe }}</script>
 
 <script>
+const APPROVE_URL          = '{{ config.approve_url }}';
+const EDIT_URL             = '{{ config.edit_url }}';
+const SET_PRICE_URL_PREFIX = '{{ config.set_price_url_prefix }}';
+const CARD_RAW = (() => {
+  try { return JSON.parse(document.getElementById('cardRawData').textContent); }
+  catch { return {}; }
+})();
 let selectedRarities = new Set({{ selected_rarities_json|safe }});
 </script>
+
 <script src="{% static 'dashboard/dashboard.js' %}"></script>
 <script>
+_issuesRemainCount = {{ total_count }};
 document.addEventListener('DOMContentLoaded', initDropBarColors);
 </script>
 </body>

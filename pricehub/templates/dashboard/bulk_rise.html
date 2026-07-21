@@ -11,70 +11,17 @@
 </head>
 <body data-trend="rise">
 
-<header>
-  <div class="header-left">
-    <a href="{{ config.bulk_price_url }}" class="back-btn">← 일괄 설정</a>
-    <div class="breadcrumb">
-      {% for crumb in breadcrumb %}
-        {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
-        {% if not forloop.last %}<span>/</span>{% endif %}
-      {% endfor %}
-    </div>
-  </div>
-  <a href="/logout/" class="logout-btn">로그아웃</a>
-</header>
+{% include 'dashboard/partials/_issues_header.html' %}
 
 <div class="layout-issues">
   <div class="main-area">
 
-    <!-- 모드 탭 -->
-    <div style="display:flex;gap:8px;margin-bottom:14px;">
-      <a href="{{ config.drop_url }}" class="filter-tab">📉 가격 하락 대기</a>
-      <a href="{{ config.rise_url }}" class="filter-tab active">📈 가격 상승 대기</a>
-      <a href="{{ config.unpriced_url }}" class="filter-tab">❓ 판매가 미설정</a>
-      <a href="{{ config.underpriced_url }}" class="filter-tab">🔻 저가 경고</a>
-    </div>
+    {% include 'dashboard/partials/_issues_mode_tabs.html' %}
 
     <!-- 필터/정렬 컨트롤 바 -->
     <div class="control-bar">
 
-      <!-- 확장팩 -->
-      <div class="control-row">
-        <span class="ctrl-label">확장팩</span>
-        <form method="get" id="filterForm" style="display:contents;">
-          <select name="expansion" class="ctrl-select" onchange="submitIssuesFilter()">
-            <option value="" {% if not expansion_code %}selected{% endif %}>전체</option>
-            {% for exp in expansions %}
-            <option value="{{ exp.code }}" {% if expansion_code == exp.code %}selected{% endif %}>
-              {{ exp.code }} — {{ exp.name }}
-            </option>
-            {% endfor %}
-          </select>
-          {% for r in selected_rarities %}
-          <input type="hidden" name="rarities" value="{{ r }}">
-          {% endfor %}
-          <input type="hidden" name="sort" id="sortInput" value="{{ sort }}">
-        </form>
-      </div>
-
-      <!-- 레어도 -->
-      <div class="control-row">
-        <span class="ctrl-label">레어도</span>
-        <div class="ctrl-divider"></div>
-        {% for rarity in all_rarities %}
-        <label class="rarity-chip {% if rarity in selected_rarities %}active{% endif %}">
-          <input type="checkbox" value="{{ rarity }}"
-                 {% if rarity in selected_rarities %}checked{% endif %}
-                 onchange="toggleRarityChip('{{ rarity }}', this)">
-          {{ rarity }}
-        </label>
-        {% endfor %}
-        <div class="ctrl-divider"></div>
-        {% if config.high_rarity_list %}
-        <button class="action-btn" onclick="selectRaritiesChips({{ config.high_rarity_list|safe }})">고레어</button>
-        {% endif %}
-        <button class="action-btn" onclick="selectRaritiesChips([])">초기화</button>
-      </div>
+      {% include 'dashboard/partials/_issues_filter_row.html' %}
 
       <!-- 정렬 -->
       <div class="control-row">
@@ -259,33 +206,7 @@
       </tbody>
     </table>
 
-    {% if total_pages > 1 %}
-    <div class="pagination-bar">
-      {% if page > 1 %}
-      <a class="pg-btn" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ page|add:"-1" }}">← 이전</a>
-      {% else %}
-      <span class="pg-btn disabled">← 이전</span>
-      {% endif %}
-
-      <div class="pg-pages">
-        {% for p in page_range %}
-          {% if p == page %}
-          <span class="pg-num active">{{ p }}</span>
-          {% else %}
-          <a class="pg-num" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ p }}">{{ p }}</a>
-          {% endif %}
-        {% endfor %}
-      </div>
-
-      {% if page < total_pages %}
-      <a class="pg-btn" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ page|add:"1" }}">다음 →</a>
-      {% else %}
-      <span class="pg-btn disabled">다음 →</span>
-      {% endif %}
-
-      <span class="pg-info">{{ page }} / {{ total_pages }}페이지 · 총 {{ total_count }}개</span>
-    </div>
-    {% endif %}
+    {% include 'dashboard/partials/_issues_pagination.html' %}
 
     {% else %}
     <div class="empty">
