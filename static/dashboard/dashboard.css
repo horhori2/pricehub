@@ -24,6 +24,53 @@
 
 body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); }
 
+/* ================================================================
+   버튼 컴포넌트 베이스 — 새 버튼을 추가할 땐 이 .btn 시스템을 쓸 것.
+
+   지금 이 파일엔 .action-btn/.set-btn/.search-btn/.run-btn/.quick-btn 등
+   "-btn"으로 끝나는 클래스가 20개 넘게 있는데, 처음엔 다 같은 패턴처럼
+   보이지만 실제로는 하나하나 호버 색상·기본 배경·transition 시간이
+   조금씩 달라져 있다(예: 같은 "고스트 버튼"이어도 어떤 건 호버 시
+   --accent2, 어떤 건 --accent+--text로 감). 지금 그걸 억지로 하나로
+   합치면 그 미묘한 차이가 사라지거나 뒤바뀔 위험이 있어서, 기존 버튼은
+   그대로 두고 건드리지 않았다. 대신 앞으로 새로 추가하는 버튼은 아래
+   .btn 베이스 + 변형 클래스를 조합해서 쓰고, 레거시 "-btn" 클래스를
+   새로 늘리지 않는 걸 원칙으로 한다.
+   ================================================================ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 7px 16px; border-radius: 8px;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  border: 1px solid transparent; cursor: pointer; text-decoration: none;
+  white-space: nowrap; transition: all 0.15s;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* 스타일 변형 (택 1) */
+.btn-ghost { background: none; border-color: var(--border2); color: var(--text-muted); }
+.btn-ghost:hover { border-color: var(--accent2); color: var(--accent2); }
+
+.btn-soft { background: rgba(124,107,255,0.1); border-color: var(--accent2); color: var(--accent2); }
+.btn-soft:hover { background: rgba(124,107,255,0.2); }
+
+.btn-solid { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+.btn-solid:hover { filter: brightness(1.1); }
+
+/* 색상 변형 — .btn-soft/.btn-solid와 조합해서 사용 (예: class="btn btn-soft btn-danger") */
+.btn-danger.btn-soft  { background: rgba(240,96,96,0.08); border-color: var(--danger); color: var(--danger); }
+.btn-danger.btn-soft:hover  { background: rgba(240,96,96,0.18); }
+.btn-danger.btn-solid { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+.btn-success.btn-soft  { background: rgba(61,214,140,0.08); border-color: var(--success); color: var(--success); }
+.btn-success.btn-soft:hover  { background: var(--success); color: #000; }
+
+.btn-favorite.btn-soft { background: rgba(255,199,0,0.06); border-color: rgba(255,199,0,0.3); color: #c8960a; }
+.btn-favorite.btn-soft:hover { border-color: var(--favorite); color: var(--favorite); background: rgba(255,199,0,0.12); }
+
+/* 크기 변형 */
+.btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+.btn-lg { padding: 12px 28px; font-size: 14px; }
+
 /* ── 헤더 ── */
 header { background: rgba(19,22,31,0.95); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 0 28px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
 .header-left { display: flex; align-items: center; gap: 14px; }
