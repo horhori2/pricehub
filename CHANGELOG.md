@@ -3,6 +3,15 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.1.1] - 2026-07-21
+
+### Added
+- `README.md` 추가 — 지원 게임/카테고리, 주요 기능(가격 자동 수집, 판매가 관리, 저가 경고, 매입리스트, 외부 API 등) 정리.
+- `CLAUDE.md` 추가 — 커밋 시 CHANGELOG.md를 갱신하는 작업 지침 명시.
+
+### Fixed
+- `requirements.txt`가 실제 사용 중인 의존성(djangorestframework, django-filter, requests, beautifulsoup4, openpyxl, python-dotenv 등)을 누락하고 있던 문제 수정. Django 버전도 실제 설치본(5.2.4)에 맞게 정정 (기존엔 5.2.10으로 잘못 적혀 있었음). 새 가상환경에서 `pip install -r requirements.txt`만으로 서버가 뜨는지 확인 완료.
+
 ## [0.1.0] - 2026-07-21
 
 첫 번째 기록 버전. 이 시점부터 버전을 태깅하고 변경사항을 정리합니다.

@@ -1,5 +1,28 @@
-asgiref==3.11.0
-Django==5.2.10
-mysqlclient==2.2.7
+# Django
+Django==5.2.4
+asgiref==3.11.1
 sqlparse==0.5.5
-tzdata==2025.3
+tzdata==2026.2
+
+# DB 드라이버
+mysqlclient==2.2.8
+
+# REST API
+djangorestframework==3.17.1
+django-filter==25.2
+
+# 환경변수 (.env)
+python-dotenv==1.2.2
+
+# 가격 수집 (네이버 쇼핑 API 호출, 일본판 사이트 크롤링)
+requests==2.34.2
+certifi==2026.4.22
+charset-normalizer==3.4.7
+idna==3.15
+urllib3==2.7.0
+beautifulsoup4==4.14.3
+soupsieve==2.8.3
+
+# 엑셀 업로드(일괄 판매가 검증)
+openpyxl==3.1.5
+et_xmlfile==2.0.0
