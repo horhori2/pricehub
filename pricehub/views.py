@@ -652,6 +652,34 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
     return render(request, 'dashboard/card_list.html', ctx)
 
 
+def _card_detail_view(request, cfg_key, pk):
+    cfg = _cfg(cfg_key)
+    card_model = cfg['card_model']
+    base_url = cfg['base_url']
+
+    card = get_object_or_404(card_model.objects.select_related('expansion'), pk=pk)
+    latest_price_obj = card.prices.order_by('-collected_at').first()
+    market_items, stats = _parse_market_items(latest_price_obj)
+
+    return render(request, 'dashboard/card_detail.html', {
+        'card':                    card,
+        'card_type':               cfg_key,
+        'latest_price_obj':        latest_price_obj,
+        'market_items':            market_items,
+        'market_items_json':       safe_json_dumps(market_items, ensure_ascii=False),
+        'stats':                   stats,
+        'set_price_url':           f'{base_url}/cards/{pk}/set-price/',
+        'back_url':                f'{base_url}/expansions/{card.expansion.code}/cards/',
+        'price_history_week_json': _price_history_json(card, card.prices),
+        'breadcrumb': [
+            ('홈', '/'),
+            (cfg['label'], f'{base_url}/expansions/'),
+            (card.expansion.name, f'{base_url}/expansions/{card.expansion.code}/cards/'),
+            (card.name, None),
+        ],
+    })
+
+
 def _card_search_view(request, card_model):
     q = request.GET.get('name', '').strip()
     page_size = min(int(request.GET.get('page_size', 30)), 50)
@@ -1720,28 +1748,7 @@ def pokemon_kr_card_list(request, code):
 
 @staff_required
 def pokemon_kr_card_detail(request, pk):
-    card = get_object_or_404(Card.objects.select_related('expansion'), pk=pk)
-    latest_price_obj = card.prices.order_by('-collected_at').first()
-    market_items, stats = _parse_market_items(latest_price_obj)
-    base = '/pokemon/kr'
-
-    return render(request, 'dashboard/card_detail.html', {
-        'card':                   card,
-        'card_type':              'pokemon_kr',
-        'latest_price_obj':       latest_price_obj,
-        'market_items':           market_items,
-        'market_items_json':      safe_json_dumps(market_items, ensure_ascii=False),
-        'stats':                  stats,
-        'set_price_url':          f'{base}/cards/{pk}/set-price/',
-        'back_url':               f'{base}/expansions/{card.expansion.code}/cards/',
-        'price_history_week_json':_price_history_json(card, card.prices),
-        'breadcrumb': [
-            ('홈', '/'),
-            ('포켓몬 한글판', f'{base}/expansions/'),
-            (card.expansion.name, f'{base}/expansions/{card.expansion.code}/cards/'),
-            (card.name, None),
-        ],
-    })
+    return _card_detail_view(request, 'pokemon_kr', pk)
 
 
 @staff_required
@@ -1965,28 +1972,7 @@ def onepiece_kr_card_list(request, code):
 
 @staff_required
 def onepiece_kr_card_detail(request, pk):
-    card = get_object_or_404(OnePieceCard.objects.select_related('expansion'), pk=pk)
-    latest_price_obj = card.prices.order_by('-collected_at').first()
-    market_items, stats = _parse_market_items(latest_price_obj)
-    base = '/onepiece/kr'
-
-    return render(request, 'dashboard/card_detail.html', {
-        'card':                    card,
-        'card_type':               'onepiece_kr',
-        'latest_price_obj':        latest_price_obj,
-        'market_items':            market_items,
-        'market_items_json':       safe_json_dumps(market_items, ensure_ascii=False),
-        'stats':                   stats,
-        'set_price_url':           f'{base}/cards/{pk}/set-price/',
-        'back_url':                f'{base}/expansions/{card.expansion.code}/cards/',
-        'price_history_week_json': _price_history_json(card, card.prices),
-        'breadcrumb': [
-            ('홈', '/'),
-            ('원피스 한글판', f'{base}/expansions/'),
-            (card.expansion.name, f'{base}/expansions/{card.expansion.code}/cards/'),
-            (card.name, None),
-        ],
-    })
+    return _card_detail_view(request, 'onepiece_kr', pk)
 
 
 @staff_required
@@ -2119,28 +2105,7 @@ def digimon_kr_card_list(request, code):
 
 @staff_required
 def digimon_kr_card_detail(request, pk):
-    card = get_object_or_404(DigimonCard.objects.select_related('expansion'), pk=pk)
-    latest_price_obj = card.prices.order_by('-collected_at').first()
-    market_items, stats = _parse_market_items(latest_price_obj)
-    base = '/digimon/kr'
-
-    return render(request, 'dashboard/card_detail.html', {
-        'card':                    card,
-        'card_type':               'digimon_kr',
-        'latest_price_obj':        latest_price_obj,
-        'market_items':            market_items,
-        'market_items_json':       safe_json_dumps(market_items, ensure_ascii=False),
-        'stats':                   stats,
-        'set_price_url':           f'{base}/cards/{pk}/set-price/',
-        'back_url':                f'{base}/expansions/{card.expansion.code}/cards/',
-        'price_history_week_json': _price_history_json(card, card.prices),
-        'breadcrumb': [
-            ('홈', '/'),
-            ('디지몬 한글판', f'{base}/expansions/'),
-            (card.expansion.name, f'{base}/expansions/{card.expansion.code}/cards/'),
-            (card.name, None),
-        ],
-    })
+    return _card_detail_view(request, 'digimon_kr', pk)
 
 
 @staff_required

@@ -5,7 +5,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
-from pricehub.models import JapanCard, JapanCardPrice, JapanTargetStorePrice, JapanExpansion
+from pricehub.models import JapanCard, JapanCardPrice, JapanExpansion
 
 
 def delete_all_japan_data():

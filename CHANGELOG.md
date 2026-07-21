@@ -3,6 +3,24 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.1.2] - 2026-07-21
+
+리팩토링 1차 정리 — 죽은 코드/깨진 스크립트 제거, `card_detail` 뷰 중복 제거.
+
+### Removed
+- 1회성 디버깅 스크립트 7개 삭제 (`test_cardrush_crawl.py`, `test_cardrush_expantion_data.py`, `test_filtering_pokemon.py`, `test_mirror_extraction.py`, `test_single_card.py`, `test_time_insert.py`, `test_yuyu_structure.py`). 전부 자동 테스트 러너에 물려있지 않은 print 기반 수동 확인용 스크립트였고, 일부는 실제 필터링 로직(`pricehub/utils.py`)과 이미 어긋나 있었음. 실제 테스트 스위트(`pricehub/tests.py`)는 그대로 유지.
+- 존재하지 않는 파이썬 파일(`collect_prices.py`, `collect_tcg999_prices.py`)을 호출하던 죽은 크론 스크립트 3개 삭제 (`run_collect_prices.sh`, `run_all_collections.sh`, `run_collect_tcg999.sh`).
+- 어디서도 import되지 않던 고아 모듈 `japan_utils.py` 삭제 (안의 크롤링 로직도 `save_japan_cards_to_db.py`의 실제 로직과 이미 어긋난 상태였음).
+
+### Fixed
+- `delete_onepiece_data.py`, `delete_japan_data.py`가 마이그레이션 `0019`에서 이미 삭제된 `OnePieceTargetStorePrice`/`JapanTargetStorePrice` 모델을 import하고 있어 실행하면 바로 `ImportError`가 나던 문제 수정.
+
+### Changed
+- `pricehub/views.py`: `pokemon_kr_card_detail`/`onepiece_kr_card_detail`/`digimon_kr_card_detail`에 복붙돼 있던 동일한 로직(~25줄×3)을 `_card_detail_view(request, cfg_key, pk)` 공용 함수로 통합. 이 파일의 다른 뷰들과 동일한 패턴으로 정리됨. 렌더링 컨텍스트는 리팩토링 전후 동일.
+
+### Known Issues
+- `test_single_card.py`(이번에 삭제)에 네이버 API 키가 평문으로 박혀 있었고, 이미 GitHub에 푸시된 커밋 히스토리에 남아있음. 파일 삭제만으로는 히스토리에서 지워지지 않으므로 **네이버 개발자센터에서 키 재발급 필요** (별도 조치, 아직 미완료).
+
 ## [0.1.1] - 2026-07-21
 
 ### Added
