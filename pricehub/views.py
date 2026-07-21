@@ -6,7 +6,9 @@ pricehub/views.py
 - 각 카테고리별: 확장팩 목록 → 카드 목록 → 카드 상세 + 판매가 설정
 """
 import json
+import logging
 import re
+from urllib.parse import urlencode
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
@@ -14,6 +16,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.db.models import OuterRef, Subquery, F
+
+logger = logging.getLogger(__name__)
 
 try:
     import openpyxl
@@ -117,12 +121,29 @@ def dashboard_login(request):
             login(request, user)
             return redirect('/')
         error = '아이디 또는 비밀번호가 올바르지 않습니다.'
+    elif request.GET.get('expired'):
+        error = '세션이 만료되었거나 다른 곳에서 로그인해 인증이 초기화됐습니다. 다시 로그인해주세요.'
     return render(request, 'dashboard/login.html', {'error': error})
 
 
 def dashboard_logout(request):
     logout(request)
     return redirect('/login/')
+
+
+def csrf_failure(request, reason=""):
+    """
+    CSRF 검증 실패 처리 (settings.CSRF_FAILURE_VIEW).
+
+    로그인 성공 시 Django가 보안을 위해 CSRF 토큰을 회전시키는데(rotate_token),
+    세션 만료로 여러 탭/오래 열려있던 로그인 폼이 옛 토큰을 들고 있다가 제출되면
+    쿠키와 안 맞아 CSRF 검증에 실패한다. 기본 403 디버그 화면 대신 안내와 함께
+    로그인 페이지로 돌려보낸다.
+    """
+    logger.warning('CSRF 검증 실패 (%s): %s %s', reason, request.method, request.path)
+    next_url = request.POST.get('next') or request.GET.get('next') or '/'
+    query = urlencode({'next': next_url, 'expired': '1'})
+    return redirect(f'/login/?{query}')
 
 
 # ════════════════════════════════════════════════════════════════
@@ -380,6 +401,29 @@ def _get_rarities(card_model, expansion_code=None):
     return list(qs)
 
 
+def _underpriced_count(cfg):
+    """판매가가 최근 수집된 시장 최저가보다 낮은 카드 수.
+
+    일본판은 시장가(엔)와 판매가(원) 통화가 달라 비교가 성립하지 않으므로 호출측에서 제외한다.
+    """
+    card_model = cfg['card_model']
+    price_model = cfg['price_model']
+    latest_price_qs = price_model.objects.filter(card=OuterRef('pk')).order_by('-collected_at')
+    try:
+        return (
+            card_model.objects
+            .annotate(latest_market_price=Subquery(latest_price_qs.values('price')[:1]))
+            .filter(
+                selling_price__gt=0,
+                latest_market_price__isnull=False,
+                selling_price__lt=F('latest_market_price'),
+            )
+            .count()
+        )
+    except Exception:
+        return 0
+
+
 # ════════════════════════════════════════════════════════════════
 # 공통 뷰 로직 — expansion_list / card_list / card_search
 # ════════════════════════════════════════════════════════════════
@@ -404,17 +448,22 @@ def _expansion_list_view(request, cfg_key, extra_ctx=None):
     except Exception:
         drop_count = 0
 
+    # 일본판은 시장가(엔)·판매가(원) 통화가 달라 비교 대상에서 제외
+    underpriced_count = _underpriced_count(cfg) if cfg_key != 'pokemon_jp' else 0
+
     ctx = {
         'expansions': expansions,
         'total_cards': sum(e.card_count for e in expansions),
         'total_unpriced': sum(e.unpriced_count for e in expansions),
         'total_drop': drop_count,
+        'total_underpriced': underpriced_count,
         'base_url': base_url,
         'title': cfg['label'],
         'breadcrumb': [('홈', '/'), (cfg['label'], None)],
         'card_detail_base_url': f'{base_url}/cards/',
         'bulk_drop_url':     f'{base_url}/bulk-price/drop/',
         'bulk_unpriced_url': f'{base_url}/bulk-price/unpriced/',
+        'bulk_underpriced_url': f'{base_url}/bulk-price/underpriced/' if cfg_key != 'pokemon_jp' else '',
     }
     if extra_ctx:
         ctx.update(extra_ctx)
@@ -479,6 +528,12 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
         cards_qs = cards_qs.filter(selling_price__gt=0)
     elif filter_type == 'favorites':
         cards_qs = cards_qs.filter(is_favorite=True)
+    elif filter_type == 'underpriced':
+        cards_qs = cards_qs.filter(
+            selling_price__gt=0,
+            latest_market_price__isnull=False,
+            selling_price__lt=F('latest_market_price'),
+        )
 
     # 레어도 필터
     all_rarities = list(
@@ -583,6 +638,7 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
         'page_range':       page_range,
         'sort':             sort,
         'show_tag_column':  show_tag_column,
+        'show_underpriced_filter': cfg_key != 'pokemon_jp',
         'breadcrumb': [
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
@@ -687,12 +743,14 @@ def _bulk_price_view(request, cfg_key):
     ).count()
     new_pending = card_model.objects.filter(modified_price__gt=0, selling_price=0).count()
     needs_review = drop_pending + rise_pending + new_pending
+    underpriced_pending = _underpriced_count(cfg)
 
     return render(request, 'dashboard/bulk_price.html', {
         'mall_names': json.dumps(mall_names),
         'mall_names_display': mall_names,
         'expansions': expansions,
         'needs_review': needs_review,
+        'underpriced_pending': underpriced_pending,
         'shop_stats_json': json.dumps(shop_stats, ensure_ascii=False),
         'shop_stats': shop_stats,
         'overall_avg': overall_avg,
@@ -715,6 +773,7 @@ def _bulk_price_view(request, cfg_key):
             'drop_url':             f'{base_url}/bulk-price/drop/',
             'rise_url':             f'{base_url}/bulk-price/rise/',
             'unpriced_url':         f'{base_url}/bulk-price/unpriced/',
+            'underpriced_url':      f'{base_url}/bulk-price/underpriced/',
             'inline_cards_url':     f'{base_url}/bulk-price/inline-cards/',
             'approve_url':          f'{base_url}/bulk-price/approve/',
             'edit_url':             f'{base_url}/bulk-price/edit/',
@@ -885,6 +944,7 @@ def _common_issues_config(cfg):
         'drop_url':             f'{base_url}/bulk-price/drop/',
         'rise_url':             f'{base_url}/bulk-price/rise/',
         'unpriced_url':         f'{base_url}/bulk-price/unpriced/',
+        'underpriced_url':      f'{base_url}/bulk-price/underpriced/',
         'inline_cards_url':     f'{base_url}/bulk-price/inline-cards/',
     }
 
@@ -1096,6 +1156,111 @@ def _bulk_rise_view(request, cfg_key):
             (cfg['label'], f'{base_url}/expansions/'),
             ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
             ('상승 대기 목록', None),
+        ],
+        'config': _common_issues_config(cfg),
+    })
+
+
+def _underpriced_view(request, cfg_key):
+    """저가 경고 목록 — 판매가가 최근 수집된 시장 최저가보다 낮은 카드 (매일 collect_price 결과 기준)"""
+    cfg = _cfg(cfg_key)
+    card_model  = cfg['card_model']
+    price_model = cfg['price_model']
+    base_url    = cfg['base_url']
+
+    expansion_code    = request.GET.get('expansion', '')
+    selected_rarities = request.GET.getlist('rarities')
+    sort              = request.GET.get('sort', 'under_pct')
+    page              = max(1, int(request.GET.get('page', 1) or 1))
+    per_page          = 100
+
+    all_rarities = _get_rarities(card_model, expansion_code or None)
+    expansions   = cfg['expansion_model'].objects.order_by('-release_date')
+
+    latest_price_qs = price_model.objects.filter(card=OuterRef('pk')).order_by('-collected_at')
+    qs = (
+        card_model.objects
+        .select_related('expansion')
+        .annotate(
+            latest_market_price=Subquery(latest_price_qs.values('price')[:1]),
+            latest_collected_at=Subquery(latest_price_qs.values('collected_at')[:1]),
+        )
+        .filter(
+            selling_price__gt=0,
+            latest_market_price__isnull=False,
+            selling_price__lt=F('latest_market_price'),
+        )
+    )
+
+    if expansion_code:
+        qs = qs.filter(expansion__code=expansion_code)
+    if selected_rarities:
+        qs = qs.filter(rarity__in=selected_rarities)
+
+    all_under_cards = []
+    for card in qs:
+        sell   = int(card.selling_price)
+        market = int(card.latest_market_price)
+        under_amt = market - sell
+        under_pct = round((under_amt / market) * 100, 1)
+        all_under_cards.append({
+            'card':          card,
+            'selling_price': sell,
+            'market_price':  market,
+            'collected_at':  card.latest_collected_at,
+            'under_amt':     under_amt,
+            'under_pct':     under_pct,
+        })
+
+    if sort == 'under_amt':
+        all_under_cards.sort(key=lambda x: -x['under_amt'])
+    elif sort == 'name':
+        all_under_cards.sort(key=lambda x: x['card'].name or '')
+    else:
+        sort = 'under_pct'
+        all_under_cards.sort(key=lambda x: -x['under_pct'])
+
+    total_count   = len(all_under_cards)
+    avg_under_pct = round(sum(d['under_pct'] for d in all_under_cards) / total_count, 1) if total_count else 0
+    max_under     = max((d['under_pct'] for d in all_under_cards), default=0)
+
+    # ── 페이지네이션 ──
+    total_pages     = max(1, -(-total_count // per_page))   # ceiling division
+    page            = min(page, total_pages)
+    offset          = (page - 1) * per_page
+    under_cards     = all_under_cards[offset:offset + per_page]
+
+    # 페이지 번호 목록 (최대 7개, 현재 페이지 중심)
+    _half = 3
+    _start = max(1, page - _half)
+    _end   = min(total_pages, page + _half)
+    if _end - _start < 6:
+        if _start == 1:
+            _end = min(total_pages, _start + 6)
+        else:
+            _start = max(1, _end - 6)
+    page_range = list(range(_start, _end + 1))
+
+    return render(request, 'dashboard/bulk_underpriced.html', {
+        'under_cards':            under_cards,
+        'expansions':             expansions,
+        'expansion_code':         expansion_code,
+        'sort':                   sort,
+        'total_count':            total_count,
+        'avg_under_pct':          avg_under_pct,
+        'max_under':              max_under,
+        'all_rarities':           all_rarities,
+        'selected_rarities':      selected_rarities,
+        'selected_rarities_json': json.dumps(selected_rarities),
+        'page':                   page,
+        'total_pages':            total_pages,
+        'per_page':               per_page,
+        'page_range':             page_range,
+        'breadcrumb': [
+            ('홈', '/'),
+            (cfg['label'], f'{base_url}/expansions/'),
+            ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
+            ('저가 경고 목록', None),
         ],
         'config': _common_issues_config(cfg),
     })
@@ -1647,6 +1812,11 @@ def pokemon_kr_bulk_unpriced(request):
 
 
 @staff_required
+def pokemon_kr_bulk_underpriced(request):
+    return _underpriced_view(request, 'pokemon_kr')
+
+
+@staff_required
 @require_POST
 def pokemon_kr_bulk_approve(request):
     return _bulk_approve_view(request, 'pokemon_kr')
@@ -1881,6 +2051,11 @@ def onepiece_kr_bulk_unpriced(request):
 
 
 @staff_required
+def onepiece_kr_bulk_underpriced(request):
+    return _underpriced_view(request, 'onepiece_kr')
+
+
+@staff_required
 @require_POST
 def onepiece_kr_bulk_approve(request):
     return _bulk_approve_view(request, 'onepiece_kr')
@@ -2032,6 +2207,11 @@ def digimon_kr_bulk_rise(request):
 @staff_required
 def digimon_kr_bulk_unpriced(request):
     return _bulk_unpriced_view(request, 'digimon_kr')
+
+
+@staff_required
+def digimon_kr_bulk_underpriced(request):
+    return _underpriced_view(request, 'digimon_kr')
 
 
 @staff_required

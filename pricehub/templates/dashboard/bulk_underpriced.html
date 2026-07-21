@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>저가 경고 · {{ config.label }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <a href="{{ config.bulk_price_url }}" class="back-btn">← 일괄 설정</a>
+    <div class="breadcrumb">
+      {% for crumb in breadcrumb %}
+        {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
+        {% if not forloop.last %}<span>/</span>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <a href="/logout/" class="logout-btn">로그아웃</a>
+</header>
+
+<div class="layout-issues" style="grid-template-columns:1fr;">
+  <div class="main-area">
+
+    <!-- 모드 탭 -->
+    <div style="display:flex;gap:8px;margin-bottom:14px;">
+      <a href="{{ config.drop_url }}" class="filter-tab">📉 가격 하락 대기</a>
+      <a href="{{ config.rise_url }}" class="filter-tab">📈 가격 상승 대기</a>
+      <a href="{{ config.unpriced_url }}" class="filter-tab">❓ 판매가 미설정</a>
+      <a href="{{ config.underpriced_url }}" class="filter-tab active">🔻 저가 경고</a>
+    </div>
+
+    <!-- 필터/정렬 컨트롤 바 -->
+    <div class="control-bar">
+
+      <!-- 확장팩 -->
+      <div class="control-row">
+        <span class="ctrl-label">확장팩</span>
+        <form method="get" id="filterForm" style="display:contents;">
+          <select name="expansion" class="ctrl-select" onchange="submitIssuesFilter()">
+            <option value="" {% if not expansion_code %}selected{% endif %}>전체</option>
+            {% for exp in expansions %}
+            <option value="{{ exp.code }}" {% if expansion_code == exp.code %}selected{% endif %}>
+              {{ exp.code }} — {{ exp.name }}
+            </option>
+            {% endfor %}
+          </select>
+          {% for r in selected_rarities %}
+          <input type="hidden" name="rarities" value="{{ r }}">
+          {% endfor %}
+          <input type="hidden" name="sort" id="sortInput" value="{{ sort }}">
+        </form>
+      </div>
+
+      <!-- 레어도 -->
+      <div class="control-row">
+        <span class="ctrl-label">레어도</span>
+        <div class="ctrl-divider"></div>
+        {% for rarity in all_rarities %}
+        <label class="rarity-chip {% if rarity in selected_rarities %}active{% endif %}">
+          <input type="checkbox" value="{{ rarity }}"
+                 {% if rarity in selected_rarities %}checked{% endif %}
+                 onchange="toggleRarityChip('{{ rarity }}', this)">
+          {{ rarity }}
+        </label>
+        {% endfor %}
+        <div class="ctrl-divider"></div>
+        {% if config.high_rarity_list %}
+        <button class="action-btn" onclick="selectRaritiesChips({{ config.high_rarity_list|safe }})">고레어</button>
+        {% endif %}
+        <button class="action-btn" onclick="selectRaritiesChips([])">초기화</button>
+      </div>
+
+      <!-- 정렬 -->
+      <div class="control-row">
+        <span class="ctrl-label">정렬</span>
+        <div class="ctrl-divider"></div>
+        <button class="action-btn {% if sort == 'under_pct' %}active-sort{% endif %}"
+                onclick="changeSort('under_pct')">차이율순</button>
+        <button class="action-btn {% if sort == 'under_amt' %}active-sort{% endif %}"
+                onclick="changeSort('under_amt')">차이금액순</button>
+        <button class="action-btn {% if sort == 'name' %}active-sort{% endif %}"
+                onclick="changeSort('name')">이름순</button>
+      </div>
+    </div>
+
+    <!-- 페이지 헤더 + 통계 -->
+    <div class="page-header">
+      <div style="display:flex;align-items:baseline;gap:8px;">
+        <div class="page-title" style="margin-bottom:0;">🔻 저가 경고</div>
+        <div style="font-size:15px;font-weight:800;color:var(--warning);
+                    font-family:'JetBrains Mono',monospace;">{{ total_count }}개</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div class="drop-stat-pill">
+          <span class="drop-stat-label">평균 차이율</span>
+          <span class="drop-stat-val">-{{ avg_under_pct }}%</span>
+        </div>
+        <div class="drop-stat-pill">
+          <span class="drop-stat-label">최대 차이율</span>
+          <span class="drop-stat-val">-{{ max_under }}%</span>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted);margin:-6px 0 14px;">
+      매일 자동 수집되는 시장 최저가보다 현재 판매가가 낮은 카드입니다. 판매가를 올릴 여지가 있는지 확인해보세요.
+    </div>
+
+    {% if under_cards %}
+    <table class="issues-table">
+      <thead>
+        <tr>
+          <th style="width:42px;"></th>
+          <th style="width:180px;">카드</th>
+          <th style="width:70px;">레어도</th>
+          <th style="width:110px;">확장팩</th>
+          <th style="width:120px;">현재 판매가</th>
+          <th style="width:120px;">시장 최저가</th>
+          <th style="width:170px;">차이</th>
+          <th style="width:120px;">수집일시</th>
+          <th style="width:90px;">액션</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in under_cards %}
+        <tr>
+          <td>
+            {% if item.card.image_url %}
+            <img src="{{ item.card.image_url }}" class="card-thumb" loading="lazy">
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;">
+              <span class="warning-dot"></span>
+              <div>
+                <strong>{{ item.card.name }}</strong>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:4px;
+                             font-family:'JetBrains Mono',monospace;">{{ item.card.card_number }}</span>
+              </div>
+            </div>
+          </td>
+          <td><span class="rarity-badge">{{ item.card.rarity }}</span></td>
+          <td style="font-size:12px;color:var(--text-muted);">{{ item.card.expansion.name }}</td>
+          <td>
+            <span style="font-size:13px;font-weight:700;color:#e86060;
+                         font-family:'JetBrains Mono',monospace;">
+              {{ item.selling_price|floatformat:0 }}원
+            </span>
+          </td>
+          <td>
+            <span style="font-size:13px;font-weight:700;color:#4ade80;
+                         font-family:'JetBrains Mono',monospace;">
+              {{ item.market_price|floatformat:0 }}원
+            </span>
+          </td>
+          <td style="padding-right:8px;">
+            <div class="drop-bar-wrap">
+              <div class="drop-bar-labels">
+                <span class="drop-pct-text">-{{ item.under_pct }}%</span>
+                <span class="drop-amt-text">▲ {{ item.under_amt|floatformat:0 }}원</span>
+              </div>
+              <div class="drop-bar-bg">
+                <div class="drop-bar-fill"
+                     data-pct="{{ item.under_pct }}"
+                     style="width:{% if item.under_pct > 100 %}100{% else %}{{ item.under_pct }}{% endif %}%"></div>
+              </div>
+            </div>
+          </td>
+          <td style="font-size:11px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;">
+            {% if item.collected_at %}{{ item.collected_at|date:"m/d H:i" }}{% endif %}
+          </td>
+          <td style="text-align:center;">
+            <a class="issue-save-btn" style="padding:6px 14px;width:100%;display:inline-block;text-align:center;"
+               href="{{ config.set_price_url_prefix }}{{ item.card.id }}/">카드 열기</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% if total_pages > 1 %}
+    <div class="pagination-bar">
+      {% if page > 1 %}
+      <a class="pg-btn" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ page|add:"-1" }}">← 이전</a>
+      {% else %}
+      <span class="pg-btn disabled">← 이전</span>
+      {% endif %}
+
+      <div class="pg-pages">
+        {% for p in page_range %}
+          {% if p == page %}
+          <span class="pg-num active">{{ p }}</span>
+          {% else %}
+          <a class="pg-num" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ p }}">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+
+      {% if page < total_pages %}
+      <a class="pg-btn" href="?{% if expansion_code %}expansion={{ expansion_code }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}sort={{ sort }}&page={{ page|add:"1" }}">다음 →</a>
+      {% else %}
+      <span class="pg-btn disabled">다음 →</span>
+      {% endif %}
+
+      <span class="pg-info">{{ page }} / {{ total_pages }}페이지 · 총 {{ total_count }}개</span>
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty">
+      <div style="font-size:40px;margin-bottom:12px;opacity:0.4;">✅</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">저가 경고 카드가 없습니다!</div>
+      <div style="font-size:13px;">판매가가 시장 최저가보다 낮은 카드가 있으면 여기 표시됩니다.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let selectedRarities = new Set({{ selected_rarities_json|safe }});
+</script>
+<script src="{% static 'dashboard/dashboard.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', initDropBarColors);
+</script>
+</body>
+</html>

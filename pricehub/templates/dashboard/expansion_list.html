@@ -29,7 +29,7 @@
   <div class="page-sub" style="font-size:13px;color:var(--text-muted);margin-bottom:28px;">확장팩을 선택해 카드별 판매가를 설정하세요.</div>
 
   <!-- 통계 카드 -->
-  <div class="stats-row-grid" style="{% if bulk_unpriced_url %}grid-template-columns: repeat(4, 1fr);{% endif %}">
+  <div class="stats-row-grid" style="{% if bulk_underpriced_url %}grid-template-columns: repeat(5, 1fr);{% elif bulk_unpriced_url %}grid-template-columns: repeat(4, 1fr);{% endif %}">
 
     <div class="stat-card">
       <div class="stat-label">전체 확장팩</div>
@@ -61,6 +61,15 @@
        title="가격 하락 대기 카드 목록 보기">
       <div class="stat-label">가격 하락 대기 →</div>
       <div class="stat-value" style="color:var(--danger);">{{ total_drop }}</div>
+    </a>
+    {% endif %}
+
+    <!-- 저가 경고 (판매가 < 시장 최저가) -->
+    {% if bulk_underpriced_url %}
+    <a href="{{ bulk_underpriced_url }}" class="stat-card stat-card-link"
+       title="판매가가 시장 최저가보다 낮은 카드 목록 보기">
+      <div class="stat-label">🔻 저가 경고 →</div>
+      <div class="stat-value" style="color:var(--danger);">{{ total_underpriced }}</div>
     </a>
     {% endif %}
 

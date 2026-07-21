@@ -88,6 +88,18 @@
   </div>
   {% endif %}
 
+  {% if underpriced_pending > 0 %}
+  <div class="review-banner">
+    <div class="review-banner-left">
+      <span>🔻</span>
+      <span>판매가가 시장 최저가보다 낮은 카드 <span class="review-banner-count">{{ underpriced_pending }}</span>개가 있습니다.</span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <a href="{{ config.underpriced_url }}" class="review-link">🔻 저가 경고 확인 →</a>
+    </div>
+  </div>
+  {% endif %}
+
   <div class="main-grid">
     <!-- 좌: 경쟁 샵 랭킹 (AJAX 로딩) -->
     <div>

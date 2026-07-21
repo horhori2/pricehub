@@ -2,7 +2,7 @@ import json
 
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from django.test import SimpleTestCase, TestCase
+from django.test import Client, SimpleTestCase, TestCase
 
 from pricehub.models import Card, CardPrice, Expansion, PurchaseList, PurchaseListItem, round_to_100
 from pricehub.utils import filter_digimon_items, filter_pokemon_items
@@ -733,6 +733,21 @@ class BulkApproveAndEditViewTests(TestCase):
         self.assertEqual(res.status_code, 400)
         self.card.refresh_from_db()
         self.assertEqual(self.card.selling_price, 2000)  # 변경되지 않음
+
+
+class CsrfFailureViewTests(TestCase):
+    """CSRF 검증 실패 시 기본 403 디버그 화면 대신 로그인 페이지로 안내되는지 (settings.CSRF_FAILURE_VIEW)"""
+
+    def test_csrf_failure_redirects_to_login_with_friendly_message(self):
+        client = Client(enforce_csrf_checks=True)
+        res = client.post('/login/', data={'username': 'nouser', 'password': 'x'})
+
+        self.assertEqual(res.status_code, 302)
+        self.assertTrue(res['Location'].startswith('/login/?'))
+
+        follow = client.get(res['Location'])
+        self.assertEqual(follow.status_code, 200)
+        self.assertContains(follow, '세션이 만료')
 
 
 class PurchaseListCrudViewsTests(TestCase):

@@ -23,6 +23,9 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost').split(',') if h.strip()]
 
+# CSRF 검증 실패 시 기본 403 디버그 화면 대신 로그인 페이지로 안내
+CSRF_FAILURE_VIEW = 'pricehub.views.csrf_failure'
+
 # Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
