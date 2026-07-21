@@ -170,7 +170,7 @@
             <div class="price-cell">
               <input type="number" class="price-input-issues" id="input-{{ item.card.id }}"
                      value="{{ item.modified_price }}" min="1" step="100"
-                     style="color:#e86060;font-weight:700;width:100%;"
+                     style="color:var(--trend-down);font-weight:700;width:100%;"
                      onkeydown="if(event.key==='Enter') saveIssueEdit({{ item.card.id }})"
                      oninput="onDropPriceInput({{ item.card.id }}, this)">
               <span class="saved-badge" id="badge-{{ item.card.id }}">✓</span>
@@ -232,14 +232,14 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <span style="font-size:11px;color:var(--text-muted);">수정 가격</span>
-          <span id="sideNewPrice" style="font-size:13px;font-weight:700;color:#e86060;
+          <span id="sideNewPrice" style="font-size:13px;font-weight:700;color:var(--trend-down);
                 font-family:'JetBrains Mono',monospace;"></span>
         </div>
         <div class="drop-bar-bg" style="height:4px;">
           <div id="sideDropBar" class="drop-bar-fill" style="width:0%"></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:4px;">
-          <span id="sideDropPct" style="font-size:11px;color:#e86060;font-weight:700;"></span>
+          <span id="sideDropPct" style="font-size:11px;color:var(--trend-down);font-weight:700;"></span>
           <span id="sideDropAmt" style="font-size:11px;color:var(--text-muted);"></span>
         </div>
       </div>
@@ -273,7 +273,7 @@ function revertToSelling(cardId) {
   const selling = parseInt(btn.dataset.selling || '0', 10);
   if (!selling || !input) return;
   input.value = selling;
-  input.style.color = '#4ade80';
+  input.style.color = 'var(--trend-up)';
   input.classList.add('prefilled');
   btn.classList.add('kept');
   btn.textContent = '유지';
@@ -287,12 +287,12 @@ function onDropPriceInput(cardId, input) {
   const selling = parseInt(btn.dataset.selling || '0', 10);
   const current = parseInt(input.value || '0', 10);
   if (current === selling) {
-    input.style.color = '#4ade80';
+    input.style.color = 'var(--trend-up)';
     btn.classList.add('kept');
     btn.textContent = '유지';
     btn.title = '이전 판매가 유지 중';
   } else {
-    input.style.color = '#e86060';
+    input.style.color = 'var(--trend-down)';
     btn.classList.remove('kept');
     btn.textContent = '↩';
     btn.title = `이전 판매가로 복원 (${selling.toLocaleString()}원)`;
@@ -313,7 +313,7 @@ function bulkFillOldPrice() {
     const input  = document.getElementById('input-' + cardId);
     if (input) {
       input.value = old;
-      input.style.color = '#4ade80';
+      input.style.color = 'var(--trend-up)';
       input.classList.add('prefilled');
       filled++;
       const btn = document.getElementById('revert-' + cardId);

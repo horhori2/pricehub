@@ -220,8 +220,8 @@
         <div class="result-box" id="resultBox">
           <div class="result-mini-grid result-mini-grid-5">
             <div class="r-mini"><div class="r-mini-label">완료</div><div class="r-mini-value c-green" id="rSet">0</div></div>
-            <div class="r-mini r-mini-rise"><div class="r-mini-label">상승 대기</div><div class="r-mini-value" style="color:#4ade80;" id="rRise">0</div></div>
-            <div class="r-mini r-mini-drop"><div class="r-mini-label">하락 대기</div><div class="r-mini-value" style="color:#e86060;" id="rDrop">0</div></div>
+            <div class="r-mini r-mini-rise"><div class="r-mini-label">상승 대기</div><div class="r-mini-value" style="color:var(--trend-up);" id="rRise">0</div></div>
+            <div class="r-mini r-mini-drop"><div class="r-mini-label">하락 대기</div><div class="r-mini-value" style="color:var(--trend-down);" id="rDrop">0</div></div>
             <div class="r-mini r-mini-review"><div class="r-mini-label">미설정</div><div class="r-mini-value c-yellow" id="rReview">0</div></div>
             <div class="r-mini"><div class="r-mini-label">스킵</div><div class="r-mini-value" style="color:var(--text-muted);" id="rSkip">0</div></div>
           </div>
@@ -262,7 +262,7 @@
     <div style="font-size:28px;margin-bottom:12px;">⚠️</div>
     <div style="font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text);">기존 판매가 덮어쓰기</div>
     <div style="font-size:13px;color:var(--text-muted);line-height:1.6;margin-bottom:24px;">
-      <span style="color:var(--danger,#e86060);font-weight:700;">이미 설정된 카드의 판매가도 전부 덮어씁니다.</span><br>
+      <span style="color:var(--danger);font-weight:700;">이미 설정된 카드의 판매가도 전부 덮어씁니다.</span><br>
       계속 진행할까요?
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -272,7 +272,7 @@
                      cursor:pointer;font-family:inherit;">취소</button>
       <button id="overwriteConfirmBtn"
               style="padding:9px 20px;border-radius:8px;border:none;
-                     background:var(--danger,#e86060);color:#fff;font-size:13px;font-weight:700;
+                     background:var(--danger);color:#fff;font-size:13px;font-weight:700;
                      cursor:pointer;font-family:inherit;">덮어쓰고 실행</button>
     </div>
   </div>

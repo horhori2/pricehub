@@ -129,7 +129,7 @@
             <div class="price-cell">
               <input type="number" class="price-input-issues" id="input-{{ item.card.id }}"
                      value="{{ item.market_price|floatformat:0 }}" min="1" step="100"
-                     style="color:#4ade80;font-weight:700;width:100%;"
+                     style="color:var(--trend-up);font-weight:700;width:100%;"
                      onkeydown="if(event.key==='Enter') saveIssueEdit({{ item.card.id }})">
               <span class="saved-badge" id="badge-{{ item.card.id }}">✓</span>
             </div>
@@ -137,7 +137,7 @@
           <td style="padding-right:8px;">
             <div class="drop-bar-wrap">
               <div class="drop-bar-labels">
-                <span class="drop-pct-text" style="color:#4ade80;">-{{ item.under_pct }}%</span>
+                <span class="drop-pct-text" style="color:var(--trend-up);">-{{ item.under_pct }}%</span>
                 <span class="drop-amt-text">▲ {{ item.under_amt|floatformat:0 }}원</span>
               </div>
               <div class="drop-bar-bg">

@@ -1,18 +1,19 @@
 /* ================================================================
    login.css — 로그인 페이지 전용
-   dashboard.css와 무관한 독립 스타일시트
+   대시보드와 별도 파일로 로드되지만(로그인 전이라 dashboard.css 의존 불가),
+   토큰 값은 dashboard.css의 :root와 동일하게 맞춰서 같은 팔레트를 쓴다.
    ================================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --border: #2a2d3a;
-  --accent: #6c63ff;
-  --accent-hover: #7c74ff;
-  --text: #e8e9f0;
-  --text-muted: #6b6f85;
-  --error: #ff6b6b;
+  --bg: #0a0c12;
+  --surface: #13161f;
+  --border: #252a3a;
+  --accent: #7c6bff;
+  --accent-hover: #6b5aee;
+  --text: #dde2f0;
+  --text-muted: #5a6080;
+  --error: #f06060;
 }
 
 body {

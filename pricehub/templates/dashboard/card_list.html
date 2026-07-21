@@ -164,7 +164,7 @@
               {% if card.selling_price %}
                 <span class="price-set">{{ card.selling_price|floatformat:0 }}원</span>
                 {% if card.latest_market_price and card.selling_price < card.latest_market_price %}
-                <span title="판매가가 시장 최저가보다 낮습니다" style="color:#e86060;font-size:11px;font-weight:700;margin-left:4px;">🔻</span>
+                <span title="판매가가 시장 최저가보다 낮습니다" style="color:var(--trend-down);font-size:11px;font-weight:700;margin-left:4px;">🔻</span>
                 {% endif %}
               {% else %}
                 <span class="price-unset">미설정</span>

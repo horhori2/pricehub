@@ -3,6 +3,18 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.2] - 2026-07-21
+
+디자인 시스템 정리 1차 — 색상 토큰 통합 (시각적 변화 없음, 순수 리팩토링).
+
+### Changed
+- `dashboard.css`에 `--trend-down`/`--trend-down-strong`(가격 하락), `--trend-up`/`--trend-up-mid`/`--trend-up-strong`(가격 상승),
+  `--favorite`(즐겨찾기) 색상 토큰 추가. 기존 `--danger`/`--success`와 톤이 달라 별도 토큰으로 분리(의미도 다름: 액션 결과 vs 가격 방향).
+  `dashboard.css`·`bulk_drop/rise/unpriced/underpriced/price.html`·`card_list.html`에 흩어져 있던 하드코딩 hex(`#e86060`, `#4ade80`, `#ffc700` 등)
+  34곳을 전부 토큰 참조로 교체. Chart.js 캔버스 색상은 `var()`가 안정적으로 해석 안 돼서 대상에서 제외.
+- `login.css`의 `:root` 색상값을 `dashboard.css`와 동일한 값으로 정렬 — 로그인 전이라 파일은 분리돼 있지만 팔레트는 이제 완전히 동일.
+- `bulk_price.html`의 죽은 `var(--danger,#e86060)` fallback을 `var(--danger)`로 정리.
+
 ## [0.2.1] - 2026-07-21
 
 ### Added

@@ -11,6 +11,15 @@
   --accent: #5b8def; --accent2: #7c6bff;
   --success: #3dd68c; --warning: #f5a623; --danger: #f06060;
   --text: #dde2f0; --text-muted: #5a6080; --text-dim: #3a4060;
+
+  /* 가격 증감 표시 전용 (하락 대기/상승 대기/저가경고 페이지) —
+     기존 --danger/--success와 톤이 달라서 별도 토큰으로 분리.
+     의미가 다름: danger/success=액션 결과, trend-*=가격 방향 표시 */
+  --trend-down: #e86060; --trend-down-strong: #c43c3c;
+  --trend-up: #4ade80; --trend-up-mid: #22c55e; --trend-up-strong: #16a34a;
+
+  /* 즐겨찾기(별표) 전용 */
+  --favorite: #ffc700;
 }
 
 body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); }
@@ -44,9 +53,9 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 
 /* ── 즐겨찾기 이동 버튼 ── */
 .fav-tab-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; background: rgba(255,199,0,0.06); border: 1px solid rgba(255,199,0,0.3); border-radius: 8px; color: #c8960a; text-decoration: none; font-size: 13px; font-weight: 600; transition: all 0.15s; white-space: nowrap; }
-.fav-tab-btn:hover { border-color: #ffc700; color: #ffc700; background: rgba(255,199,0,0.12); }
-.fav-badge { background: #ffc700; color: #1a1200; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; min-width: 18px; text-align: center; }
-.fav-count { background: rgba(255,199,0,0.15); color: #ffc700; border: 1px solid rgba(255,199,0,0.3); border-radius: 20px; padding: 3px 12px; font-size: 13px; font-weight: 700; }
+.fav-tab-btn:hover { border-color: var(--favorite); color: var(--favorite); background: rgba(255,199,0,0.12); }
+.fav-badge { background: var(--favorite); color: #1a1200; border-radius: 10px; padding: 1px 7px; font-size: 11px; font-weight: 700; min-width: 18px; text-align: center; }
+.fav-count { background: rgba(255,199,0,0.15); color: var(--favorite); border: 1px solid rgba(255,199,0,0.3); border-radius: 20px; padding: 3px 12px; font-size: 13px; font-weight: 700; }
 
 /* ── 확장팩 그룹 구분선 (favorites) ── */
 .expansion-group-title { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.08em; text-transform: uppercase; padding: 18px 0 10px; border-bottom: 1px solid var(--border); margin-bottom: 0; font-family: 'JetBrains Mono', monospace; }
@@ -79,8 +88,8 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 /* ── 별(즐겨찾기) 버튼 ── */
 .star-toggle { background: none; border: 1px solid var(--border2); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 7px; border-radius: 6px; transition: all 0.15s; color: var(--text-dim); opacity: 0.45; }
 .star-toggle:not(.active) { filter: grayscale(1); }
-.star-toggle:hover { transform: scale(1.2); opacity: 1; border-color: rgba(255,199,0,0.35); background: rgba(255,199,0,0.07); filter: none; color: #ffc700; }
-.star-toggle.active { opacity: 1; filter: none; color: #ffc700; }
+.star-toggle:hover { transform: scale(1.2); opacity: 1; border-color: rgba(255,199,0,0.35); background: rgba(255,199,0,0.07); filter: none; color: var(--favorite); }
+.star-toggle.active { opacity: 1; filter: none; color: var(--favorite); }
 .star-toggle.popping { animation: star-pop 0.3s cubic-bezier(.36,.07,.19,.97); }
 @keyframes star-pop {
   0%   { transform: scale(1); }
@@ -381,11 +390,11 @@ canvas { max-height: 280px; }
 /* 카운트 있을 때 강조 */
 .issues-link-urgent {
   border-color: rgba(240,96,96,0.5) !important;
-  color: #e86060 !important;
+  color: var(--trend-down) !important;
   background: rgba(240,96,96,0.07) !important;
   animation: link-pulse 2s ease-in-out 3;
 }
-.issues-link-urgent .issues-link-count { color: #e86060; }
+.issues-link-urgent .issues-link-count { color: var(--trend-down); }
 .issues-link-drop.issues-link-urgent { border-color: rgba(240,96,96,0.5); }
 .issues-link-unpriced.issues-link-urgent { border-color: rgba(245,166,35,0.5); color: var(--warning) !important; background: rgba(245,166,35,0.07) !important; }
 .issues-link-unpriced.issues-link-urgent .issues-link-count { color: var(--warning); }
@@ -494,23 +503,23 @@ canvas { max-height: 280px; }
 .price-input-issues.prefilled { border-color: var(--warning); }
 .saved-badge { font-size: 11px; color: var(--success); font-family: 'JetBrains Mono', monospace; display: none; }
 .saved-badge.show { display: inline; }
-.revert-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: #0f2518; border: 1px solid #166534; border-radius: 4px; min-width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; color: #4ade80; padding: 0; line-height: 1; flex-shrink: 0; white-space: nowrap; }
-.revert-btn:hover { background: #1a3a28; border-color: #22c55e; }
-.revert-btn.kept { background: rgba(74,222,128,0.12); border-color: #22c55e; border-radius: 10px; padding: 0 7px; font-size: 10px; font-weight: 700; cursor: default; letter-spacing: 0.3px; }
+.revert-btn { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: #0f2518; border: 1px solid #166534; border-radius: 4px; min-width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; color: var(--trend-up); padding: 0; line-height: 1; flex-shrink: 0; white-space: nowrap; }
+.revert-btn:hover { background: #1a3a28; border-color: var(--trend-up-mid); }
+.revert-btn.kept { background: rgba(74,222,128,0.12); border-color: var(--trend-up-mid); border-radius: 10px; padding: 0 7px; font-size: 10px; font-weight: 700; cursor: default; letter-spacing: 0.3px; }
 
 /* 하락 통계 필 */
 .drop-stat-pill  { display: flex; align-items: center; gap: 6px; background: var(--surface2); border: 1px solid var(--border2); border-radius: 20px; padding: 4px 14px; }
 .drop-stat-label { font-size: 11px; color: var(--text-muted); }
-.drop-stat-val   { font-size: 14px; font-weight: 800; color: #e86060; font-family: 'JetBrains Mono', monospace; }
+.drop-stat-val   { font-size: 14px; font-weight: 800; color: var(--trend-down); font-family: 'JetBrains Mono', monospace; }
 
 /* 하락 바 */
 .drop-bar-wrap   { min-width: 130px; }
 .drop-bar-labels { display: flex; justify-content: space-between; margin-bottom: 5px; }
-.drop-pct-text   { font-size: 13px; font-weight: 800; color: #e86060; font-family: 'JetBrains Mono', monospace; }
+.drop-pct-text   { font-size: 13px; font-weight: 800; color: var(--trend-down); font-family: 'JetBrains Mono', monospace; }
 .drop-amt-text   { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
 .drop-bar-bg     { height: 5px; background: var(--border2); border-radius: 3px; overflow: hidden; }
-.drop-bar-fill   { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #e86060, #c43c3c); transition: width .4s ease; }
-.rise-bar-fill   { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #4ade80, #16a34a); transition: width .4s ease; }
+.drop-bar-fill   { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--trend-down), var(--trend-down-strong)); transition: width .4s ease; }
+.rise-bar-fill   { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--trend-up), var(--trend-up-strong)); transition: width .4s ease; }
 
 /* 저장 버튼 */
 .issue-save-btn  { padding: 5px 9px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; border: none; transition: all .15s; white-space: nowrap; font-family: inherit; background: var(--surface2); border: 1px solid var(--border2); color: var(--text-muted); }
