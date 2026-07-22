@@ -11,6 +11,9 @@ media
 # collectstatic 산출물 — 배포 때마다 재생성되는 빌드 결과물이라 git에 안 넣음
 staticfiles/
 
+# 파일 기반 캐시(rate limit 등) 런타임 산출물
+django_cache/
+
 ### Django.Python Stack ###
 # Byte-compiled / optimized / DLL files
 *.py[cod]

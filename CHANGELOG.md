@@ -3,6 +3,15 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.13] - 2026-07-22
+
+### Fixed
+- API Key rate limit이 gunicorn 워커별로(운영 중 `-w 4`) 따로 카운트되던
+  문제 수정 — 기본 `LocMemCache`가 프로세스 로컬이라 설정한 한도(예:
+  300/min)가 실제로는 워커 수만큼(최대 4배) 새고 있었음. Redis 없이
+  `FileBasedCache`(`django_cache/`)로 교체해 워커 간 카운트를 공유하도록
+  수정. 별도 프로세스 두 개로 캐시 쓰기/읽기가 실제로 공유되는지 확인함.
+
 ## [0.2.12] - 2026-07-22
 
 ### Fixed

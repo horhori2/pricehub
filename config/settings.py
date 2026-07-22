@@ -58,10 +58,23 @@ INSTALLED_APPS = [
     'pricehub',
 ]
 
+# 캐시 — 기본값(LocMemCache)은 프로세스 로컬이라 gunicorn을 여러 워커로 띄우면
+# (실제로 -w 4 운영 중) rate limit 카운트가 워커별로 따로 적용돼 설정한 한도의
+# 최대 워커 수 배까지 새는 문제가 있었음. 같은 서버의 여러 프로세스가 공유하는
+# 파일 기반 캐시로 교체 — Redis 등 별도 인프라 없이 파일시스템만으로 동작.
+CACHE_DIR = BASE_DIR / 'django_cache'
+CACHE_DIR.mkdir(exist_ok=True)
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
+        'LOCATION': str(CACHE_DIR),
+    }
+}
+
 # DRF — 외부 연동 API(Authorization: Api-Key ...)에 기본 레이트리밋 적용.
-# 캐시 백엔드를 따로 지정하지 않으면 Django 기본 LocMemCache를 쓰는데,
-# 이건 프로세스 로컬이라 워커가 여러 개면(gunicorn -w N 등) 워커별로 한도가
-# 따로 적용된다. 정확한 전역 제한이 필요하면 CACHES에 Redis 등 공유 캐시를 설정할 것.
+# 위 CACHES(파일 기반, 워커 간 공유)를 그대로 사용하므로 워커 수와 무관하게
+# 정확한 전역 한도가 적용된다.
 REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_CLASSES': [
         'pricehub.throttling.APIKeyRateThrottle',
