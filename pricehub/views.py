@@ -15,7 +15,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
-from django.db.models import OuterRef, Subquery, F
+from django.db.models import OuterRef, Subquery, F, Count, Q
 
 logger = logging.getLogger(__name__)
 
@@ -432,10 +432,14 @@ def _expansion_list_view(request, cfg_key, extra_ctx=None):
     card_model = cfg['card_model']
     base_url = cfg['base_url']
 
-    expansions = list(expansion_model.objects.order_by('-release_date', '-created_at'))
-    for e in expansions:
-        e.card_count = e.cards.count()
-        e.unpriced_count = e.cards.filter(selling_price=0).count()
+    expansions = list(
+        expansion_model.objects
+        .annotate(
+            card_count=Count('cards', distinct=True),
+            unpriced_count=Count('cards', filter=Q(cards__selling_price=0), distinct=True),
+        )
+        .order_by('-release_date', '-created_at')
+    )
 
     try:
         drop_count = card_model.objects.filter(
