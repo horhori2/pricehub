@@ -20,6 +20,9 @@
 
   /* 즐겨찾기(별표) 전용 */
   --favorite: #ffc700;
+
+  /* 순위 뱃지(1/2/3위 최저가) 전용 — 금색은 --warning 재사용 */
+  --rank-silver: #9ca3af; --rank-bronze: #cd7c3a;
 }
 
 body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--text); }
@@ -174,7 +177,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .price-input { width: 90px; padding: 5px 8px; background: var(--bg); border: 1px solid var(--accent2); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 600; text-align: right; -moz-appearance: textfield; transition: box-shadow 0.15s; }
 .price-input::-webkit-outer-spin-button, .price-input::-webkit-inner-spin-button { -webkit-appearance: none; }
 .price-input:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 2px rgba(124,107,255,0.18); }
-.price-cancel-btn { background: none; border: none; color: var(--text-dim); font-size: 15px; cursor: pointer; padding: 2px 3px; line-height: 1; transition: color 0.12s; flex-shrink: 0; }
+.price-cancel-btn { background: none; border: none; color: var(--text-dim); font-size: 15px; cursor: pointer; padding: 2px 3px; line-height: 1; transition: color 0.12s; flex-shrink: 0; border-radius: 5px; font-family: inherit; }
 .price-cancel-btn:hover { color: var(--danger); }
 
 /* ── 판매가 수정 완료 표시 ── */
@@ -194,7 +197,6 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
   to   { opacity: 1; transform: scale(1); }
 }
 .price-save-btn { padding: 4px 10px; border-radius: 5px; font-size: 12px; font-weight: 700; border: none; background: var(--success); color: #000; cursor: pointer; font-family: inherit; }
-.price-cancel-btn { padding: 4px 8px; border-radius: 5px; font-size: 12px; border: 1px solid var(--border2); background: none; color: var(--text-muted); cursor: pointer; font-family: inherit; }
 
 /* ── 모달 ── */
 .modal-overlay { display: none; position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); align-items: center; justify-content: center; }
@@ -282,10 +284,6 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .exp-stat { font-size: 12px; }
 .exp-stat span { color: var(--text-muted); }
 .exp-stat strong { color: var(--text); font-family: 'JetBrains Mono', monospace; }
-.progress-bar { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
-.progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; }
-.progress-fill.complete { background: var(--success); }
-.progress-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
 .exp-footer { display: flex; justify-content: flex-end; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
 .exp-reset-btn { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer; transition: all 0.15s; }
 
@@ -323,7 +321,6 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .save-result.success { color: var(--success); }
 .save-result.error { color: var(--danger); }
 .content-grid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
-.section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
 .section h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
 .store-list { display: flex; flex-direction: column; gap: 10px; }
 .store-item { display: flex; align-items: center; gap: 14px; padding: 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
@@ -336,9 +333,10 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .store-link { font-size: 11px; color: var(--accent); text-decoration: none; margin-top: 2px; display: inline-block; }
 .store-link:hover { text-decoration: underline; }
 .rank-badge { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
-.rank-1 { background: rgba(251,191,36,0.2); color: var(--warning); }
-.rank-2 { background: rgba(156,163,175,0.2); color: #9ca3af; }
-.rank-3 { background: rgba(180,83,9,0.2); color: #cd7c3a; }
+/* 순위 색상은 bulk_price.html의 .r1/.r2/.r3(랭킹 테이블 뱃지)와 공유 */
+.rank-1, .r1 { background: rgba(245,166,35,0.15); color: var(--warning); }
+.rank-2, .r2 { background: rgba(156,163,175,0.15); color: var(--rank-silver); }
+.rank-3, .r3 { background: rgba(205,124,58,0.15); color: var(--rank-bronze); }
 .rank-n { background: var(--border); color: var(--text-muted); }
 .history-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .history-table th { text-align: left; padding: 8px 12px; color: var(--text-muted); font-size: 11px; text-transform: uppercase; border-bottom: 1px solid var(--border); }
@@ -351,7 +349,7 @@ canvas { max-height: 280px; }
    ================================================================ */
 .filter-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 20px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; }
 .filter-bar-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.page-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.page-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
 .filter-row-items { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .filter-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; font-weight: 600; font-family: 'JetBrains Mono', monospace; text-transform: uppercase; letter-spacing: 0.5px; }
 .scope-select { padding: 7px 10px; background: var(--bg); border: 1px solid var(--border2); border-radius: 7px; color: var(--text); font-family: inherit; font-size: 13px; outline: none; cursor: pointer; min-width: 200px; }
@@ -391,9 +389,7 @@ canvas { max-height: 280px; }
 .rank-table tr.clickable { cursor: pointer; transition: background 0.1s; }
 .rank-table tr.clickable:hover td { background: var(--surface2); }
 .rank-badge-sm { width: 24px; height: 24px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
-.r1 { background: rgba(245,166,35,0.2); color: var(--warning); }
-.r2 { background: rgba(156,163,175,0.15); color: #9ca3af; }
-.r3 { background: rgba(180,100,60,0.15); color: #cd7c3a; }
+/* .r1/.r2/.r3 색상은 card_detail.html의 .rank-1/.rank-2/.rank-3과 공유 (위 :root 근처 정의 참고) */
 .rn { background: var(--surface3); color: var(--text-muted); }
 .count-bar-wrap { display: flex; align-items: center; gap: 6px; }
 .count-bar { height: 5px; border-radius: 3px; background: var(--accent2); min-width: 3px; }
@@ -649,8 +645,6 @@ canvas { max-height: 280px; }
 .logo { display: flex; align-items: center; gap: 10px; }
 .logo-badge { background: var(--accent2); border-radius: 8px; padding: 4px 10px; font-size: 13px; font-weight: 700; }
 .logo-text { font-size: 15px; font-weight: 700; }
-
-.page-sub { font-size: 14px; color: var(--text-muted); margin-bottom: 48px; }
 
 .game-section { margin-bottom: 40px; }
 .game-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }

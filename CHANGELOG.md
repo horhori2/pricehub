@@ -3,6 +3,21 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.9] - 2026-07-22
+
+### Fixed
+- `dashboard.css`에 같은 클래스가 두 번 정의되어 있어(파일 뒤쪽 규칙이 조용히
+  이기는 구조) 의도와 다르게 렌더링되던 항목 정리: `.page-sub`(부제 크기/여백),
+  `.section`(card_detail 패널), `.progress-bar`류(확장팩 진행률 바),
+  `.price-cancel-btn`(인라인 가격취소 버튼 — 유일하게 실제 화면이 바뀜: 알약
+  버튼 → 원래 의도한 테두리 없는 "×" 아이콘으로 복원).
+
+### Changed
+- 순위 뱃지(1/2/3위 최저가 샵) 색상을 `card_detail.html`(`.rank-1~3`)과
+  `bulk_price.html` 랭킹 테이블(`.r1~3`)에서 공유하도록 통합.
+  `--rank-silver`/`--rank-bronze` 토큰 추가, 금색 배경도 `--warning` 실제
+  RGB와 맞춤 — 두 화면에서 미묘하게 다르게 보이던 색을 통일.
+
 ## [0.2.8] - 2026-07-22
 
 ### Fixed
