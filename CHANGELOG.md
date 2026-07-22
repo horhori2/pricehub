@@ -3,6 +3,15 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.12] - 2026-07-22
+
+### Fixed
+- `staticfiles/`(collectstatic 산출물, Django 관리자 페이지 기본 CSS/JS 128개
+  포함)가 git에 그대로 추적되고 있던 문제 수정. 서버에서 `collectstatic` 돌릴
+  때마다 이 파일들이 "수정됨"으로 떠서 `git status`/`git pull`을 방해하고
+  있었음. `.gitignore`에 추가하고 git 추적에서 제거(로컬 파일 자체는 유지 —
+  다음 `collectstatic` 실행 시 정상적으로 다시 채워짐).
+
 ## [0.2.11] - 2026-07-22
 
 ### Added
