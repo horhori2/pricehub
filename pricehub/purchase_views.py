@@ -354,6 +354,46 @@ def purchase_list_delete(request, list_id):
     return JsonResponse({'success': True, 'redirect': '/purchase-lists/'})
 
 
+@staff_required
+@require_POST
+def purchase_list_copy(request, list_id):
+    """
+    기존 매입리스트를 복사해서 새 리스트를 만든다. 담긴 카드와 매입가
+    (확정가/추천가 포함)를 전부 그대로 복사 — 반복되는 매입 주기마다
+    이전 리스트를 시작점으로 삼아 필요한 카드만 조정하는 용도.
+    """
+    source = get_object_or_404(PurchaseList, pk=list_id)
+
+    name = (request.POST.get('name') or '').strip() or f"{source.name} 복사본"
+
+    new_list = PurchaseList.objects.create(
+        name=name,
+        game_type=source.game_type,
+        description=source.description,
+        default_purchase_ratio=source.default_purchase_ratio,
+    )
+
+    PurchaseListItem.objects.bulk_create([
+        PurchaseListItem(
+            purchase_list=new_list,
+            content_type_id=it.content_type_id,
+            object_id=it.object_id,
+            selling_price_snapshot=it.selling_price_snapshot,
+            purchase_ratio=it.purchase_ratio,
+            recommended_purchase_price=it.recommended_purchase_price,
+            purchase_price=it.purchase_price,
+            memo=it.memo,
+            decided_at=it.decided_at,
+        )
+        for it in source.items.all()
+    ])
+
+    return JsonResponse({
+        'success': True,
+        'redirect': f'/purchase-lists/detail/{new_list.id}/',
+    })
+
+
 # ════════════════════════════════════════════════════════════════
 # 레어도별 매입 고정가 관리
 #

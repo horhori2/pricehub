@@ -12,8 +12,9 @@
   .pl-game-section { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px 24px; margin-bottom:18px; }
   .pl-game-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; }
   .pl-game-title { font-size:16px; font-weight:800; }
-  .pl-list-row { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; text-decoration:none; color:inherit; }
+  .pl-list-row { display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:10px; margin-bottom:8px; }
   .pl-list-row:hover { border-color:var(--accent2); }
+  .pl-list-link { flex:1; min-width:0; text-decoration:none; color:inherit; }
   .pl-list-name { font-weight:700; font-size:14px; }
   .pl-list-meta { font-size:12px; color:var(--text-muted); margin-top:2px; }
   .pl-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; white-space:nowrap; }
@@ -62,17 +63,20 @@
 
     {% if g.lists %}
       {% for l in g.lists %}
-      <a href="/purchase-lists/detail/{{ l.id }}/" class="pl-list-row">
-        <div>
+      <div class="pl-list-row">
+        <a href="/purchase-lists/detail/{{ l.id }}/" class="pl-list-link">
           <div class="pl-list-name">{{ l.name }}</div>
           <div class="pl-list-meta">
             카드 {{ l.item_count }}장 · 매입가 확정 {{ l.decided_count }}장 · 기본 비율 {{ l.default_purchase_ratio|floatformat:0 }}%
           </div>
+        </a>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <button type="button" class="btn btn-ghost btn-sm" onclick="copyList({{ l.id }}, '{{ l.name|escapejs }}')">⧉ 복사</button>
+          <span class="pl-badge {% if l.is_active %}active{% else %}inactive{% endif %}">
+            {% if l.is_active %}활성{% else %}비활성{% endif %}
+          </span>
         </div>
-        <span class="pl-badge {% if l.is_active %}active{% else %}inactive{% endif %}">
-          {% if l.is_active %}활성{% else %}비활성{% endif %}
-        </span>
-      </a>
+      </div>
       {% endfor %}
     {% else %}
       <div class="pl-empty">아직 매입리스트가 없습니다.</div>
@@ -87,5 +91,26 @@
   </div>
   {% endfor %}
 </main>
+
+<script>
+function getCsrf() { return document.querySelector('meta[name="csrf-token"]').content; }
+
+async function copyList(listId, sourceName) {
+  const name = prompt('새 매입리스트 이름을 입력하세요.', sourceName + ' 복사본');
+  if (!name || !name.trim()) return;
+  try {
+    const res = await fetch(`/purchase-lists/detail/${listId}/copy/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCsrf() },
+      body: `name=${encodeURIComponent(name.trim())}`,
+    });
+    const data = await res.json();
+    if (!data.success) { alert(data.error || '복사하지 못했습니다.'); return; }
+    location.href = data.redirect;
+  } catch (e) {
+    alert('복사 중 오류가 발생했습니다.');
+  }
+}
+</script>
 </body>
 </html>

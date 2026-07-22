@@ -155,6 +155,8 @@ urlpatterns = [
          pv.purchase_list_toggle_active, name='purchase-list-toggle-active'),
     path('purchase-lists/detail/<int:list_id>/delete/',
          pv.purchase_list_delete, name='purchase-list-delete'),
+    path('purchase-lists/detail/<int:list_id>/copy/',
+         pv.purchase_list_copy, name='purchase-list-copy'),
     path('purchase-lists/items/<int:item_id>/set-price/',
          pv.purchase_list_set_price, name='purchase-list-set-price'),
     path('purchase-lists/items/<int:item_id>/remove/',
