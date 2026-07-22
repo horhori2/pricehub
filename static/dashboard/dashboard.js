@@ -365,37 +365,96 @@ function initPriceChart(marketItems) {
   });
 }
 
-function initWeeklyChart(historyData) {
-  if (!historyData || !historyData.length) {
-    document.getElementById('weeklyChartEmpty').style.display = 'block';
-    document.getElementById('weeklyChart').style.display = 'none';
+const WEEKLY_CHART_PALETTE = [
+  '#6c63ff','#4ade80','#fbbf24','#f87171','#60a5fa',
+  '#a78bfa','#34d399','#fb923c','#e879f9','#38bdf8',
+  '#facc15','#f472b6','#818cf8','#2dd4bf','#c084fc',
+];
+
+let _priceHistoryUrl   = null;
+let _priceHistoryCache = {};
+let _priceHistoryRange = 'week';
+let _weeklyChartInstance = null;
+let _weeklyChartHiddenShops = new Set();
+
+function initWeeklyChart(historyData, historyUrl) {
+  _priceHistoryUrl = historyUrl || null;
+  _priceHistoryCache = { week: historyData || [] };
+  _priceHistoryRange = 'week';
+  _weeklyChartHiddenShops = new Set();
+  renderRangeButtons();
+  renderWeeklyChart(_priceHistoryCache.week);
+}
+
+function renderRangeButtons() {
+  const wrap = document.getElementById('rangeFilterWrap');
+  if (!wrap) return;
+  const ranges = [['week', '1주'], ['month', '1개월'], ['year', '1년']];
+  wrap.innerHTML = ranges.map(([key, label]) => `
+    <button type="button" class="range-filter-btn ${key === _priceHistoryRange ? 'active' : ''}" onclick="switchPriceRange('${key}')">${label}</button>
+  `).join('');
+}
+
+async function switchPriceRange(range) {
+  if (range === _priceHistoryRange) return;
+  _priceHistoryRange = range;
+  renderRangeButtons();
+
+  if (_priceHistoryCache[range]) {
+    renderWeeklyChart(_priceHistoryCache[range]);
     return;
   }
-  const PALETTE = [
-    '#6c63ff','#4ade80','#fbbf24','#f87171','#60a5fa',
-    '#a78bfa','#34d399','#fb923c','#e879f9','#38bdf8',
-    '#facc15','#f472b6','#818cf8','#2dd4bf','#c084fc',
-  ];
+  if (!_priceHistoryUrl) return;
+
+  const wrap = document.getElementById('rangeFilterWrap');
+  if (wrap) wrap.style.opacity = '0.5';
+  try {
+    const res  = await fetch(`${_priceHistoryUrl}?range=${range}`);
+    const data = await res.json();
+    _priceHistoryCache[range] = data.history || [];
+    renderWeeklyChart(_priceHistoryCache[range]);
+  } catch (e) {
+    // 조용히 실패 — 그래프는 이전 상태 유지
+  } finally {
+    if (wrap) wrap.style.opacity = '1';
+  }
+}
+
+function renderWeeklyChart(historyData) {
+  const emptyEl = document.getElementById('weeklyChartEmpty');
+  const canvasEl = document.getElementById('weeklyChart');
+
+  if (_weeklyChartInstance) { _weeklyChartInstance.destroy(); _weeklyChartInstance = null; }
+
+  if (!historyData || !historyData.length) {
+    emptyEl.style.display = 'block';
+    canvasEl.style.display = 'none';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  canvasEl.style.display = 'block';
+
   const shopSet = new Set();
-  historyData.forEach(p => (p.raw_data || []).forEach(i => { if (i.mallName) shopSet.add(i.mallName); }));
-  const allShops = [...shopSet];
-  const labels   = historyData.map(p => p.date);
-  const datasets = allShops.map((shop, idx) => {
-    const color = PALETTE[idx % PALETTE.length];
+  historyData.forEach(p => (p.prices || []).forEach(i => { if (i.mallName) shopSet.add(i.mallName); }));
+  const allShops  = [...shopSet];
+  const labels    = historyData.map(p => p.date);
+  const dense     = labels.length > 60;  // 1개월/1년처럼 점이 많으면 점 표시를 줄여서 안 지저분하게
+  const datasets  = allShops.map((shop, idx) => {
+    const color  = WEEKLY_CHART_PALETTE[idx % WEEKLY_CHART_PALETTE.length];
+    const hidden = _weeklyChartHiddenShops.has(shop);
     return {
       label: shop,
       data: historyData.map(p => {
-        const item = (p.raw_data || []).find(i => i.mallName === shop);
-        return item ? parseInt(item.lprice) : null;
+        const item = (p.prices || []).find(i => i.mallName === shop);
+        return item ? item.price : null;
       }),
       borderColor: color, backgroundColor: color + '22',
-      pointBackgroundColor: color, pointRadius: 4, pointHoverRadius: 6,
-      borderWidth: 2, tension: 0.3, spanGaps: true,
+      pointBackgroundColor: color, pointRadius: dense ? 0 : 4, pointHoverRadius: 6, pointHitRadius: 8,
+      borderWidth: 2, tension: 0.3, spanGaps: true, hidden,
     };
   });
 
-  const hiddenShops  = new Set();
-  const filterWrap   = document.getElementById('shopFilterWrap');
+  const filterWrap = document.getElementById('shopFilterWrap');
 
   function renderFilterBtns(chart) {
     filterWrap.innerHTML = '';
@@ -403,29 +462,29 @@ function initWeeklyChart(historyData) {
     allBtn.textContent = '전체';
     allBtn.style.cssText = `padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;border:1px solid var(--border2);background:var(--accent2);color:#fff;cursor:pointer;font-family:inherit;`;
     allBtn.onclick = () => {
-      hiddenShops.clear();
+      _weeklyChartHiddenShops.clear();
       chart.data.datasets.forEach((_, i) => chart.setDatasetVisibility(i, true));
       chart.update(); renderFilterBtns(chart);
     };
     filterWrap.appendChild(allBtn);
     allShops.forEach((shop, idx) => {
-      const color  = PALETTE[idx % PALETTE.length];
-      const hidden = hiddenShops.has(shop);
+      const color  = WEEKLY_CHART_PALETTE[idx % WEEKLY_CHART_PALETTE.length];
+      const hidden = _weeklyChartHiddenShops.has(shop);
       const btn    = document.createElement('button');
       btn.textContent = shop;
       btn.style.cssText = `padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;
         border:1px solid ${color};background:${hidden ? 'none' : color + '22'};
         color:${hidden ? 'var(--text-muted)' : color};cursor:pointer;font-family:inherit;transition:all 0.15s;`;
       btn.onclick = () => {
-        if (hiddenShops.has(shop)) { hiddenShops.delete(shop); chart.setDatasetVisibility(idx, true); }
-        else { hiddenShops.add(shop); chart.setDatasetVisibility(idx, false); }
+        if (_weeklyChartHiddenShops.has(shop)) { _weeklyChartHiddenShops.delete(shop); chart.setDatasetVisibility(idx, true); }
+        else { _weeklyChartHiddenShops.add(shop); chart.setDatasetVisibility(idx, false); }
         chart.update(); renderFilterBtns(chart);
       };
       filterWrap.appendChild(btn);
     });
   }
 
-  const weeklyChart = new Chart(document.getElementById('weeklyChart').getContext('2d'), {
+  _weeklyChartInstance = new Chart(canvasEl.getContext('2d'), {
     type: 'line',
     data: { labels, datasets },
     options: {
@@ -440,12 +499,12 @@ function initWeeklyChart(historyData) {
         },
       },
       scales: {
-        x: { ticks: { color: '#6b6f85', font: { size: 10 }, maxRotation: 30 }, grid: { color: 'rgba(42,45,58,0.6)' } },
+        x: { ticks: { color: '#6b6f85', font: { size: 10 }, maxRotation: 30, autoSkip: true, maxTicksLimit: 16 }, grid: { color: 'rgba(42,45,58,0.6)' } },
         y: { ticks: { color: '#6b6f85', font: { size: 11 }, callback: v => v.toLocaleString() + '원' }, grid: { color: 'rgba(42,45,58,0.8)' } }
       },
     }
   });
-  renderFilterBtns(weeklyChart);
+  renderFilterBtns(_weeklyChartInstance);
 }
 
 

@@ -95,6 +95,21 @@
   ════════════════════════════════ -->
   {% if card_type != 'pokemon_jp' %}
 
+  <!-- 가격 변화 그래프 — 페이지 진입 시 바로 보이도록 최상단에 배치 -->
+  <div class="section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <h2 style="margin:0;">📈 가격 변화 추이</h2>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+        <div class="rank-filter-row" id="rangeFilterWrap" style="margin:0;"></div>
+        <div style="display:flex;gap:8px;align-items:center;" id="shopFilterWrap"></div>
+      </div>
+    </div>
+    <div id="weeklyChartEmpty" style="display:none;text-align:center;padding:60px;color:var(--text-muted);font-size:14px;">
+      수집된 데이터가 없습니다.
+    </div>
+    <canvas id="weeklyChart" style="max-height:320px;"></canvas>
+  </div>
+
   <div class="content-grid">
     <div>
       {% if market_items %}
@@ -154,17 +169,6 @@
     </div>
   </div>
 
-  <div class="section" style="margin-top:0;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-      <h2 style="margin:0;">📈 최근 1주일 샵별 가격 변화</h2>
-      <div style="display:flex;gap:8px;align-items:center;" id="shopFilterWrap"></div>
-    </div>
-    <div id="weeklyChartEmpty" style="display:none;text-align:center;padding:60px;color:var(--text-muted);font-size:14px;">
-      최근 1주일간 수집된 데이터가 없습니다.
-    </div>
-    <canvas id="weeklyChart" style="max-height:320px;"></canvas>
-  </div>
-
   <!-- ════════════════════════════════
        일본판 전용 콘텐츠
   ════════════════════════════════ -->
@@ -200,8 +204,9 @@ const SET_PRICE_URL = '{{ set_price_url }}';
 {% if card_type != 'pokemon_jp' %}
 const marketItems        = {{ market_items_json|safe }};
 const PRICE_HISTORY_WEEK = {{ price_history_week_json|safe }};
+const PRICE_HISTORY_URL  = '{{ price_history_url }}';
 initPriceChart(marketItems);
-initWeeklyChart(PRICE_HISTORY_WEEK);
+initWeeklyChart(PRICE_HISTORY_WEEK, PRICE_HISTORY_URL);
 {% endif %}
 </script>
 </body>

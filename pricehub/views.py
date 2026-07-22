@@ -371,25 +371,43 @@ def _set_price(model_class, pk, request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
-def _price_history_json(card, price_model_relation):
-    """최근 1주일 가격 이력 JSON"""
-    one_week_ago = timezone.now() - timedelta(days=7)
+_PRICE_HISTORY_RANGE_DAYS = {'week': 7, 'month': 30, 'year': 365}
+
+
+def _price_history_data(card, price_model_relation, days=7):
+    """
+    최근 N일 가격 이력 — 판매처별 가격만 남긴 경량 리스트(제목/링크/이미지 등은
+    최신 스냅샷에서만 필요하므로 여기선 뺀다. 1년치를 통째로 내려줘도 가벼움).
+    """
+    since = timezone.now() - timedelta(days=days)
+    date_fmt = '%m/%d %H:%M' if days <= 7 else '%m/%d'
     history = list(
         price_model_relation
-        .filter(collected_at__gte=one_week_ago)
+        .filter(collected_at__gte=since)
         .order_by('collected_at')
         .values('collected_at', 'raw_data')
     )
-    return safe_json_dumps(
-        [
-            {
-                'date': p['collected_at'].strftime('%m/%d %H:%M'),
-                'raw_data': p['raw_data'] if isinstance(p['raw_data'], list) else [],
-            }
-            for p in history
-        ],
-        ensure_ascii=False,
-    )
+    data = []
+    for p in history:
+        raw = p['raw_data'] if isinstance(p['raw_data'], list) else []
+        prices = [
+            {'mallName': i.get('mallName'), 'price': int(float(i.get('lprice', 0)))}
+            for i in raw if i.get('mallName') and i.get('lprice')
+        ]
+        data.append({'date': p['collected_at'].strftime(date_fmt), 'prices': prices})
+    return data
+
+
+def _price_history_view(request, cfg_key, pk):
+    """카드 가격 이력 조회 (AJAX) — 그래프 기간(1주/1개월/1년) 전환용."""
+    cfg = _cfg(cfg_key)
+    card = get_object_or_404(cfg['card_model'], pk=pk)
+    range_key = request.GET.get('range', 'month')
+    days = _PRICE_HISTORY_RANGE_DAYS.get(range_key, 30)
+    return JsonResponse({
+        'range': range_key,
+        'history': _price_history_data(card, card.prices, days=days),
+    })
 
 
 def _get_rarities(card_model, expansion_code=None):
@@ -700,8 +718,9 @@ def _card_detail_view(request, cfg_key, pk):
         'market_items_json':       safe_json_dumps(market_items, ensure_ascii=False),
         'stats':                   stats,
         'set_price_url':           f'{base_url}/cards/{pk}/set-price/',
+        'price_history_url':       f'{base_url}/cards/{pk}/price-history/',
         'back_url':                f'{base_url}/expansions/{card.expansion.code}/cards/',
-        'price_history_week_json': _price_history_json(card, card.prices),
+        'price_history_week_json': safe_json_dumps(_price_history_data(card, card.prices, days=7), ensure_ascii=False),
         'breadcrumb': [
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
@@ -1870,6 +1889,11 @@ def pokemon_kr_set_price(request, pk):
 
 
 @staff_required
+def pokemon_kr_price_history(request, pk):
+    return _price_history_view(request, 'pokemon_kr', pk)
+
+
+@staff_required
 def pokemon_kr_card_search(request):
     return _card_search_view(request, Card)
 
@@ -2036,6 +2060,11 @@ def onepiece_kr_set_price(request, pk):
 
 
 @staff_required
+def onepiece_kr_price_history(request, pk):
+    return _price_history_view(request, 'onepiece_kr', pk)
+
+
+@staff_required
 @require_POST
 def onepiece_kr_reset_prices(request, expansion_code):
     count = OnePieceCard.objects.filter(expansion__code=expansion_code).update(selling_price=0)
@@ -2102,6 +2131,11 @@ def digimon_kr_card_list(request, code):
 @require_POST
 def digimon_kr_set_price(request, pk):
     return _set_price(DigimonCard, pk, request)
+
+
+@staff_required
+def digimon_kr_price_history(request, pk):
+    return _price_history_view(request, 'digimon_kr', pk)
 
 
 @staff_required

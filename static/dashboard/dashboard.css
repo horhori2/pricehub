@@ -52,14 +52,14 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
 /* 스타일 변형 (택 1) — 고스트: 배경 없음/서피스, 호버 시 accent2 */
 .btn-ghost,
 .back-btn, .logout-btn, .quick-btn, .quick-chip-btn, .again-btn,
-.action-btn, .rank-filter-btn, .filter-btn, .inline-tab,
+.action-btn, .rank-filter-btn, .range-filter-btn, .filter-btn, .inline-tab,
 .set-btn, .issue-save-btn, .pg-btn, .pg-num {
   border: 1px solid var(--border2); color: var(--text-muted);
   cursor: pointer; font-family: inherit; transition: all 0.15s;
 }
 .btn-ghost,
 .back-btn, .logout-btn, .quick-btn, .quick-chip-btn, .again-btn,
-.action-btn, .rank-filter-btn, .filter-btn, .inline-tab {
+.action-btn, .rank-filter-btn, .range-filter-btn, .filter-btn, .inline-tab {
   background: none;
 }
 .set-btn, .issue-save-btn, .pg-btn, .pg-num {
@@ -67,7 +67,7 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
 }
 .btn-ghost:hover,
 .back-btn:hover, .logout-btn:hover, .quick-btn:hover, .quick-chip-btn:hover, .again-btn:hover,
-.action-btn:hover, .rank-filter-btn:hover, .filter-btn:hover, .inline-tab:hover,
+.action-btn:hover, .rank-filter-btn:hover, .range-filter-btn:hover, .filter-btn:hover, .inline-tab:hover,
 .set-btn:hover, .issue-save-btn:hover, .pg-btn:hover, .pg-num:hover {
   border-color: var(--accent2); color: var(--accent2);
 }
@@ -75,7 +75,7 @@ body { font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: va
   background: rgba(124,107,255,0.08);
 }
 /* 고스트 active(토글 선택됨) 상태 — solid로 전환 */
-.filter-btn.active, .rank-filter-btn.active, .pg-num.active {
+.filter-btn.active, .rank-filter-btn.active, .range-filter-btn.active, .pg-num.active {
   background: var(--accent2); border-color: var(--accent2); color: #fff;
 }
 
@@ -381,6 +381,7 @@ canvas { max-height: 280px; }
 .chart-wrap { position: relative; height: 200px; }
 .rank-filter-row { display: flex; gap: 6px; margin-bottom: 10px; }
 .rank-filter-btn { padding: 4px 12px; border-radius: 14px; font-size: 12px; font-weight: 600; }
+.range-filter-btn { padding: 4px 12px; border-radius: 14px; font-size: 12px; font-weight: 600; }
 .click-hint { font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
 .rank-table { width: 100%; border-collapse: collapse; }
 .rank-table th { text-align: left; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; padding: 7px 10px; border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; }

@@ -10,7 +10,8 @@ app_name = 'pricehub'
 
 
 def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
-               has_search=False, has_reset=False, has_favorites=False):
+               has_search=False, has_reset=False, has_favorites=False,
+               has_price_history=False):
     name = prefix.replace('/', '-')
 
     patterns = [
@@ -30,6 +31,13 @@ def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
              views['set_price'],
              name=f'{name}-set-price'),
     ]
+
+    if has_price_history:
+        patterns.append(
+            path('cards/<int:pk>/price-history/',
+                 views['price_history'],
+                 name=f'{name}-price-history')
+        )
 
     if has_search:
         patterns.append(
@@ -83,6 +91,7 @@ _pokemon_kr_views = {
     'shop_stats':        v.pokemon_kr_shop_stats,
     'shop_stats_detail': v.pokemon_kr_shop_stats_detail,
     'toggle_favorite':   v.pokemon_kr_toggle_favorite,
+    'price_history':     v.pokemon_kr_price_history,
     **v.game_views('pokemon_kr'),  # card_detail, bulk_* 12종
 }
 
@@ -103,6 +112,7 @@ _onepiece_kr_views = {
     'reset_prices':    v.onepiece_kr_reset_prices,
     'reset_all':       v.onepiece_kr_reset_all_prices,
     'toggle_favorite': v.onepiece_kr_toggle_favorite,
+    'price_history':   v.onepiece_kr_price_history,
     **v.game_views('onepiece_kr'),  # card_detail, bulk_* 12종
 }
 
@@ -115,6 +125,7 @@ _digimon_kr_views = {
     'reset_prices':    v.digimon_kr_reset_prices,
     'reset_all':       v.digimon_kr_reset_all_prices,
     'toggle_favorite': v.digimon_kr_toggle_favorite,
+    'price_history':   v.digimon_kr_price_history,
     **v.game_views('digimon_kr'),  # card_detail, bulk_* 12종
 }
 
@@ -126,17 +137,17 @@ urlpatterns = [
 
     *_card_urls('pokemon/kr', _pokemon_kr_views,
                 has_search=True, has_reset=True, has_bulk=True,
-                has_shop_stats=True, has_favorites=True),
+                has_shop_stats=True, has_favorites=True, has_price_history=True),
 
     *_card_urls('pokemon/jp', _pokemon_jp_views),
 
     *_card_urls('onepiece/kr', _onepiece_kr_views,
                 has_search=True, has_reset=True, has_bulk=True,
-                has_favorites=True),
+                has_favorites=True, has_price_history=True),
 
     *_card_urls('digimon/kr', _digimon_kr_views,
                 has_search=True, has_reset=True, has_bulk=True,
-                has_favorites=True),
+                has_favorites=True, has_price_history=True),
 
     path('api-docs/', api_docs_views.api_docs, name='api-docs'),
 
