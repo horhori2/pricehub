@@ -3,6 +3,18 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.8] - 2026-07-22
+
+### Fixed
+- 비동기로 옮긴 뒤에도 저가 경고 관련 집계가 여전히 느리던 근본 원인 수정.
+  `_underpriced_count`/`_card_list_view`/`_underpriced_view`가 카드마다
+  `card_price` 히스토리 테이블을 서브쿼리로 뒤지는 구조라, 히스토리가
+  쌓일수록 계속 느려지는 문제였음. `Card`/`OnePieceCard`/`DigimonCard`에
+  `latest_market_price` 캐시 컬럼을 추가해 가격 수집 시(`collect_*_prices.py`)
+  갱신하도록 하고, 위 3개 조회 지점 모두 히스토리 서브쿼리 대신 이 캐시
+  컬럼을 직접 필터링/정렬하도록 교체. 기존 데이터는 데이터 마이그레이션으로
+  최근 수집 가격 기준 백필.
+
 ## [0.2.7] - 2026-07-21
 
 ### Fixed

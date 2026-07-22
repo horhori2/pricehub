@@ -137,6 +137,15 @@ class Card(models.Model):
         verbose_name='최신 수집 raw_data 캐시',
         help_text='가격 수집 시 자동 업데이트. bulk_price 조회에 사용.'
     )
+    latest_market_price = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='최신 시장 최저가 캐시',
+        help_text='가격 수집 시 자동 업데이트(경쟁사 최저가, 자기 매장 제외). '
+                   '카드마다 가격 히스토리를 서브쿼리로 뒤지지 않도록 하는 캐시 컬럼 — '
+                   '목록 정렬·저가 경고 판정에 사용.'
+    )
 
     class Meta:
         db_table = 'card'
@@ -255,6 +264,15 @@ class OnePieceCard(models.Model):
         blank=True,
         verbose_name='최신 수집 raw_data 캐시',
         help_text='가격 수집 시 자동 업데이트. bulk_price 조회에 사용.'
+    )
+    latest_market_price = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='최신 시장 최저가 캐시',
+        help_text='가격 수집 시 자동 업데이트(경쟁사 최저가, 자기 매장 제외). '
+                   '카드마다 가격 히스토리를 서브쿼리로 뒤지지 않도록 하는 캐시 컬럼 — '
+                   '목록 정렬·저가 경고 판정에 사용.'
     )
     class Meta:
         db_table = 'onepiece_card'
@@ -449,6 +467,15 @@ class DigimonCard(models.Model):
         blank=True,
         verbose_name='최신 수집 raw_data 캐시',
         help_text='가격 수집 시 자동 업데이트. bulk_price 조회에 사용.'
+    )
+    latest_market_price = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        verbose_name='최신 시장 최저가 캐시',
+        help_text='가격 수집 시 자동 업데이트(경쟁사 최저가, 자기 매장 제외). '
+                   '카드마다 가격 히스토리를 서브쿼리로 뒤지지 않도록 하는 캐시 컬럼 — '
+                   '목록 정렬·저가 경고 판정에 사용.'
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일")
 

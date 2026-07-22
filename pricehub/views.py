@@ -402,15 +402,16 @@ def _get_rarities(card_model, expansion_code=None):
 def _underpriced_count(cfg):
     """판매가가 최근 수집된 시장 최저가보다 낮은 카드 수.
 
+    카드 테이블의 latest_market_price 캐시 컬럼(가격 수집 시 갱신)을 직접 조회한다.
+    예전에는 카드마다 card_price 히스토리를 서브쿼리로 뒤졌는데, 히스토리가 쌓일수록
+    느려지는 구조라 캐시 컬럼으로 대체했다.
+
     일본판은 시장가(엔)와 판매가(원) 통화가 달라 비교가 성립하지 않으므로 호출측에서 제외한다.
     """
     card_model = cfg['card_model']
-    price_model = cfg['price_model']
-    latest_price_qs = price_model.objects.filter(card=OuterRef('pk')).order_by('-collected_at')
     try:
         return (
             card_model.objects
-            .annotate(latest_market_price=Subquery(latest_price_qs.values('price')[:1]))
             .filter(
                 selling_price__gt=0,
                 latest_market_price__isnull=False,
@@ -532,15 +533,10 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
     base_url = cfg['base_url']
 
     expansion = get_object_or_404(expansion_model, code=code)
-    latest_price_qs = price_model.objects.filter(card=OuterRef('pk')).order_by('-collected_at')
-    cards_qs = (
-        card_model.objects.filter(expansion=expansion)
-        .annotate(
-            latest_market_price=Subquery(latest_price_qs.values('price')[:1]),
-            latest_collected_at=Subquery(latest_price_qs.values('collected_at')[:1]),
-        )
-        .order_by('card_number')
-    )
+    # latest_market_price는 카드 테이블의 캐시 컬럼(가격 수집 시 갱신)을 그대로 사용한다.
+    # latest_collected_at은 캐시하지 않으므로, 화면에 보여줄 페이지 분량만큼만
+    # 뒤에서(list 슬라이싱 후) 조회해 붙인다 — 서브쿼리를 전체 카드에 돌리지 않기 위함.
+    cards_qs = card_model.objects.filter(expansion=expansion).order_by('card_number')
 
     filter_type = request.GET.get('filter', 'all')
     if filter_type == 'unpriced':
@@ -606,6 +602,18 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
     page        = min(page, total_pages)
     offset      = (page - 1) * per_page
     cards_list  = list(cards_qs[offset:offset + per_page])
+
+    # 화면에 보여줄 카드(현재 페이지 분량)에 한해서만 최신 수집 시각을 조회한다.
+    _page_card_ids = [c.pk for c in cards_list]
+    _latest_collected = {}
+    for row in (
+        price_model.objects.filter(card_id__in=_page_card_ids)
+        .order_by('-collected_at')
+        .values('card_id', 'collected_at')
+    ):
+        _latest_collected.setdefault(row['card_id'], row['collected_at'])
+    for c in cards_list:
+        c.latest_collected_at = _latest_collected.get(c.pk)
 
     # 카드 종류별 뱃지 태그 (패러렐/희소/스페셜/특일 등)
     tag_func = _TAG_FUNCS.get(cfg_key)
@@ -1239,14 +1247,11 @@ def _underpriced_view(request, cfg_key):
     all_rarities = _get_rarities(card_model, expansion_code or None)
     expansions   = cfg['expansion_model'].objects.order_by('-release_date')
 
-    latest_price_qs = price_model.objects.filter(card=OuterRef('pk')).order_by('-collected_at')
+    # latest_market_price는 카드 테이블의 캐시 컬럼을 직접 필터링한다 — 카드마다
+    # card_price 히스토리를 서브쿼리로 뒤지던 예전 방식은 히스토리가 쌓일수록 느려졌다.
     qs = (
         card_model.objects
         .select_related('expansion')
-        .annotate(
-            latest_market_price=Subquery(latest_price_qs.values('price')[:1]),
-            latest_collected_at=Subquery(latest_price_qs.values('collected_at')[:1]),
-        )
         .filter(
             selling_price__gt=0,
             latest_market_price__isnull=False,
@@ -1269,7 +1274,6 @@ def _underpriced_view(request, cfg_key):
             'card':          card,
             'selling_price': sell,
             'market_price':  market,
-            'collected_at':  card.latest_collected_at,
             'under_amt':     under_amt,
             'under_pct':     under_pct,
         })
@@ -1292,6 +1296,21 @@ def _underpriced_view(request, cfg_key):
     offset          = (page - 1) * per_page
     under_cards     = all_under_cards[offset:offset + per_page]
 
+    # 최신 수집 시각/raw_data는 캐시하지 않으므로, 현재 페이지에 보여줄 카드만 배치로 조회한다.
+    under_card_ids = [d['card'].pk for d in under_cards]
+    _latest_collected = {}
+    seen_raw = {}
+    for cp in (
+        price_model.objects.filter(card_id__in=under_card_ids)
+        .order_by('-collected_at')
+        .values('card_id', 'collected_at', 'raw_data')
+    ):
+        _latest_collected.setdefault(cp['card_id'], cp['collected_at'])
+        if cp['card_id'] not in seen_raw and cp['raw_data'] not in ({}, []):
+            seen_raw[cp['card_id']] = cp['raw_data']
+    for d in under_cards:
+        d['collected_at'] = _latest_collected.get(d['card'].pk)
+
     # 페이지 번호 목록 (최대 7개, 현재 페이지 중심)
     _half = 3
     _start = max(1, page - _half)
@@ -1302,17 +1321,6 @@ def _underpriced_view(request, cfg_key):
         else:
             _start = max(1, _end - 6)
     page_range = list(range(_start, _end + 1))
-
-    under_card_ids = [d['card'].pk for d in under_cards]
-    seen_raw = {}
-    for cp in (
-        price_model.objects.filter(card_id__in=under_card_ids)
-        .exclude(raw_data={}).exclude(raw_data=[])
-        .order_by('-collected_at')
-        .values('card_id', 'raw_data')
-    ):
-        if cp['card_id'] not in seen_raw:
-            seen_raw[cp['card_id']] = cp['raw_data']
 
     return render(request, 'dashboard/bulk_underpriced.html', {
         'active_tab':             'underpriced',

@@ -64,7 +64,8 @@ def collect_prices_for_all_cards():
                     raw_data=valid_items,
                 )
                 card.latest_raw_data = valid_items
-                card.save(update_fields=['latest_raw_data'])
+                card.latest_market_price = int(general_price)
+                card.save(update_fields=['latest_raw_data', 'latest_market_price'])
                 price_found += 1
                 print(f"  ✅ 저장: {int(general_price)}원 ({mall_name})")
             else:
@@ -150,7 +151,8 @@ def collect_prices_for_expansion(expansion_code: str):
                     raw_data=valid_items,
                 )
                 card.latest_raw_data = valid_items
-                card.save(update_fields=['latest_raw_data'])
+                card.latest_market_price = int(general_price)
+                card.save(update_fields=['latest_raw_data', 'latest_market_price'])
                 price_found += 1
                 print(f"  ✅ 저장: {int(general_price)}원 ({mall_name})")
             else:
@@ -228,7 +230,8 @@ def test_single_card(card_id: int):
                 raw_data=result['valid_items'],
             )
             card.latest_raw_data = result['valid_items']
-            card.save(update_fields=['latest_raw_data'])
+            card.latest_market_price = int(general_price)
+            card.save(update_fields=['latest_raw_data', 'latest_market_price'])
             print("✅ 저장 완료")
     else:
         print("저장을 취소했습니다.")
