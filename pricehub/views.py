@@ -59,7 +59,7 @@ CATEGORY_CONFIGS = {
         'card_model': JapanCard,
         'price_model': JapanCardPrice,
         'base_url': '/pokemon/jp',
-        'card_detail_template': 'dashboard/card_detail_jp.html',
+        'card_detail_template': 'dashboard/card_detail.html',
         'card_type_key': 'pokemon_jp',
     },
     'onepiece_kr': {
@@ -1979,8 +1979,9 @@ def pokemon_jp_card_detail(request, pk):
     price_values = [int(p.price) for p in latest_prices.values()]
     stats = _calc_stats(price_values)
 
-    return render(request, 'dashboard/card_detail_jp.html', {
+    return render(request, 'dashboard/card_detail.html', {
         'card':          card,
+        'card_type':     'pokemon_jp',
         'latest_prices': latest_prices,
         'stats':         stats,
         'set_price_url': f'{base}/cards/{pk}/set-price/',

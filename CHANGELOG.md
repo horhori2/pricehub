@@ -3,6 +3,16 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.3.2] - 2026-07-22
+
+### Fixed
+- 포켓몬 일본판 카드 상세 페이지(`/pokemon/jp/cards/<id>/`) 500 에러 수정.
+  `card_detail.html`은 이미 일본판까지 지원하도록 만들어져 있었는데,
+  `pokemon_jp_card_detail` 뷰가 존재하지 않는 `card_detail_jp.html`을
+  가리키고 있었고 `card_type` 컨텍스트도 빠져있었음(리팩토링 중 남은
+  이전 세션에서 발견된 미해결 이슈). 올바른 템플릿 + `card_type='pokemon_jp'`로
+  수정. 가격 이력 없는 카드/미러 카드 포함해 재검증 완료.
+
 ## [0.3.1] - 2026-07-22
 
 ### Changed
