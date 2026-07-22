@@ -33,3 +33,26 @@ Claude Code가 이 저장소에서 작업할 때 따라야 하는 지침.
 - `master`에 대한 `push`(특히 origin으로) 는 서버가 바로 pull 받는 대상이므로,
   사용자가 명시적으로 병합/배포를 요청했을 때만 수행한다. 다른 모든 git 작업과 마찬가지로
   브랜치를 삭제하거나 강제로 이력을 바꾸는 작업은 하지 않는다.
+
+## 배포 환경 (서버)
+
+- AWS EC2(Ubuntu), `~/pricehub`에 저장소가 체크아웃되어 있고 `master` 브랜치만 pull 받는다.
+- 프로세스 관리는 pm2 (`pm2 list`에서 이름 `django-app`). 재시작: `pm2 restart django-app`.
+- gunicorn `-w 4`(워커 4개)로 `0.0.0.0:8000`에 바인딩, nginx가 80번 포트에서 리버스 프록시.
+- **아직 도메인/TLS 미적용, HTTP로만 서비스 중.** `.env`의 `USE_HTTPS`는 도메인+인증서를
+  붙이기 전까지 켜면 안 됨 — 켜면 `SECURE_SSL_REDIRECT`가 없는 HTTPS로 강제 리다이렉트해서
+  사이트가 먹통이 된다. 나중에 도메인 적용되면 `USE_HTTPS=True` 추가할 것.
+- `staticfiles/`(collectstatic 산출물), `django_cache/`(rate limit용 파일 캐시), `logs/`(에러 로그)는
+  전부 런타임에 자동 생성되는 산출물이라 git에 커밋하지 않는다(`.gitignore` 처리됨) —
+  실수로 다시 add하지 말 것.
+- 공유 캐시(rate limit 등)가 필요하면 Redis 등 별도 인프라가 서버에 없으므로
+  `FileBasedCache`(파일시스템 기반, 워커 간 공유됨) 사용을 우선 고려한다.
+- `master` 병합 후 서버 배포 절차:
+  ```bash
+  cd ~/pricehub && source venv/bin/activate
+  git pull origin master
+  pip install -r requirements.txt
+  python manage.py collectstatic --noinput
+  python manage.py migrate
+  pm2 restart django-app
+  ```

@@ -3,6 +3,13 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.14] - 2026-07-22
+
+### Added
+- `CLAUDE.md`에 "배포 환경 (서버)" 섹션 추가 — 오늘 서버 점검하며 확인한
+  구성(pm2/gunicorn -w 4/nginx, 아직 HTTP 전용이라 USE_HTTPS 켜면 안 됨,
+  staticfiles/django_cache/logs는 git 추적 안 함, 배포 절차)을 문서화.
+
 ## [0.2.13] - 2026-07-22
 
 ### Fixed
