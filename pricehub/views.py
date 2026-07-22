@@ -380,7 +380,6 @@ def _price_history_data(card, price_model_relation, days=7):
     최신 스냅샷에서만 필요하므로 여기선 뺀다. 1년치를 통째로 내려줘도 가벼움).
     """
     since = timezone.now() - timedelta(days=days)
-    date_fmt = '%m/%d %H:%M' if days <= 7 else '%m/%d'
     history = list(
         price_model_relation
         .filter(collected_at__gte=since)
@@ -394,7 +393,7 @@ def _price_history_data(card, price_model_relation, days=7):
             {'mallName': i.get('mallName'), 'price': int(float(i.get('lprice', 0)))}
             for i in raw if i.get('mallName') and i.get('lprice')
         ]
-        data.append({'date': p['collected_at'].strftime(date_fmt), 'prices': prices})
+        data.append({'date': p['collected_at'].strftime('%m/%d'), 'prices': prices})
     return data
 
 
