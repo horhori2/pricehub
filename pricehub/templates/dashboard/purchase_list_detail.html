@@ -63,7 +63,7 @@
         기본 매입가 비율 <strong style="color:var(--accent2);">{{ plist.default_purchase_ratio|floatformat:0 }}%</strong>
         · 전체 {{ total_count }}장 중 등록 {{ registered_count }}장
         {% if plist.description %} · {{ plist.description }}{% endif %}
-        {% if supports_rarity %} · <a href="/purchase-lists/rarity-ratios/{{ plist.game_type }}/" style="color:var(--accent2);">미등록 카드는 레어도 비율 기준 자동 계산 ⚙</a>{% endif %}
+        {% if supports_rarity %} · <a href="/purchase-lists/rarity-prices/{{ plist.game_type }}/" style="color:var(--accent2);">미등록 카드는 레어도 고정가 기준 표시 ⚙</a>{% endif %}
       </div>
     </div>
     <div style="display:flex;gap:8px;">
@@ -170,13 +170,11 @@
         <td class="pl-price-mono">
           {% if row.computed_price %}
             {{ row.computed_price|floatformat:0 }}원
-            <div style="font-size:10px;color:var(--text-muted);">레어도 규칙 ({{ row.ratio|floatformat:0 }}%)</div>
+            <div style="font-size:10px;color:var(--text-muted);">레어도 고정가</div>
           {% elif not supports_rarity %}
-            <span style="font-size:11px;color:var(--text-dim);">일본판은 레어도 규칙 미지원</span>
-          {% elif row.ratio is None %}
-            <span style="font-size:11px;color:var(--text-dim);">레어도 비율 미설정</span>
+            <span style="font-size:11px;color:var(--text-dim);">일본판은 레어도 고정가 미지원</span>
           {% else %}
-            <span style="font-size:11px;color:var(--text-dim);">시장가 없음</span>
+            <span style="font-size:11px;color:var(--text-dim);">레어도 고정가 미설정</span>
           {% endif %}
         </td>
         <td><span class="pl-unregistered-badge">미등록</span></td>

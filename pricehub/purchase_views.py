@@ -14,10 +14,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from .models import PurchaseList, PurchaseListItem, RarityPurchaseRatio, round_to_100
+from .models import PurchaseList, PurchaseListItem, RarityPurchasePrice, round_to_100
 from .purchase_config import (
-    GAME_TYPE_CARD_MODEL, GAME_TYPE_LABELS, RARITY_RATIO_GAME_TYPES,
-    compute_rarity_price, get_rarity_ratio_map,
+    GAME_TYPE_CARD_MODEL, GAME_TYPE_LABELS, RARITY_PRICE_GAME_TYPES,
+    compute_rarity_price, get_rarity_price_map,
 )
 from .utils import safe_json_dumps
 from .views import staff_required
@@ -48,7 +48,7 @@ def purchase_list_index(request):
             'lists': qs,
             'list_count': qs.count(),
             'active_count': qs.filter(is_active=True).count(),
-            'supports_rarity': game_type in RARITY_RATIO_GAME_TYPES,
+            'supports_rarity': game_type in RARITY_PRICE_GAME_TYPES,
         })
     return render(request, 'dashboard/purchase_list_index.html', {'games': games})
 
@@ -87,8 +87,8 @@ def purchase_list_detail(request, list_id):
     """
     매입리스트 상세 — 전체 카드를 등록/미등록 구분 없이 한 화면에 보여준다.
     등록된 카드는 확정/추천 매입가(판매가 기준)를, 미등록 카드는 레어도별
-    비율(관리 화면에서 설정) × 시장 최저가로 즉석 계산한 값을 보여준다
-    (미등록 카드는 DB에 별도 행을 만들지 않음 — 화면에 보여줄 때만 계산).
+    고정가(관리 화면에서 설정)를 즉석으로 보여준다(미등록 카드는 DB에
+    별도 행을 만들지 않음 — 화면에 보여줄 때만 계산).
     """
     plist = get_object_or_404(PurchaseList, pk=list_id)
     card_model = GAME_TYPE_CARD_MODEL.get(plist.game_type)
@@ -100,8 +100,8 @@ def purchase_list_detail(request, list_id):
         for it in plist.items.filter(content_type=content_type)
     }
 
-    supports_rarity = plist.game_type in RARITY_RATIO_GAME_TYPES
-    ratio_map = get_rarity_ratio_map(plist.game_type) if supports_rarity else {}
+    supports_rarity = plist.game_type in RARITY_PRICE_GAME_TYPES
+    price_map = get_rarity_price_map(plist.game_type) if supports_rarity else {}
 
     cards_qs = card_model.objects.select_related('expansion').order_by('card_number')
 
@@ -147,8 +147,7 @@ def purchase_list_detail(request, list_id):
                 'registered': False,
                 'card': card,
                 'market_price': getattr(card, 'latest_market_price', None),
-                'ratio': ratio_map.get(card.rarity),
-                'computed_price': compute_rarity_price(card, ratio_map) if supports_rarity else None,
+                'computed_price': compute_rarity_price(card, price_map) if supports_rarity else None,
             })
 
     _half = 3
@@ -356,16 +355,16 @@ def purchase_list_delete(request, list_id):
 
 
 # ════════════════════════════════════════════════════════════════
-# 레어도별 매입가 비율 관리
+# 레어도별 매입 고정가 관리
 #
-# 매입리스트에 개별 등록 안 된 카드는 여기서 정한 비율을 시장 최저가에
-# 곱해 즉석 계산한 값을 보여준다(별도 행을 만들지 않음). 게임 종류 전체에
-# 공통 적용 — 일본판은 판매가 통화(엔)가 달라 대상에서 제외한다.
+# 매입리스트에 개별 등록 안 된 카드는 여기서 정한 고정가를 즉석으로
+# 보여준다(별도 행을 만들지 않음). 게임 종류 전체에 공통 적용 —
+# 일본판은 판매가 통화(엔)가 달라 대상에서 제외한다.
 # ════════════════════════════════════════════════════════════════
 
 @staff_required
-def rarity_ratio_settings(request, game_type):
-    if game_type not in RARITY_RATIO_GAME_TYPES:
+def rarity_price_settings(request, game_type):
+    if game_type not in RARITY_PRICE_GAME_TYPES:
         return redirect('pricehub:purchase-list-index')
 
     card_model = GAME_TYPE_CARD_MODEL[game_type]
@@ -373,10 +372,10 @@ def rarity_ratio_settings(request, game_type):
         card_model.objects.exclude(rarity='').values_list('rarity', flat=True)
         .distinct().order_by('rarity')
     )
-    ratio_map = get_rarity_ratio_map(game_type)
-    rows = [{'rarity': r, 'ratio': ratio_map.get(r)} for r in all_rarities]
+    price_map = get_rarity_price_map(game_type)
+    rows = [{'rarity': r, 'price': price_map.get(r)} for r in all_rarities]
 
-    return render(request, 'dashboard/rarity_ratio_settings.html', {
+    return render(request, 'dashboard/rarity_price_settings.html', {
         'game_type': game_type,
         'game_label': GAME_TYPE_LABELS.get(game_type, game_type),
         'rows': rows,
@@ -385,24 +384,25 @@ def rarity_ratio_settings(request, game_type):
 
 @staff_required
 @require_POST
-def rarity_ratio_save(request, game_type):
-    """레어도 하나의 매입가 비율을 저장 (AJAX, upsert)."""
-    if game_type not in RARITY_RATIO_GAME_TYPES:
+def rarity_price_save(request, game_type):
+    """레어도 하나의 매입 고정가를 저장 (AJAX, upsert)."""
+    if game_type not in RARITY_PRICE_GAME_TYPES:
         return JsonResponse({'success': False, 'error': '지원하지 않는 게임 종류입니다.'}, status=400)
 
     try:
         data = json.loads(request.body)
         rarity = (data.get('rarity') or '').strip()
-        ratio = float(data['ratio'])
+        price = int(data['price'])
+        if price < 0:
+            raise ValueError
     except (ValueError, TypeError, KeyError, json.JSONDecodeError):
         return JsonResponse({'success': False, 'error': '잘못된 요청입니다.'}, status=400)
 
     if not rarity:
         return JsonResponse({'success': False, 'error': '레어도가 비어있습니다.'}, status=400)
-    ratio = max(0, min(100, ratio))
 
-    obj, _ = RarityPurchaseRatio.objects.update_or_create(
+    obj, _ = RarityPurchasePrice.objects.update_or_create(
         game_type=game_type, rarity=rarity,
-        defaults={'ratio': ratio},
+        defaults={'price': price},
     )
-    return JsonResponse({'success': True, 'ratio': float(obj.ratio)})
+    return JsonResponse({'success': True, 'price': obj.price})

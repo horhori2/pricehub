@@ -3,6 +3,15 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.3.1] - 2026-07-22
+
+### Changed
+- 레어도별 일괄 매입가를 "시장 최저가 × 비율(%)" 계산 방식에서 레어도별
+  **고정 금액**으로 변경(아직 배포 전인 0.3.0 기능 수정). `RarityPurchaseRatio`
+  → `RarityPurchasePrice`로 모델명 변경, 관리 화면 경로도
+  `/purchase-lists/rarity-ratios/` → `/purchase-lists/rarity-prices/`로 변경.
+  시장가 유무와 무관하게 레어도만으로 고정가가 정해짐.
+
 ## [0.3.0] - 2026-07-22
 
 ### Added

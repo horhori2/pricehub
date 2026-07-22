@@ -160,9 +160,9 @@ urlpatterns = [
     path('purchase-lists/items/<int:item_id>/remove/',
          pv.purchase_list_remove_item, name='purchase-list-remove-item'),
 
-    # ── 레어도별 매입가 비율 관리 ──
-    path('purchase-lists/rarity-ratios/<str:game_type>/',
-         pv.rarity_ratio_settings, name='rarity-ratio-settings'),
-    path('purchase-lists/rarity-ratios/<str:game_type>/save/',
-         pv.rarity_ratio_save, name='rarity-ratio-save'),
+    # ── 레어도별 매입 고정가 관리 ──
+    path('purchase-lists/rarity-prices/<str:game_type>/',
+         pv.rarity_price_settings, name='rarity-price-settings'),
+    path('purchase-lists/rarity-prices/<str:game_type>/save/',
+         pv.rarity_price_save, name='rarity-price-save'),
 ]
