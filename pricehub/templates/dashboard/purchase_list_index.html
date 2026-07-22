@@ -52,7 +52,12 @@
   <div class="pl-game-section">
     <div class="pl-game-head">
       <span class="pl-game-title">{{ g.label }}</span>
-      <span style="font-size:12px;color:var(--text-muted);">리스트 {{ g.list_count }}개 · 활성 {{ g.active_count }}개</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:12px;color:var(--text-muted);">리스트 {{ g.list_count }}개 · 활성 {{ g.active_count }}개</span>
+        {% if g.supports_rarity %}
+        <a href="/purchase-lists/rarity-ratios/{{ g.game_type }}/" class="btn btn-ghost btn-sm">⚙ 레어도 비율 설정</a>
+        {% endif %}
+      </div>
     </div>
 
     {% if g.lists %}

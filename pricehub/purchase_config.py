@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from django.contrib.contenttypes.models import ContentType
 
-from .models import Card, JapanCard, OnePieceCard, DigimonCard
+from .models import Card, JapanCard, OnePieceCard, DigimonCard, RarityPurchaseRatio, round_to_100
 
 GAME_TYPE_CARD_MODEL = {
     'pokemon_kr': Card,
@@ -24,12 +24,36 @@ GAME_TYPE_LABELS = {
     'digimon_kr': '디지몬 한글판',
 }
 
+# 레어도별 일괄 매입가 기능 대상 게임 — 일본판은 판매가가 엔화라
+# '시장 최저가 × 비율' 계산이 성립하지 않으므로(원화 매입가와 통화가 다름) 제외.
+RARITY_RATIO_GAME_TYPES = ['pokemon_kr', 'onepiece_kr', 'digimon_kr']
+
 
 def get_card_model(game_type):
     model = GAME_TYPE_CARD_MODEL.get(game_type)
     if model is None:
         raise ValueError(f"알 수 없는 game_type: {game_type}")
     return model
+
+
+def get_rarity_ratio_map(game_type):
+    """{레어도: 비율(Decimal)} 딕셔너리. 게임 종류 전체에 공통 적용."""
+    return {
+        r.rarity: r.ratio
+        for r in RarityPurchaseRatio.objects.filter(game_type=game_type)
+    }
+
+
+def compute_rarity_price(card, ratio_map):
+    """
+    카드의 시장 최저가(latest_market_price)와 레어도 비율로 매입가를 즉석 계산.
+    시장가가 없거나 해당 레어도에 비율이 설정 안 돼 있으면 None.
+    """
+    market_price = getattr(card, 'latest_market_price', None)
+    ratio = ratio_map.get(card.rarity)
+    if not market_price or ratio is None:
+        return None
+    return round_to_100(market_price * float(ratio) / 100)
 
 
 def attach_cards(items):

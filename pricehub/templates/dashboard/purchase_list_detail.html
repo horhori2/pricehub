@@ -27,15 +27,21 @@
   table.pl-table { width:100%; border-collapse:collapse; }
   table.pl-table th { text-align:left; padding:10px; font-size:11px; color:var(--text-muted); border-bottom:1px solid var(--border2); text-transform:uppercase; letter-spacing:0.5px; }
   table.pl-table td { padding:10px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle; }
+  table.pl-table tr.pl-row-unregistered td { color:var(--text-muted); }
   .pl-thumb { width:38px; height:52px; object-fit:contain; border-radius:5px; background:var(--surface2); border:1px solid var(--border); }
   .pl-price-mono { font-family:'JetBrains Mono',monospace; font-weight:700; }
   .pl-purchase-input { width:100px; padding:6px 8px; background:var(--bg); border:1px solid var(--accent2); border-radius:6px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:13px; outline:none; }
   .pl-decided-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; background:rgba(61,214,140,0.15); color:var(--success); white-space:nowrap; }
   .pl-undecided-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; background:rgba(245,166,35,0.15); color:var(--warning); white-space:nowrap; }
+  .pl-unregistered-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; background:var(--surface3); color:var(--text-muted); white-space:nowrap; }
   .pl-small-btn { padding:5px 10px; border-radius:6px; font-size:12px; font-weight:700; border:1px solid var(--border2); background:var(--surface2); color:var(--text); cursor:pointer; font-family:inherit; }
   .pl-small-btn.primary { background:var(--accent2); border-color:var(--accent2); color:#fff; }
   .pl-small-btn.danger { color:var(--danger); border-color:var(--danger); background:none; }
   .pl-action-cell { display:flex; flex-direction:column; gap:4px; }
+  .pl-status-tabs { display:flex; gap:6px; margin-bottom:14px; }
+  .pl-status-tab { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:600; text-decoration:none; color:var(--text-muted); background:var(--surface); border:1px solid var(--border); }
+  .pl-status-tab.active { background:var(--accent2); border-color:var(--accent2); color:#fff; }
+  .pl-filter-bar { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 18px; margin-bottom:16px; display:flex; flex-direction:column; gap:10px; }
 </style>
 </head>
 <body>
@@ -55,8 +61,9 @@
       <div class="page-title" style="margin-bottom:4px;">{{ plist.name }}</div>
       <div style="font-size:13px;color:var(--text-muted);">
         기본 매입가 비율 <strong style="color:var(--accent2);">{{ plist.default_purchase_ratio|floatformat:0 }}%</strong>
-        · 카드 {{ rows|length }}장
+        · 전체 {{ total_count }}장 중 등록 {{ registered_count }}장
         {% if plist.description %} · {{ plist.description }}{% endif %}
+        {% if supports_rarity %} · <a href="/purchase-lists/rarity-ratios/{{ plist.game_type }}/" style="color:var(--accent2);">미등록 카드는 레어도 비율 기준 자동 계산 ⚙</a>{% endif %}
       </div>
     </div>
     <div style="display:flex;gap:8px;">
@@ -74,42 +81,72 @@
     <div class="pl-search-results" id="searchResults"></div>
   </div>
 
+  <div class="pl-status-tabs">
+    <a class="pl-status-tab {% if status_filter == 'all' %}active{% endif %}" href="?status=all{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}{% if expansion_code %}&expansion={{ expansion_code }}{% endif %}">전체</a>
+    <a class="pl-status-tab {% if status_filter == 'registered' %}active{% endif %}" href="?status=registered{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}{% if expansion_code %}&expansion={{ expansion_code }}{% endif %}">등록됨</a>
+    <a class="pl-status-tab {% if status_filter == 'unregistered' %}active{% endif %}" href="?status=unregistered{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}{% if expansion_code %}&expansion={{ expansion_code }}{% endif %}">미등록</a>
+  </div>
+
+  <div class="pl-filter-bar">
+    <div class="filter-row-items">
+      <span class="filter-label">확장팩</span>
+      <form method="get" id="filterForm">
+        <input type="hidden" name="status" value="{{ status_filter }}">
+        {% for r in selected_rarities %}<input type="hidden" name="rarities" value="{{ r }}">{% endfor %}
+        <select name="expansion" class="scope-select" onchange="document.getElementById('filterForm').submit()">
+          <option value="" {% if not expansion_code %}selected{% endif %}>전체</option>
+          {% for exp in expansions %}
+          <option value="{{ exp.code }}" {% if expansion_code == exp.code %}selected{% endif %}>{{ exp.code }} — {{ exp.name }}</option>
+          {% endfor %}
+        </select>
+      </form>
+    </div>
+    {% if all_rarities %}
+    <div class="rarity-filter">
+      <span class="filter-label">레어도</span>
+      <div class="rarity-divider"></div>
+      {% for rarity in all_rarities %}
+      <label class="rarity-chip {% if rarity in selected_rarities %}active{% endif %}">
+        <input type="checkbox" value="{{ rarity }}" onchange="toggleRarity(this)" {% if rarity in selected_rarities %}checked{% endif %}>
+        {{ rarity }}
+      </label>
+      {% endfor %}
+      <div class="rarity-divider"></div>
+      <button type="button" class="quick-chip-btn" style="border-color:var(--accent2);color:var(--accent2);font-weight:800;" onclick="applyRarityFilter()">✓ 적용</button>
+    </div>
+    {% endif %}
+  </div>
+
   {% if rows %}
   <table class="pl-table">
     <thead>
       <tr>
         <th style="width:44px;"></th>
         <th>카드</th>
-        <th>판매가</th>
-        <th>추천 매입가</th>
-        <th>확정 매입가</th>
+        <th>기준가</th>
+        <th>매입가</th>
         <th>상태</th>
-        <th style="width:90px;"></th>
+        <th style="width:100px;"></th>
       </tr>
     </thead>
     <tbody id="itemsBody">
       {% for row in rows %}
+      {% if row.registered %}
       <tr id="item-row-{{ row.item.id }}">
-        <td>{% if row.card and row.card.image_url %}<img src="{{ row.card.image_url }}" class="pl-thumb">{% endif %}</td>
+        <td>{% if row.card.image_url %}<img src="{{ row.card.image_url }}" class="pl-thumb">{% endif %}</td>
         <td>
-          <div style="font-weight:600;">{% if row.card %}{{ row.card.name }}{% else %}(삭제된 카드){% endif %}</div>
-          <div style="font-size:11px;color:var(--text-muted);">
-            {% if row.card %}{{ row.card.card_number }} · {{ row.card.rarity }}{% endif %}
-          </div>
+          <div style="font-weight:600;">{{ row.card.name }}</div>
+          <div style="font-size:11px;color:var(--text-muted);">{{ row.card.card_number }} · {{ row.card.rarity }}</div>
         </td>
-        <td class="pl-price-mono">{{ row.item.selling_price_snapshot|floatformat:0 }}원</td>
-        <td class="pl-price-mono" style="color:var(--text-muted);">
-          {{ row.item.recommended_purchase_price|floatformat:0 }}원
-          <span style="font-size:10px;">({{ row.item.purchase_ratio|floatformat:0 }}%)</span>
-        </td>
+        <td class="pl-price-mono">판매가 {{ row.item.selling_price_snapshot|floatformat:0 }}원</td>
         <td>
           <input type="number" class="pl-purchase-input" id="price-input-{{ row.item.id }}"
                  value="{% if row.item.purchase_price is not None %}{{ row.item.purchase_price|floatformat:0 }}{% else %}{{ row.item.recommended_purchase_price|floatformat:0 }}{% endif %}"
                  min="0" step="100">
+          <div style="font-size:10px;color:var(--text-muted);">추천 {{ row.item.recommended_purchase_price|floatformat:0 }}원 ({{ row.item.purchase_ratio|floatformat:0 }}%)</div>
         </td>
         <td>
-          <span id="status-{{ row.item.id }}"
-                class="{% if row.item.purchase_price is not None %}pl-decided-badge{% else %}pl-undecided-badge{% endif %}">
+          <span id="status-{{ row.item.id }}" class="{% if row.item.purchase_price is not None %}pl-decided-badge{% else %}pl-undecided-badge{% endif %}">
             {% if row.item.purchase_price is not None %}확정{% else %}미확정(추천가){% endif %}
           </span>
         </td>
@@ -120,12 +157,64 @@
           </div>
         </td>
       </tr>
+      {% else %}
+      <tr class="pl-row-unregistered">
+        <td>{% if row.card.image_url %}<img src="{{ row.card.image_url }}" class="pl-thumb">{% endif %}</td>
+        <td>
+          <div style="font-weight:600;">{{ row.card.name }}</div>
+          <div style="font-size:11px;color:var(--text-muted);">{{ row.card.card_number }} · {{ row.card.rarity }}</div>
+        </td>
+        <td class="pl-price-mono">
+          {% if row.market_price %}시장 최저가 {{ row.market_price|floatformat:0 }}원{% else %}시장가 없음{% endif %}
+        </td>
+        <td class="pl-price-mono">
+          {% if row.computed_price %}
+            {{ row.computed_price|floatformat:0 }}원
+            <div style="font-size:10px;color:var(--text-muted);">레어도 규칙 ({{ row.ratio|floatformat:0 }}%)</div>
+          {% elif not supports_rarity %}
+            <span style="font-size:11px;color:var(--text-dim);">일본판은 레어도 규칙 미지원</span>
+          {% elif row.ratio is None %}
+            <span style="font-size:11px;color:var(--text-dim);">레어도 비율 미설정</span>
+          {% else %}
+            <span style="font-size:11px;color:var(--text-dim);">시장가 없음</span>
+          {% endif %}
+        </td>
+        <td><span class="pl-unregistered-badge">미등록</span></td>
+        <td><button class="pl-small-btn" onclick="addCard({{ row.card.id }})">개별 등록</button></td>
+      </tr>
+      {% endif %}
       {% endfor %}
     </tbody>
   </table>
+
+  {% if total_pages > 1 %}
+  <div class="pagination-bar">
+    {% if page > 1 %}
+    <a class="pg-btn" href="?status={{ status_filter }}{% if expansion_code %}&expansion={{ expansion_code }}{% endif %}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&page={{ page|add:"-1" }}">← 이전</a>
+    {% else %}
+    <span class="pg-btn disabled">← 이전</span>
+    {% endif %}
+    <div class="pg-pages">
+      {% for p in page_range %}
+        {% if p == page %}
+        <span class="pg-num active">{{ p }}</span>
+        {% else %}
+        <a class="pg-num" href="?status={{ status_filter }}{% if expansion_code %}&expansion={{ expansion_code }}{% endif %}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&page={{ p }}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% if page < total_pages %}
+    <a class="pg-btn" href="?status={{ status_filter }}{% if expansion_code %}&expansion={{ expansion_code }}{% endif %}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&page={{ page|add:"1" }}">다음 →</a>
+    {% else %}
+    <span class="pg-btn disabled">다음 →</span>
+    {% endif %}
+    <span class="pg-info">{{ page }} / {{ total_pages }}페이지 · 총 {{ total_count }}장</span>
+  </div>
+  {% endif %}
+
   {% else %}
   <div class="empty" style="padding:40px 0;text-align:center;color:var(--text-dim);">
-    아직 담긴 카드가 없습니다. 위 검색창에서 카드를 찾아 추가하세요.
+    조건에 맞는 카드가 없습니다.
   </div>
   {% endif %}
 </div>
@@ -232,10 +321,7 @@ async function removeItem(itemId) {
       headers: { 'X-CSRFToken': getCsrf() },
     });
     const data = await res.json();
-    if (data.success) {
-      document.getElementById(`item-row-${itemId}`).remove();
-      showToast('삭제되었습니다.');
-    }
+    if (data.success) location.reload();
   } catch (e) {
     showToast('삭제 중 오류가 발생했습니다.');
   }
@@ -267,6 +353,21 @@ document.addEventListener('click', (e) => {
     document.getElementById('searchResults').style.display = 'none';
   }
 });
+
+// 레어도 필터 — 페이지 자체 상태(전역 dashboard.js에 의존하지 않음)
+let _selectedRarities = new Set({{ selected_rarities_json|default:"[]"|safe }});
+function toggleRarity(checkbox) {
+  const label = checkbox.closest('.rarity-chip');
+  if (checkbox.checked) { _selectedRarities.add(checkbox.value); label.classList.add('active'); }
+  else { _selectedRarities.delete(checkbox.value); label.classList.remove('active'); }
+}
+function applyRarityFilter() {
+  const params = new URLSearchParams();
+  params.append('status', '{{ status_filter }}');
+  {% if expansion_code %}params.append('expansion', '{{ expansion_code }}');{% endif %}
+  _selectedRarities.forEach(r => params.append('rarities', r));
+  location.href = '?' + params.toString();
+}
 </script>
 </body>
 </html>

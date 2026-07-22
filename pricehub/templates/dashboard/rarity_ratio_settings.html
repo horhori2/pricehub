@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>{{ game_label }} 레어도별 매입가 비율 · 매입리스트</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
+<style>
+  .rr-wrap { max-width:700px; margin:0 auto; padding:28px; }
+  .rr-ratio-input { width:90px; padding:6px 8px; background:var(--bg); border:1px solid var(--accent2); border-radius:6px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:13px; outline:none; text-align:right; }
+  .rr-unset { color:var(--text-dim); font-size:11px; }
+  .rr-saved-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700; background:rgba(61,214,140,0.15); color:var(--success); white-space:nowrap; margin-left:6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <a href="/purchase-lists/" class="back-btn">← 매입리스트</a>
+    <div class="breadcrumb"><strong style="color:var(--text)">{{ game_label }}</strong><span>/</span>레어도별 매입가 비율</div>
+  </div>
+  <a href="/logout/" class="logout-btn">로그아웃</a>
+</header>
+
+<div class="rr-wrap">
+  <div class="page-title" style="margin-bottom:4px;">{{ game_label }} 레어도별 매입가 비율</div>
+  <div class="page-sub" style="margin-bottom:24px;">
+    매입리스트에 개별 등록하지 않은 카드는 여기서 정한 비율을 <strong style="color:var(--accent2);">시장 최저가</strong>에 곱해
+    매입가를 자동 계산해서 보여줍니다. 인기 카드만 매입리스트에 직접 등록해 매입가를 정하고,
+    나머지는 이 규칙을 따르게 하는 용도입니다.
+  </div>
+
+  {% if rows %}
+  <table class="card-table">
+    <thead>
+      <tr>
+        <th>레어도</th>
+        <th style="width:140px;">비율(%)</th>
+        <th style="width:90px;"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr id="rarity-row-{{ forloop.counter }}">
+        <td style="font-weight:600;">{{ row.rarity }}</td>
+        <td>
+          <input type="number" class="rr-ratio-input" id="ratio-input-{{ forloop.counter }}"
+                 value="{% if row.ratio is not None %}{{ row.ratio|floatformat:0 }}{% endif %}"
+                 min="0" max="100" step="1" placeholder="미설정">
+          {% if row.ratio is None %}<span class="rr-unset" id="unset-{{ forloop.counter }}">미설정 — 계산 안 됨</span>{% endif %}
+        </td>
+        <td>
+          <button class="btn btn-solid btn-sm" onclick="saveRatio('{{ row.rarity|escapejs }}', {{ forloop.counter }})">저장</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty" style="padding:40px 0;text-align:center;color:var(--text-dim);">
+    등록된 카드가 없어 레어도 목록을 불러올 수 없습니다.
+  </div>
+  {% endif %}
+</div>
+
+<div id="fav-toast"></div>
+
+<script>
+const SAVE_URL = '/purchase-lists/rarity-ratios/{{ game_type }}/save/';
+
+function getCsrf() { return document.querySelector('meta[name="csrf-token"]').content; }
+
+function showToast(msg) {
+  const t = document.getElementById('fav-toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+async function saveRatio(rarity, rowNum) {
+  const input = document.getElementById(`ratio-input-${rowNum}`);
+  const ratio = parseFloat(input.value);
+  if (isNaN(ratio) || ratio < 0 || ratio > 100) { showToast('0~100 사이의 값을 입력하세요.'); return; }
+  try {
+    const res = await fetch(SAVE_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify({ rarity: rarity, ratio: ratio }),
+    });
+    const data = await res.json();
+    if (!data.success) { showToast(data.error || '저장 실패'); return; }
+    const unsetEl = document.getElementById(`unset-${rowNum}`);
+    if (unsetEl) unsetEl.remove();
+    showToast(`${rarity} 비율 저장됨 (${data.ratio}%)`);
+  } catch (e) {
+    showToast('저장 중 오류가 발생했습니다.');
+  }
+}
+</script>
+</body>
+</html>

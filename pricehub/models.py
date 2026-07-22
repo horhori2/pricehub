@@ -688,3 +688,39 @@ class PurchaseListItem(models.Model):
     def save(self, *args, **kwargs):
         self.recommended_purchase_price = self.compute_recommended_price()
         super().save(*args, **kwargs)
+
+
+class RarityPurchaseRatio(models.Model):
+    """
+    레어도별 일괄 매입가 비율 — 매입리스트에 개별 등록 안 된 카드에 적용.
+
+    인기 카드만 PurchaseListItem으로 개별 등록해 매입가를 정하고, 나머지
+    카드는 이 비율을 '시장 최저가'(카드의 latest_market_price 캐시)에 곱해
+    화면에 즉석 계산해서 보여준다 — 별도 행을 만들지 않음. 게임 종류
+    전체에 공통 적용(매입리스트별로 따로 두지 않음).
+    """
+    GAME_TYPE_CHOICES = PurchaseList.GAME_TYPE_CHOICES
+
+    game_type = models.CharField(
+        max_length=20,
+        choices=GAME_TYPE_CHOICES,
+        db_index=True,
+        verbose_name='게임 구분'
+    )
+    rarity = models.CharField(max_length=50, verbose_name='레어도')
+    ratio = models.DecimalField(
+        max_digits=5, decimal_places=2, default=30,
+        verbose_name='매입가 비율(%)',
+        help_text='시장 최저가 대비 매입가 비율'
+    )
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='수정일시')
+
+    class Meta:
+        db_table = 'rarity_purchase_ratio'
+        verbose_name = '레어도별 매입가 비율'
+        verbose_name_plural = '레어도별 매입가 비율 목록'
+        ordering = ['game_type', 'rarity']
+        unique_together = [['game_type', 'rarity']]
+
+    def __str__(self):
+        return f"[{self.get_game_type_display()}] {self.rarity} — {self.ratio}%"
