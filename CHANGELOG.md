@@ -3,6 +3,21 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.10] - 2026-07-22
+
+### Security
+- 로컬 `.env.local`의 `SECRET_KEY`가 과거 git 히스토리(2026-01)에 평문으로
+  커밋된 적이 있는 값과 동일해서 새 값으로 교체(파일 자체는 `.gitignore` 대상이라
+  이번 커밋엔 포함 안 됨). 운영 서버 `.env`도 같은 값을 쓰고 있었다면 반드시
+  교체 필요 — git 히스토리 자체에서 지우려면 별도의 history rewrite가 필요하며
+  이건 원격 force-push가 필요한 작업이라 진행 전 확인 필요.
+
+### Added
+- 운영 환경(`DEBUG=False`) 에러 로깅 추가. 기존엔 `ADMINS` 설정이 없어서 500
+  에러가 콘솔에도 파일에도 안 남고 그냥 사라졌음 — `logs/django.log`에 10MB
+  단위로 로테이션되는 파일 핸들러 추가(`django`/`django.request` 로거,
+  WARNING 이상). `*.log`는 이미 `.gitignore` 대상.
+
 ## [0.2.9] - 2026-07-22
 
 ### Fixed
