@@ -97,6 +97,12 @@
     <a class="sidebar-link" onclick="go('onepiece-expansions')"><span class="method-tag tag-get">GET</span> 확장팩 목록</a>
     <a class="sidebar-link" onclick="go('onepiece-expansion-cards')"><span class="method-tag tag-get">GET</span> 확장팩 카드 목록</a>
 
+    <div class="sidebar-section">매입리스트</div>
+    <a class="sidebar-link" onclick="go('purchase-list-list')"><span class="method-tag tag-get">GET</span> 매입리스트 목록</a>
+    <a class="sidebar-link" onclick="go('purchase-list-detail')"><span class="method-tag tag-get">GET</span> 매입리스트 상세</a>
+    <a class="sidebar-link" onclick="go('purchase-list-items')"><span class="method-tag tag-get">GET</span> 매입리스트 카드 목록</a>
+    <a class="sidebar-link" onclick="go('purchase-lookup')"><span class="method-tag tag-get">GET</span> 상품코드로 매입가 조회</a>
+
     <div class="sidebar-section">엑셀 연동 도구</div>
     <a class="sidebar-link" onclick="go('excel-tool')">📊 엑셀 자동 업데이트</a>
   </nav>
@@ -528,6 +534,233 @@ Authorization: Api-Key YOUR_API_KEY</div>
           <div class="code-label">요청 예시</div>
           <div class="code-block">GET /api/onepiece/kr/expansions/EB01/cards/?rarity=SEC
 Authorization: Api-Key YOUR_API_KEY</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         매입리스트
+    ══════════════════════════════════════ -->
+
+    <div class="doc-section" id="purchase-list-list">
+      <div class="section-title">매입리스트 — 목록</div>
+      <div class="section-desc">게임별로 만들어진 매입리스트 목록을 조회합니다. 응답은 페이지네이션 없는 배열입니다.</div>
+      <div class="endpoint open" id="ep-purchase-list-list">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-purchase-list-list')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/purchase-lists/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">game_type</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>게임 구분 필터 (pokemon_kr / pokemon_jp / onepiece_kr / digimon_kr)</td></tr>
+              <tr><td><span class="param-name">is_active</span></td><td><span class="param-type">boolean</span></td><td><span class="param-req req-no">선택</span></td><td>활성 여부 (true/false)</td></tr>
+              <tr><td><span class="param-name">ordering</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>정렬 (created_at, updated_at, name / 기본: -created_at)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/purchase-lists/?game_type=pokemon_kr&is_active=true
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">[
+  {
+    "id": 8,
+    "name": "포켓몬 한글판_매입리스트_260703",
+    "game_type": "pokemon_kr",
+    "game_type_label": "포켓몬 한글판",
+    "description": "",
+    "default_purchase_ratio": "50.00",
+    "is_active": true,
+    "item_count": 4,
+    "decided_count": 4,
+    "created_at": "2026-07-03T09:00:00+09:00",
+    "updated_at": "2026-07-10T11:20:00+09:00"
+  }
+]</div>
+          <div class="code-label">응답 필드</div>
+          <table class="param-table">
+            <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">item_count</span></td><td><span class="param-type">integer</span></td><td>리스트에 담긴 카드 수</td></tr>
+              <tr><td><span class="param-name">decided_count</span></td><td><span class="param-type">integer</span></td><td>매입가가 확정된 카드 수</td></tr>
+              <tr><td><span class="param-name">default_purchase_ratio</span></td><td><span class="param-type">string(decimal)</span></td><td>새 카드 추가 시 기본 적용되는 매입가 비율(%)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="purchase-list-detail">
+      <div class="section-title">매입리스트 — 상세</div>
+      <div class="section-desc">매입리스트 하나의 정보와 담긴 카드 목록(<code>items</code>)을 함께 조회합니다.</div>
+      <div class="endpoint" id="ep-purchase-list-detail">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-purchase-list-detail')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/purchase-lists/{id}/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/purchase-lists/8/
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "id": 8,
+  "name": "포켓몬 한글판_매입리스트_260703",
+  "game_type": "pokemon_kr",
+  "game_type_label": "포켓몬 한글판",
+  "default_purchase_ratio": "50.00",
+  "is_active": true,
+  "item_count": 1,
+  "decided_count": 1,
+  "created_at": "2026-07-03T09:00:00+09:00",
+  "updated_at": "2026-07-10T11:20:00+09:00",
+  "items": [
+    {
+      "id": 55,
+      "card_id": 7655,
+      "card_name": "뿔충이",
+      "card_number": "001",
+      "rarity": "C",
+      "image_url": "https://...",
+      "shop_product_code": "PKM-M2A-001-K",
+      "expansion": { "code": "M2A", "name": "MEGA드림ex" },
+      "selling_price": 10000,
+      "purchase_ratio": "50.00",
+      "recommended_purchase_price": 5000,
+      "purchase_price": 5500,
+      "is_decided": true,
+      "final_purchase_price": 5500,
+      "memo": "",
+      "added_at": "2026-07-03T09:00:00+09:00",
+      "decided_at": "2026-07-05T14:30:00+09:00"
+    }
+  ]
+}</div>
+          <div class="code-label">오류 응답</div>
+          <div class="code-block"># 404 — 리스트 없음
+{ "detail": "Not found." }</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="purchase-list-items">
+      <div class="section-title">매입리스트 — 카드 목록</div>
+      <div class="section-desc">매입리스트에 담긴 카드만 조회합니다(리스트 자체 정보 제외). 응답은 페이지네이션 없는 배열입니다.</div>
+      <div class="endpoint" id="ep-purchase-list-items">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-purchase-list-items')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/purchase-lists/{id}/items/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">decided_only</span></td><td><span class="param-type">boolean</span></td><td><span class="param-req req-no">선택</span></td><td>매입가가 확정된 카드만 (true/false)</td></tr>
+              <tr><td><span class="param-name">ordering</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>정렬 (added_at, decided_at, purchase_price / 기본: -added_at)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/purchase-lists/8/items/?decided_only=true
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 필드</div>
+          <table class="param-table">
+            <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">purchase_ratio</span></td><td><span class="param-type">string(decimal)</span></td><td>이 카드에 적용된 매입가 비율(%)</td></tr>
+              <tr><td><span class="param-name">recommended_purchase_price</span></td><td><span class="param-type">integer</span></td><td>판매가 × 비율로 자동 계산된 추천 매입가</td></tr>
+              <tr><td><span class="param-name">purchase_price</span></td><td><span class="param-type">integer | null</span></td><td>가격 관리자가 확정한 매입가 (미확정 시 null)</td></tr>
+              <tr><td><span class="param-name">final_purchase_price</span></td><td><span class="param-type">integer</span></td><td>확정가가 없으면 추천가를 대신 제공 — <strong>실제 매입가로 쓸 값</strong></td></tr>
+              <tr><td><span class="param-name">is_decided</span></td><td><span class="param-type">boolean</span></td><td>매입가 확정 여부</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="purchase-lookup">
+      <div class="section-title">매입리스트 — 상품코드로 매입가 조회</div>
+      <div class="section-desc">
+        네이버 판매자 상품코드로 카드 하나의 매입가를 조회합니다. <strong>오프라인 매장에서 카드를 매입할 때 사용하는 핵심 API입니다</strong> — 매입리스트에 개별 등록된 카드가 아니어도 매입가를 받을 수 있습니다.
+        <br><br>매입가 결정 순서: ① 해당 게임에서 가장 최근에 만든 <strong>활성 매입리스트</strong>에 카드가 개별 등록돼 있으면 그 확정가(없으면 추천가) → ② 등록 안 돼 있으면 <strong>레어도별 매입 고정가</strong>(설정된 경우, 일본판 미지원) → ③ 둘 다 없으면 <code>null</code>.
+      </div>
+      <div class="endpoint open" id="ep-purchase-lookup">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-purchase-lookup')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/purchase-lists/lookup/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">game_type</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-yes">필수</span></td><td>게임 구분 (pokemon_kr / pokemon_jp / onepiece_kr / digimon_kr)</td></tr>
+              <tr><td><span class="param-name">shop_product_code</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-yes">필수</span></td><td>네이버 판매자 상품코드 (정확히 일치하는 카드 하나를 찾음)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/purchase-lists/lookup/?game_type=pokemon_kr&shop_product_code=PKM-M2A-001-K
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 — 매입리스트에 개별 등록된 카드 (200 OK)</div>
+          <div class="code-block">{
+  "found": true,
+  "card": {
+    "id": 7655,
+    "name": "뿔충이",
+    "card_number": "001",
+    "rarity": "C",
+    "shop_product_code": "PKM-M2A-001-K",
+    "image_url": "https://...",
+    "expansion": { "code": "M2A", "name": "MEGA드림ex" }
+  },
+  "purchase_price": 5500,
+  "price_source": "registered",
+  "purchase_list": { "id": 8, "name": "포켓몬 한글판_매입리스트_260703" }
+}</div>
+          <div class="code-label">응답 예시 — 개별 등록 안 됨, 레어도 고정가 적용 (200 OK)</div>
+          <div class="code-block">{
+  "found": true,
+  "card": { "id": 7656, "name": "구구", "rarity": "C", ... },
+  "purchase_price": 3300,
+  "price_source": "rarity_fixed",
+  "purchase_list": null
+}</div>
+          <div class="code-label">응답 예시 — 매입가 없음 (200 OK)</div>
+          <div class="code-block">{
+  "found": true,
+  "card": { "id": 7657, "name": "...", ... },
+  "purchase_price": null,
+  "price_source": null,
+  "purchase_list": null
+}</div>
+          <div class="code-label">응답 필드</div>
+          <table class="param-table">
+            <thead><tr><th>필드</th><th>타입</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">purchase_price</span></td><td><span class="param-type">integer | null</span></td><td><strong>실제 매입가로 쓸 값</strong>. null이면 매입 기준이 없는 카드</td></tr>
+              <tr><td><span class="param-name">price_source</span></td><td><span class="param-type">string | null</span></td><td><code>registered</code>(개별 등록) / <code>rarity_fixed</code>(레어도 고정가) / <code>null</code>(기준 없음)</td></tr>
+              <tr><td><span class="param-name">purchase_list</span></td><td><span class="param-type">object | null</span></td><td>매입가의 출처가 된 매입리스트. price_source가 rarity_fixed/null이면 null</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">오류 응답</div>
+          <div class="code-block"># 400 — game_type 누락/잘못됨
+{ "error": "유효하지 않은 game_type입니다." }
+
+# 404 — 상품코드에 해당하는 카드 없음
+{ "found": false, "error": "해당 상품코드의 카드를 찾을 수 없습니다." }
+
+# 401 — 인증 실패
+{ "detail": "Authentication credentials were not provided." }</div>
         </div>
       </div>
     </div>
