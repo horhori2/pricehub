@@ -17,10 +17,10 @@
   .pl-search-box { margin-bottom:12px; }
   .pl-search-input { width:100%; padding:11px 14px; background:var(--surface); border:1px solid var(--border2); border-radius:10px; color:var(--text); font-family:inherit; font-size:14px; outline:none; }
   .pl-search-input:focus { border-color:var(--accent2); }
-  .pl-search-panel { display:none; margin-bottom:28px; }
-  .pl-search-panel.show { display:block; }
+  .pl-search-panel { height:320px; overflow-y:auto; margin-bottom:28px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; }
   .pl-search-count { font-size:12px; color:var(--text-muted); margin-bottom:12px; }
   .pl-search-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:14px; }
+  .pl-search-hint { grid-column:1/-1; color:var(--text-dim); font-size:13px; padding:60px 0; text-align:center; }
   .pl-search-card { background:var(--surface2); border:1px solid var(--border); border-radius:12px; padding:12px; text-align:center; cursor:pointer; transition:all 0.15s; position:relative; }
   .pl-search-card:hover { border-color:var(--accent2); transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.25); }
   .pl-search-card.added { opacity:0.55; cursor:default; }
@@ -64,7 +64,7 @@
       <div class="page-title" style="margin-bottom:4px;">{{ plist.name }}</div>
       <div style="font-size:13px;color:var(--text-muted);">
         기본 매입가 비율 <strong style="color:var(--accent2);">{{ plist.default_purchase_ratio|floatformat:0 }}%</strong>
-        · 등록 카드 {{ rows|length }}장
+        · 등록 카드 <span id="registeredCount">{{ rows|length }}</span>장
         {% if plist.description %} · {{ plist.description }}{% endif %}
       </div>
     </div>
@@ -84,11 +84,12 @@
 
   <div class="pl-search-panel" id="searchPanel">
     <div class="pl-search-count" id="searchCount"></div>
-    <div class="pl-search-grid" id="searchGrid"></div>
+    <div class="pl-search-grid" id="searchGrid">
+      <div class="pl-search-hint">카드명 · 카드번호 · 상품코드를 검색하면 결과가 여기 표시됩니다.</div>
+    </div>
   </div>
 
-  {% if rows %}
-  <table class="pl-table">
+  <table class="pl-table" id="itemsTable" style="{% if not rows %}display:none;{% endif %}">
     <thead>
       <tr>
         <th style="width:44px;"></th>
@@ -131,11 +132,9 @@
       {% endfor %}
     </tbody>
   </table>
-  {% else %}
-  <div class="empty" style="padding:40px 0;text-align:center;color:var(--text-dim);">
+  <div class="empty" id="emptyState" style="{% if rows %}display:none;{% endif %}padding:40px 0;text-align:center;color:var(--text-dim);">
     아직 담긴 카드가 없습니다. 위 검색창에서 카드를 찾아 추가하세요.
   </div>
-  {% endif %}
 </div>
 
 <div id="fav-toast"></div>
@@ -155,32 +154,35 @@ function showToast(msg) {
   t._timer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
+const SEARCH_HINT_HTML = '<div class="pl-search-hint">카드명 · 카드번호 · 상품코드를 검색하면 결과가 여기 표시됩니다.</div>';
+
 let _searchTimer = null;
 function onSearchInput() {
   clearTimeout(_searchTimer);
   const q = document.getElementById('cardSearchInput').value.trim();
-  const panel = document.getElementById('searchPanel');
-  if (!q) { panel.classList.remove('show'); document.getElementById('searchGrid').innerHTML = ''; return; }
+  if (!q) {
+    document.getElementById('searchCount').textContent = '';
+    document.getElementById('searchGrid').innerHTML = SEARCH_HINT_HTML;
+    return;
+  }
   _searchTimer = setTimeout(() => runSearch(q), 250);
 }
 
 async function runSearch(q) {
-  const panel = document.getElementById('searchPanel');
   const grid  = document.getElementById('searchGrid');
   const count = document.getElementById('searchCount');
-  panel.classList.add('show');
-  grid.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:20px 0;">검색 중...</div>';
+  grid.innerHTML = '<div class="pl-search-hint">검색 중...</div>';
   count.textContent = '';
   try {
     const res = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`);
     const data = await res.json();
     if (!data.results || !data.results.length) {
-      grid.innerHTML = '<div style="color:var(--text-dim);font-size:13px;padding:20px 0;">검색 결과가 없습니다.</div>';
+      grid.innerHTML = '<div class="pl-search-hint">검색 결과가 없습니다.</div>';
       return;
     }
     count.textContent = `${data.results.length}개 결과 — 이미지로 확인하고 클릭해서 추가하세요`;
     grid.innerHTML = data.results.map(c => `
-      <div class="pl-search-card ${c.already_added ? 'added' : ''}" onclick="${c.already_added ? '' : `addCard(${c.id})`}">
+      <div class="pl-search-card ${c.already_added ? 'added' : ''}" data-card-id="${c.id}" onclick="${c.already_added ? '' : `addCard(${c.id})`}">
         ${c.already_added ? '<span class="pl-search-added-badge">추가됨</span>' : ''}
         ${c.image_url
           ? `<img src="${c.image_url}" class="pl-search-card-img" onerror="cardImgFallback(this)">`
@@ -194,8 +196,49 @@ async function runSearch(q) {
       </div>
     `).join('');
   } catch (e) {
-    grid.innerHTML = '<div style="color:var(--danger);font-size:13px;padding:20px 0;">검색 중 오류가 발생했습니다.</div>';
+    grid.innerHTML = '<div class="pl-search-hint" style="color:var(--danger);">검색 중 오류가 발생했습니다.</div>';
   }
+}
+
+function updateRegisteredCount(delta) {
+  const el = document.getElementById('registeredCount');
+  if (el) el.textContent = parseInt(el.textContent, 10) + delta;
+}
+
+function appendRegisteredRow(item) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('itemsTable').style.display = '';
+
+  const tr = document.createElement('tr');
+  tr.id = `item-row-${item.id}`;
+  tr.innerHTML = `
+    <td>${item.image_url ? `<img src="${item.image_url}" class="pl-thumb" onerror="cardImgFallback(this)">` : ''}</td>
+    <td>
+      <div style="font-weight:600;">${item.card_name}</div>
+      <div style="font-size:11px;color:var(--text-muted);">${item.card_number || ''} · ${item.rarity || ''}</div>
+    </td>
+    <td class="pl-price-mono">${item.selling_price.toLocaleString()}원</td>
+    <td>
+      <input type="number" class="pl-purchase-input" id="price-input-${item.id}" value="${item.recommended_purchase_price}" min="0" step="100">
+      <div style="font-size:10px;color:var(--text-muted);">추천 ${item.recommended_purchase_price.toLocaleString()}원 (${Math.round(item.purchase_ratio)}%)</div>
+    </td>
+    <td><span id="status-${item.id}" class="pl-undecided-badge">미확정(추천가)</span></td>
+    <td>
+      <div class="pl-action-cell">
+        <button class="pl-small-btn primary" onclick="saveItemPrice(${item.id})">결정</button>
+        <button class="pl-small-btn danger" onclick="removeItem(${item.id})">삭제</button>
+      </div>
+    </td>
+  `;
+  document.getElementById('itemsBody').appendChild(tr);
+}
+
+function markSearchCardAdded(cardId) {
+  const card = document.querySelector(`.pl-search-card[data-card-id="${cardId}"]`);
+  if (!card) return;
+  card.classList.add('added');
+  card.onclick = null;
+  card.insertAdjacentHTML('afterbegin', '<span class="pl-search-added-badge">추가됨</span>');
 }
 
 async function addCard(cardId) {
@@ -208,7 +251,9 @@ async function addCard(cardId) {
     const data = await res.json();
     if (!data.success) { showToast(data.error || '추가하지 못했습니다.'); return; }
     showToast(`${data.item.card_name} 추가됨`);
-    setTimeout(() => location.reload(), 500);
+    appendRegisteredRow(data.item);
+    markSearchCardAdded(cardId);
+    updateRegisteredCount(1);
   } catch (e) {
     showToast('추가 중 오류가 발생했습니다.');
   }
@@ -243,7 +288,15 @@ async function removeItem(itemId) {
       headers: { 'X-CSRFToken': getCsrf() },
     });
     const data = await res.json();
-    if (data.success) location.reload();
+    if (!data.success) return;
+    document.getElementById(`item-row-${itemId}`)?.remove();
+    updateRegisteredCount(-1);
+    const tbody = document.getElementById('itemsBody');
+    if (tbody && !tbody.children.length) {
+      document.getElementById('itemsTable').style.display = 'none';
+      document.getElementById('emptyState').style.display = '';
+    }
+    showToast('삭제되었습니다.');
   } catch (e) {
     showToast('삭제 중 오류가 발생했습니다.');
   }
