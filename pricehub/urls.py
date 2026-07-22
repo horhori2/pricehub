@@ -101,6 +101,7 @@ _pokemon_jp_views = {
     'card_list':      v.pokemon_jp_card_list,
     'card_detail':    v.pokemon_jp_card_detail,
     'set_price':      v.pokemon_jp_set_price,
+    'price_history':  v.pokemon_jp_price_history,
 }
 
 _onepiece_kr_views = {
@@ -139,7 +140,7 @@ urlpatterns = [
                 has_search=True, has_reset=True, has_bulk=True,
                 has_shop_stats=True, has_favorites=True, has_price_history=True),
 
-    *_card_urls('pokemon/jp', _pokemon_jp_views),
+    *_card_urls('pokemon/jp', _pokemon_jp_views, has_price_history=True),
 
     *_card_urls('onepiece/kr', _onepiece_kr_views,
                 has_search=True, has_reset=True, has_bulk=True,

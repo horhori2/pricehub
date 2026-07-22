@@ -410,6 +410,45 @@ def _price_history_view(request, cfg_key, pk):
     })
 
 
+def _jp_price_history_data(card, days=7):
+    """
+    일본판 최근 N일 가격 이력. JapanCardPrice는 (출처, 등급, 가격)이
+    바로 필드라 한글판처럼 raw_data를 파싱할 필요가 없다 — 출처별로
+    수집 시각이 서로 다를 수 있어 날짜(일) 단위로 묶는다.
+    """
+    since = timezone.now() - timedelta(days=days)
+    rows = list(
+        card.prices.filter(collected_at__gte=since)
+        .order_by('collected_at')
+        .values('collected_at', 'source', 'condition', 'price')
+    )
+    by_date = {}
+    order = []
+    for r in rows:
+        date_key = r['collected_at'].strftime('%m/%d')
+        if date_key not in by_date:
+            by_date[date_key] = {}
+            order.append(date_key)
+        label = f"{r['source']} {r['condition']}급"
+        by_date[date_key][label] = int(r['price'])
+    return [
+        {'date': d, 'prices': [{'mallName': label, 'price': price} for label, price in by_date[d].items()]}
+        for d in order
+    ]
+
+
+@staff_required
+def pokemon_jp_price_history(request, pk):
+    """일본판 카드 가격 이력 조회 (AJAX) — 그래프 기간(1주/1개월/1년) 전환용."""
+    card = get_object_or_404(JapanCard, pk=pk)
+    range_key = request.GET.get('range', 'month')
+    days = _PRICE_HISTORY_RANGE_DAYS.get(range_key, 30)
+    return JsonResponse({
+        'range': range_key,
+        'history': _jp_price_history_data(card, days=days),
+    })
+
+
 def _get_rarities(card_model, expansion_code=None):
     qs = card_model.objects.values_list('rarity', flat=True).distinct().order_by('rarity')
     if expansion_code:
@@ -2008,7 +2047,9 @@ def pokemon_jp_card_detail(request, pk):
         'card_type':     'pokemon_jp',
         'latest_prices': latest_prices,
         'stats':         stats,
-        'set_price_url': f'{base}/cards/{pk}/set-price/',
+        'set_price_url':           f'{base}/cards/{pk}/set-price/',
+        'price_history_url':       f'{base}/cards/{pk}/price-history/',
+        'price_history_week_json': safe_json_dumps(_jp_price_history_data(card, days=7), ensure_ascii=False),
         'back_url':      f'{base}/expansions/{card.expansion.code}/cards/',
         'breadcrumb': [
             ('홈', '/'),

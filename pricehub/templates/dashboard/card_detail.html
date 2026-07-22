@@ -8,9 +8,7 @@
 <title>{{ card.name }} · {% if card_type == 'pokemon_jp' %}일본판 {% endif %}판매가 설정</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
-{% if card_type != 'pokemon_jp' %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-{% endif %}
 </head>
 <body>
 
@@ -174,6 +172,21 @@
   ════════════════════════════════ -->
   {% else %}
 
+  <!-- 가격 변화 그래프 — 출처+등급별 추이 (한글판과 동일한 컴포넌트 재사용) -->
+  <div class="section">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <h2 style="margin:0;">📈 가격 변화 추이</h2>
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">
+        <div class="rank-filter-row" id="rangeFilterWrap" style="margin:0;"></div>
+        <div style="display:flex;gap:8px;align-items:center;" id="shopFilterWrap"></div>
+      </div>
+    </div>
+    <div id="weeklyChartEmpty" style="display:none;text-align:center;padding:60px;color:var(--text-muted);font-size:14px;">
+      수집된 데이터가 없습니다.
+    </div>
+    <canvas id="weeklyChart" style="max-height:320px;"></canvas>
+  </div>
+
   <div class="section">
     <div class="section-title"><span class="section-dot"></span>출처별 최신 가격 (클릭하면 판매가에 적용)</div>
     {% if latest_prices %}
@@ -201,12 +214,13 @@
 <script>
 const SET_PRICE_URL = '{{ set_price_url }}';
 
-{% if card_type != 'pokemon_jp' %}
-const marketItems        = {{ market_items_json|safe }};
 const PRICE_HISTORY_WEEK = {{ price_history_week_json|safe }};
 const PRICE_HISTORY_URL  = '{{ price_history_url }}';
-initPriceChart(marketItems);
 initWeeklyChart(PRICE_HISTORY_WEEK, PRICE_HISTORY_URL);
+
+{% if card_type != 'pokemon_jp' %}
+const marketItems = {{ market_items_json|safe }};
+initPriceChart(marketItems);
 {% endif %}
 </script>
 </body>
