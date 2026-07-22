@@ -113,7 +113,7 @@
             <div class="exp-date">{% if expansion.release_date %}{{ expansion.release_date|date:"Y.m.d" }}{% endif %}</div>
           </div>
           {% if expansion.image_url %}
-          <img src="{{ expansion.image_url }}" alt="{{ expansion.name }}" class="exp-image">
+          <img src="{{ expansion.image_url }}" alt="{{ expansion.name }}" class="exp-image" onerror="cardImgFallback(this)">
           {% endif %}
         </div>
         <div class="exp-stats">

@@ -8,6 +8,20 @@ function getCsrf() {
   return document.querySelector('meta[name="csrf-token"]').content;
 }
 
+/* ── 카드/확장팩 이미지 로드 실패 시 플레이스홀더로 대체 ──
+   외부 이미지 서버(포켓몬코리아 등)가 장애일 때 브라우저 기본 "깨진 이미지"
+   아이콘 대신 보여줌. onerror="cardImgFallback(this)" 로 사용. */
+const CARD_IMG_FALLBACK_SRC = 'data:image/svg+xml,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 140">'
+  + '<rect width="100" height="140" rx="10" fill="#20263a"/>'
+  + '<text x="50" y="80" font-size="42" text-anchor="middle" dominant-baseline="middle">🃏</text>'
+  + '</svg>'
+);
+function cardImgFallback(img) {
+  img.onerror = null;
+  img.src = CARD_IMG_FALLBACK_SRC;
+}
+
 /* ── 토스트 ── */
 function showToast(msg) {
   const t = document.getElementById('fav-toast');
@@ -208,7 +222,7 @@ async function searchCards() {
         : '';
       return `<a href="${CARD_DETAIL_BASE_URL}${item.id}/" class="search-result-item">
         ${item.image_url
-          ? `<img src="${item.image_url}" class="result-thumb" loading="lazy">`
+          ? `<img src="${item.image_url}" class="result-thumb" loading="lazy" onerror="cardImgFallback(this)">`
           : `<div class="result-thumb" style="display:flex;align-items:center;justify-content:center;font-size:18px;">🃏</div>`}
         <div class="result-info">
           <div class="result-name">${item.name}</div>

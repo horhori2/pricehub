@@ -30,7 +30,7 @@
   <div class="card-header">
     <div class="card-image-wrap">
       {% if card.image_url %}
-      <img src="{{ card.image_url }}" alt="{{ card.name }}" class="card-image">
+      <img src="{{ card.image_url }}" alt="{{ card.name }}" class="card-image" onerror="cardImgFallback(this)">
       {% else %}
       <div class="card-image-placeholder">🃏</div>
       {% endif %}

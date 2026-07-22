@@ -145,7 +145,7 @@
           </td>
           <td>
             {% if item.card.image_url %}
-            <img src="{{ item.card.image_url }}" class="card-thumb" loading="lazy">
+            <img src="{{ item.card.image_url }}" class="card-thumb" loading="lazy" onerror="cardImgFallback(this)">
             {% endif %}
           </td>
           <td>

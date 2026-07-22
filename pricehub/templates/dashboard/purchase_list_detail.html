@@ -133,7 +133,7 @@
       {% for row in rows %}
       {% if row.registered %}
       <tr id="item-row-{{ row.item.id }}">
-        <td>{% if row.card.image_url %}<img src="{{ row.card.image_url }}" class="pl-thumb">{% endif %}</td>
+        <td>{% if row.card.image_url %}<img src="{{ row.card.image_url }}" class="pl-thumb" onerror="cardImgFallback(this)">{% endif %}</td>
         <td>
           <div style="font-weight:600;">{{ row.card.name }}</div>
           <div style="font-size:11px;color:var(--text-muted);">{{ row.card.card_number }} · {{ row.card.rarity }}</div>
@@ -159,7 +159,7 @@
       </tr>
       {% else %}
       <tr class="pl-row-unregistered">
-        <td>{% if row.card.image_url %}<img src="{{ row.card.image_url }}" class="pl-thumb">{% endif %}</td>
+        <td>{% if row.card.image_url %}<img src="{{ row.card.image_url }}" class="pl-thumb" onerror="cardImgFallback(this)">{% endif %}</td>
         <td>
           <div style="font-weight:600;">{{ row.card.name }}</div>
           <div style="font-size:11px;color:var(--text-muted);">{{ row.card.card_number }} · {{ row.card.rarity }}</div>
@@ -255,7 +255,7 @@ async function runSearch(q) {
     }
     box.innerHTML = data.results.map(c => `
       <div class="pl-search-item" onclick="${c.already_added ? '' : `addCard(${c.id})`}" style="${c.already_added ? 'opacity:0.5;cursor:default;' : ''}">
-        ${c.image_url ? `<img src="${c.image_url}">` : ''}
+        ${c.image_url ? `<img src="${c.image_url}" onerror="cardImgFallback(this)">` : ''}
         <div class="pl-search-item-info">
           <div class="pl-search-item-name">${c.name}</div>
           <div class="pl-search-item-meta">${c.expansion_name || ''} · ${c.card_number || ''} · ${c.rarity || ''}</div>

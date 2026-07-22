@@ -304,7 +304,7 @@ async function toggleVerifyCandidates(cardEl, event) {
       html += `
         <div class="verify-candidate-row ${isCurrent ? 'is-current' : ''}">
           ${c.image_url
-            ? `<img src="${c.image_url}" class="verify-candidate-thumb" loading="lazy">`
+            ? `<img src="${c.image_url}" class="verify-candidate-thumb" loading="lazy" onerror="cardImgFallback(this)">`
             : `<div class="verify-candidate-thumb"></div>`}
           <div class="verify-candidate-info">
             <div class="verify-candidate-code">${c.shop_product_code}</div>
