@@ -297,6 +297,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .badge { display: inline-block; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; }
 .badge-rarity { background: rgba(108,99,255,0.15); color: var(--accent2); }
 .badge-code { background: var(--surface2); color: var(--text-muted); }
+.badge-mirror { background: rgba(91,141,239,0.15); color: var(--accent); }
 .card-name-title { font-size: 30px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 6px; }
 .card-expansion { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
 .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
@@ -343,6 +344,20 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .history-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .history-table tr:last-child td { border-bottom: none; }
 canvas { max-height: 280px; }
+
+/* ── card_detail: 일본판 출처별 최신 가격 ── */
+.jp-price-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.jp-price-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; cursor: pointer; transition: all 0.15s; }
+.jp-price-item:hover { border-color: var(--accent2); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+.jp-price-source { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.jp-price-condition { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; background: var(--surface3); color: var(--text-muted); }
+.jp-price-condition.cond-S  { background: rgba(245,166,35,0.15); color: var(--warning); }
+.jp-price-condition.cond-Am { background: rgba(156,163,175,0.15); color: var(--rank-silver); }
+.jp-price-condition.cond-A  { background: rgba(156,163,175,0.15); color: var(--rank-silver); }
+.jp-price-condition.cond-B  { background: rgba(205,124,58,0.15); color: var(--rank-bronze); }
+.jp-price-value { font-size: 19px; font-weight: 800; font-family: 'JetBrains Mono', monospace; color: var(--success); margin-bottom: 6px; }
+.jp-price-hint { font-size: 10px; color: var(--text-dim); opacity: 0; transition: opacity 0.15s; }
+.jp-price-item:hover .jp-price-hint { opacity: 1; }
 
 /* ================================================================
    bulk_price.html 전용 스타일
