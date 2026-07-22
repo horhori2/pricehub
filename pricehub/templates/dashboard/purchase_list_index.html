@@ -27,6 +27,14 @@
   .pl-create-form input[name="default_purchase_ratio"] { width:110px; }
   .pl-btn { padding:7px 16px; background:var(--accent2); border:none; border-radius:7px; color:#fff; font-size:13px; font-weight:700; font-family:inherit; cursor:pointer; }
   .pl-empty { color:var(--text-dim); font-size:13px; padding:8px 0; }
+  .pl-latest-badge { display:inline-block; padding:1px 7px; border-radius:8px; font-size:10px; font-weight:800; background:rgba(124,107,255,0.15); color:var(--accent2); vertical-align:middle; margin-right:6px; }
+  .pl-older-toggle { margin-bottom:8px; }
+  .pl-older-toggle summary { cursor:pointer; list-style:none; font-size:12px; color:var(--text-muted); padding:8px 2px; user-select:none; }
+  .pl-older-toggle summary::-webkit-details-marker { display:none; }
+  .pl-older-toggle summary::before { content:'▶'; display:inline-block; font-size:9px; margin-right:6px; transition:transform 0.15s; }
+  .pl-older-toggle[open] summary::before { transform:rotate(90deg); }
+  .pl-older-toggle summary:hover { color:var(--accent2); }
+  .pl-older-toggle .pl-list-row { margin-top:8px; }
 </style>
 </head>
 <body>
@@ -59,11 +67,11 @@
       </div>
     </div>
 
-    {% if g.lists %}
-      {% for l in g.lists %}
+    {% if g.latest_list %}
+      {% with l=g.latest_list %}
       <div class="pl-list-row">
         <a href="/purchase-lists/detail/{{ l.id }}/" class="pl-list-link">
-          <div class="pl-list-name">{{ l.name }}</div>
+          <div class="pl-list-name"><span class="pl-latest-badge">최신</span>{{ l.name }}</div>
           <div class="pl-list-meta">
             카드 {{ l.item_count }}장 · 매입가 확정 {{ l.decided_count }}장 · 기본 비율 {{ l.default_purchase_ratio|floatformat:0 }}%
           </div>
@@ -75,7 +83,29 @@
           </span>
         </div>
       </div>
-      {% endfor %}
+      {% endwith %}
+
+      {% if g.older_lists %}
+      <details class="pl-older-toggle">
+        <summary>이전 리스트 보기 ({{ g.older_lists|length }}개)</summary>
+        {% for l in g.older_lists %}
+        <div class="pl-list-row">
+          <a href="/purchase-lists/detail/{{ l.id }}/" class="pl-list-link">
+            <div class="pl-list-name">{{ l.name }}</div>
+            <div class="pl-list-meta">
+              카드 {{ l.item_count }}장 · 매입가 확정 {{ l.decided_count }}장 · 기본 비율 {{ l.default_purchase_ratio|floatformat:0 }}%
+            </div>
+          </a>
+          <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="copyList({{ l.id }}, '{{ l.name|escapejs }}')">⧉ 복사</button>
+            <span class="pl-badge {% if l.is_active %}active{% else %}inactive{% endif %}">
+              {% if l.is_active %}활성{% else %}비활성{% endif %}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      </details>
+      {% endif %}
     {% else %}
       <div class="pl-empty">아직 매입리스트가 없습니다.</div>
     {% endif %}

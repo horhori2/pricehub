@@ -28,9 +28,14 @@ from .views import staff_required
 
 @staff_required
 def purchase_list_index(request):
+    """
+    게임별 매입리스트 목록. 리스트가 쌓일수록(게임 종류가 늘거나, 주기적으로
+    새 리스트를 만들수록) 화면이 길어지는 걸 막기 위해 게임당 가장 최근
+    리스트만 상단에 바로 보여주고, 나머지는 접어둔다.
+    """
     games = []
     for game_type, label in GAME_TYPE_LABELS.items():
-        qs = (
+        lists = list(
             PurchaseList.objects
             .filter(game_type=game_type)
             .annotate(
@@ -44,9 +49,10 @@ def purchase_list_index(request):
         games.append({
             'game_type': game_type,
             'label': label,
-            'lists': qs,
-            'list_count': qs.count(),
-            'active_count': qs.filter(is_active=True).count(),
+            'latest_list': lists[0] if lists else None,
+            'older_lists': lists[1:],
+            'list_count': len(lists),
+            'active_count': sum(1 for l in lists if l.is_active),
             'supports_rarity': game_type in RARITY_PRICE_GAME_TYPES,
         })
     return render(request, 'dashboard/purchase_list_index.html', {'games': games})
