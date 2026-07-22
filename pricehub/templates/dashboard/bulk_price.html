@@ -74,11 +74,11 @@
     {% endif %}
   </div>
 
-  {% if needs_review > 0 %}
-  <div class="review-banner">
+  <!-- 점검 필요 카운트는 무거운 집계라 bulk-price/stats/ 로 비동기 로딩 후 채움 (아래 스크립트 참고) -->
+  <div class="review-banner" id="needsReviewBanner" style="display:none;">
     <div class="review-banner-left">
       <span>⚠️</span>
-      <span>점검이 필요한 카드 <span class="review-banner-count">{{ needs_review }}</span>개가 있습니다.</span>
+      <span>점검이 필요한 카드 <span class="review-banner-count" id="needsReviewCount"></span>개가 있습니다.</span>
     </div>
     <div style="display:flex;gap:8px;">
       <a href="{{ config.drop_url }}" class="review-link">📉 하락 대기 →</a>
@@ -86,19 +86,16 @@
       <a href="{{ config.unpriced_url }}" class="review-link">❓ 미설정 →</a>
     </div>
   </div>
-  {% endif %}
 
-  {% if underpriced_pending > 0 %}
-  <div class="review-banner">
+  <div class="review-banner" id="underpricedBanner" style="display:none;">
     <div class="review-banner-left">
       <span>🔻</span>
-      <span>판매가가 시장 최저가보다 낮은 카드 <span class="review-banner-count">{{ underpriced_pending }}</span>개가 있습니다.</span>
+      <span>판매가가 시장 최저가보다 낮은 카드 <span class="review-banner-count" id="underpricedCount"></span>개가 있습니다.</span>
     </div>
     <div style="display:flex;gap:8px;">
       <a href="{{ config.underpriced_url }}" class="review-link">🔻 저가 경고 확인 →</a>
     </div>
   </div>
-  {% endif %}
 
   <div class="main-grid">
     <!-- 좌: 경쟁 샵 랭킹 (AJAX 로딩) -->
@@ -339,6 +336,17 @@ function initBulkCharts(shops, overallAvg) {
         renderRankTable();
       } else {
         document.getElementById('shopStatsEmpty').style.display = '';
+      }
+
+      const needsReview = data.needs_review || 0;
+      if (needsReview > 0) {
+        document.getElementById('needsReviewCount').textContent = needsReview.toLocaleString();
+        document.getElementById('needsReviewBanner').style.display = '';
+      }
+      const underpricedPending = data.underpriced_pending || 0;
+      if (underpricedPending > 0) {
+        document.getElementById('underpricedCount').textContent = underpricedPending.toLocaleString();
+        document.getElementById('underpricedBanner').style.display = '';
       }
     })
     .catch(() => {

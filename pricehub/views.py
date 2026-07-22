@@ -743,7 +743,14 @@ def _card_search_view(request, card_model):
 # ════════════════════════════════════════════════════════════════
 
 def _bulk_shop_stats_api(request, cfg_key):
-    """bulk-price/stats/ — shop_stats + mall_names AJAX 엔드포인트"""
+    """
+    bulk-price/stats/ — shop_stats + mall_names + 점검 필요 카운트 AJAX 엔드포인트.
+
+    needs_review/underpriced_pending은 카드 전체를 훑는 무거운 집계라
+    (특히 _underpriced_count) _bulk_price_view에서 동기로 계산하면 페이지
+    렌더링이 느려진다. 이미 비동기로 불러오던 shop_stats 엔드포인트에
+    같이 얹어서, 페이지는 먼저 뜨고 점검 배너는 나중에 채워지도록 한다.
+    """
     cfg = _cfg(cfg_key)
     card_model  = cfg['card_model']
 
@@ -754,10 +761,26 @@ def _bulk_shop_stats_api(request, cfg_key):
     raw_list   = _load_raw_data(card_model, expansion_code=expansion_code, rarities=selected_rarities)
     shop_stats, overall_avg = _calc_shop_stats(raw_list)
 
+    # 점검 필요 카운트는 필터와 무관하게 항상 전체 기준 (기존 _bulk_price_view와 동일한 의미)
+    drop_pending = card_model.objects.filter(
+        modified_price__gt=0,
+        selling_price__gt=0,
+        modified_price__lt=F('selling_price'),
+    ).count()
+    rise_pending = card_model.objects.filter(
+        selling_price__gt=0,
+        modified_price__gt=F('selling_price'),
+    ).count()
+    new_pending = card_model.objects.filter(modified_price__gt=0, selling_price=0).count()
+    needs_review = drop_pending + rise_pending + new_pending
+    underpriced_pending = _underpriced_count(cfg)
+
     return JsonResponse({
         'mall_names': mall_names,
         'shop_stats': shop_stats,
         'overall_avg': overall_avg,
+        'needs_review': needs_review,
+        'underpriced_pending': underpriced_pending,
     }, safe=False)
 
 
@@ -777,30 +800,17 @@ def _bulk_price_view(request, cfg_key):
     expansions = list(cfg['expansion_model'].objects.order_by('-release_date', '-created_at'))
     all_rarities = _get_rarities(card_model, expansion_code or None)
 
-    # shop_stats는 페이지 로드 후 AJAX로 비동기 로딩 (bulk-price/stats/ 엔드포인트)
+    # shop_stats + needs_review/underpriced_pending 전부 페이지 로드 후 AJAX로
+    # 비동기 로딩한다 (bulk-price/stats/ 엔드포인트). needs_review/underpriced_pending은
+    # 카드 전체를 훑는 무거운 집계라 여기서 동기로 계산하면 페이지가 느려짐.
     mall_names = []
     shop_stats = []
     overall_avg = 0
-
-    drop_pending = card_model.objects.filter(
-        modified_price__gt=0,
-        selling_price__gt=0,
-        modified_price__lt=F('selling_price'),
-    ).count()
-    rise_pending = card_model.objects.filter(
-        selling_price__gt=0,
-        modified_price__gt=F('selling_price'),
-    ).count()
-    new_pending = card_model.objects.filter(modified_price__gt=0, selling_price=0).count()
-    needs_review = drop_pending + rise_pending + new_pending
-    underpriced_pending = _underpriced_count(cfg)
 
     return render(request, 'dashboard/bulk_price.html', {
         'mall_names': safe_json_dumps(mall_names),
         'mall_names_display': mall_names,
         'expansions': expansions,
-        'needs_review': needs_review,
-        'underpriced_pending': underpriced_pending,
         'shop_stats_json': safe_json_dumps(shop_stats, ensure_ascii=False),
         'shop_stats': shop_stats,
         'overall_avg': overall_avg,
