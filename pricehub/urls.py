@@ -17,6 +17,9 @@ def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
         path('expansions/',
              views['expansion_list'],
              name=f'{name}-expansions'),
+        path('expansions/stats/',
+             views['expansion_stats'],
+             name=f'{name}-expansion-stats'),
         path('expansions/<str:code>/cards/',
              views['card_list'],
              name=f'{name}-card-list'),
@@ -71,6 +74,7 @@ def _card_urls(prefix, views, *, has_bulk=False, has_shop_stats=False,
 
 _pokemon_kr_views = {
     'expansion_list':    v.pokemon_kr_expansion_list,
+    'expansion_stats':   v.pokemon_kr_expansion_stats,
     'card_list':         v.pokemon_kr_card_list,
     'set_price':         v.pokemon_kr_set_price,
     'search':            v.pokemon_kr_card_search,
@@ -83,7 +87,8 @@ _pokemon_kr_views = {
 }
 
 _pokemon_jp_views = {
-    'expansion_list': v.pokemon_jp_expansion_list,
+    'expansion_list':  v.pokemon_jp_expansion_list,
+    'expansion_stats': v.pokemon_jp_expansion_stats,
     'card_list':      v.pokemon_jp_card_list,
     'card_detail':    v.pokemon_jp_card_detail,
     'set_price':      v.pokemon_jp_set_price,
@@ -91,6 +96,7 @@ _pokemon_jp_views = {
 
 _onepiece_kr_views = {
     'expansion_list':  v.onepiece_kr_expansion_list,
+    'expansion_stats': v.onepiece_kr_expansion_stats,
     'card_list':       v.onepiece_kr_card_list,
     'set_price':       v.onepiece_kr_set_price,
     'search':          v.onepiece_kr_card_search,
@@ -102,6 +108,7 @@ _onepiece_kr_views = {
 
 _digimon_kr_views = {
     'expansion_list':  v.digimon_kr_expansion_list,
+    'expansion_stats': v.digimon_kr_expansion_stats,
     'card_list':       v.digimon_kr_card_list,
     'set_price':       v.digimon_kr_set_price,
     'search':          v.digimon_kr_card_search,

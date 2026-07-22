@@ -429,7 +429,6 @@ def _underpriced_count(cfg):
 def _expansion_list_view(request, cfg_key, extra_ctx=None):
     cfg = _cfg(cfg_key)
     expansion_model = cfg['expansion_model']
-    card_model = cfg['card_model']
     base_url = cfg['base_url']
 
     expansions = list(
@@ -440,6 +439,39 @@ def _expansion_list_view(request, cfg_key, extra_ctx=None):
         )
         .order_by('-release_date', '-created_at')
     )
+
+    # 하락 대기/저가 경고 카운트는 카드 가격 히스토리 전체를 훑는 무거운 집계라
+    # (특히 _underpriced_count의 "카드별 최신가" 서브쿼리는 데이터가 쌓일수록 느려짐)
+    # 페이지 로딩을 막지 않도록 여기서 동기 계산하지 않고, 프론트에서
+    # expansion_stats_url을 별도로 fetch해서 채운다 (expansion_list.html 참고).
+    ctx = {
+        'expansions': expansions,
+        'total_cards': sum(e.card_count for e in expansions),
+        'total_unpriced': sum(e.unpriced_count for e in expansions),
+        'expansion_stats_url': f'{base_url}/expansions/stats/',
+        'base_url': base_url,
+        'title': cfg['label'],
+        'breadcrumb': [('홈', '/'), (cfg['label'], None)],
+        'card_detail_base_url': f'{base_url}/cards/',
+        'bulk_drop_url':     f'{base_url}/bulk-price/drop/',
+        'bulk_unpriced_url': f'{base_url}/bulk-price/unpriced/',
+        'bulk_underpriced_url': f'{base_url}/bulk-price/underpriced/' if cfg_key != 'pokemon_jp' else '',
+    }
+    if extra_ctx:
+        ctx.update(extra_ctx)
+    return render(request, 'dashboard/expansion_list.html', ctx)
+
+
+def _expansion_stats_view(request, cfg_key):
+    """
+    확장팩 목록 페이지의 "가격 하락 대기"/"저가 경고" 카운트 — 별도 AJAX 엔드포인트.
+
+    _underpriced_count()는 카드별 최신 가격을 찾는 서브쿼리라 card_price
+    히스토리가 쌓일수록 느려진다. expansion_list 렌더링을 막지 않도록
+    분리해서 페이지가 뜬 뒤 프론트에서 비동기로 채운다.
+    """
+    cfg = _cfg(cfg_key)
+    card_model = cfg['card_model']
 
     try:
         drop_count = card_model.objects.filter(
@@ -453,23 +485,10 @@ def _expansion_list_view(request, cfg_key, extra_ctx=None):
     # 일본판은 시장가(엔)·판매가(원) 통화가 달라 비교 대상에서 제외
     underpriced_count = _underpriced_count(cfg) if cfg_key != 'pokemon_jp' else 0
 
-    ctx = {
-        'expansions': expansions,
-        'total_cards': sum(e.card_count for e in expansions),
-        'total_unpriced': sum(e.unpriced_count for e in expansions),
+    return JsonResponse({
         'total_drop': drop_count,
         'total_underpriced': underpriced_count,
-        'base_url': base_url,
-        'title': cfg['label'],
-        'breadcrumb': [('홈', '/'), (cfg['label'], None)],
-        'card_detail_base_url': f'{base_url}/cards/',
-        'bulk_drop_url':     f'{base_url}/bulk-price/drop/',
-        'bulk_unpriced_url': f'{base_url}/bulk-price/unpriced/',
-        'bulk_underpriced_url': f'{base_url}/bulk-price/underpriced/' if cfg_key != 'pokemon_jp' else '',
-    }
-    if extra_ctx:
-        ctx.update(extra_ctx)
-    return render(request, 'dashboard/expansion_list.html', ctx)
+    })
 
 
 def _digimon_tags(card):
@@ -1813,6 +1832,11 @@ def pokemon_kr_expansion_list(request):
 
 
 @staff_required
+def pokemon_kr_expansion_stats(request):
+    return _expansion_stats_view(request, 'pokemon_kr')
+
+
+@staff_required
 def pokemon_kr_card_list(request, code):
     expansion = get_object_or_404(Expansion, code=code)
     return _card_list_view(request, 'pokemon_kr', code, {
@@ -1914,6 +1938,11 @@ def pokemon_jp_expansion_list(request):
 
 
 @staff_required
+def pokemon_jp_expansion_stats(request):
+    return _expansion_stats_view(request, 'pokemon_jp')
+
+
+@staff_required
 def pokemon_jp_card_list(request, code):
     return _card_list_view(request, 'pokemon_jp', code)
 
@@ -1965,6 +1994,11 @@ def onepiece_kr_expansion_list(request):
         'reset_prices_url_prefix': '/onepiece/kr/expansions/',
         'reset_all_url':           '/onepiece/kr/reset-all-prices/',
     })
+
+
+@staff_required
+def onepiece_kr_expansion_stats(request):
+    return _expansion_stats_view(request, 'onepiece_kr')
 
 
 @staff_required
@@ -2029,6 +2063,11 @@ def digimon_kr_expansion_list(request):
         'reset_prices_url_prefix': '/digimon/kr/expansions/',
         'reset_all_url':           '/digimon/kr/reset-all-prices/',
     })
+
+
+@staff_required
+def digimon_kr_expansion_stats(request):
+    return _expansion_stats_view(request, 'digimon_kr')
 
 
 @staff_required
