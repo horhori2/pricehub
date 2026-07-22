@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 {% load static %}
+{% load cache_bust %}
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>가격 관리 시스템 · 로그인</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'dashboard/login.css' %}">
+<link rel="stylesheet" href="{% static_v 'dashboard/login.css' %}">
 </head>
 <body>
 <div class="login-box">

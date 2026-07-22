@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
+{% load cache_bust %}
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +8,7 @@
 <meta name="csrf-token" content="{{ csrf_token }}">
 <title>매입리스트 관리</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
+<link rel="stylesheet" href="{% static_v 'dashboard/dashboard.css' %}">
 <style>
   .pl-game-section { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px 24px; margin-bottom:18px; }
   .pl-game-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:8px; }

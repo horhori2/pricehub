@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load static %}
+{% load cache_bust %}
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -7,7 +8,7 @@
 <meta name="csrf-token" content="{{ csrf_token }}">
 <title>일괄 판매가 설정 · {{ config.label }}</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'dashboard/dashboard.css' %}">
+<link rel="stylesheet" href="{% static_v 'dashboard/dashboard.css' %}">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -277,7 +278,7 @@
 
 
 
-<script src="{% static 'dashboard/dashboard.js' %}"></script>
+<script src="{% static_v 'dashboard/dashboard.js' %}"></script>
 <script>
 /* 페이지별 설정값 */
 const BULK_RUN_URL        = '{{ config.bulk_run_url }}';
