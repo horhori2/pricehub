@@ -3,6 +3,13 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.2.11] - 2026-07-22
+
+### Added
+- `requirements.txt`에 운영 WSGI 서버 `gunicorn` 추가 — 지금까지 프로덕션
+  서버 구성요소가 requirements.txt에 없었음. 서버에 이미 다른 버전이 떠
+  있다면 그 버전에 맞춰 조정 필요.
+
 ## [0.2.10] - 2026-07-22
 
 ### Security

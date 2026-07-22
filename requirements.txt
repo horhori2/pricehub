@@ -7,6 +7,9 @@ tzdata==2026.2
 # DB 드라이버
 mysqlclient==2.2.8
 
+# 운영 WSGI 서버 (서버에 이미 다른 버전이 떠 있다면 그 버전에 맞춰 조정할 것)
+gunicorn==23.0.0
+
 # REST API
 djangorestframework==3.17.1
 django-filter==25.2
