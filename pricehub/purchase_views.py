@@ -17,9 +17,8 @@ from django.views.decorators.http import require_GET, require_POST
 from .models import PurchaseList, PurchaseListItem, RarityPurchasePrice, round_to_100
 from .purchase_config import (
     GAME_TYPE_CARD_MODEL, GAME_TYPE_LABELS, RARITY_PRICE_GAME_TYPES,
-    compute_rarity_price, get_rarity_price_map,
+    attach_cards, compute_rarity_price, get_rarity_price_map,
 )
-from .utils import safe_json_dumps
 from .views import staff_required
 
 
@@ -85,97 +84,32 @@ def purchase_list_create(request, game_type):
 @staff_required
 def purchase_list_detail(request, list_id):
     """
-    매입리스트 상세 — 전체 카드를 등록/미등록 구분 없이 한 화면에 보여준다.
-    등록된 카드는 확정/추천 매입가(판매가 기준)를, 미등록 카드는 레어도별
-    고정가(관리 화면에서 설정)를 즉석으로 보여준다(미등록 카드는 DB에
-    별도 행을 만들지 않음 — 화면에 보여줄 때만 계산).
+    매입리스트 상세 — 개별 등록한 카드만 보여준다(인기 카드 위주라 보통
+    많지 않음). 나머지 카드는 이 화면에서 목록으로 보여주지 않고, 검색
+    결과에서 큰 이미지로 확인하며 필요할 때만 추가한다(제목은 같은데
+    이미지가 다른 카드가 많아 작은 목록보다 큰 이미지 확인이 중요함).
     """
     plist = get_object_or_404(PurchaseList, pk=list_id)
-    card_model = GAME_TYPE_CARD_MODEL.get(plist.game_type)
-    content_type = ContentType.objects.get_for_model(card_model)
-    expansion_model = card_model._meta.get_field('expansion').related_model
+    items = list(plist.items.select_related('content_type').order_by('-added_at'))
+    attach_cards(items)
 
-    registered_map = {
-        it.object_id: it
-        for it in plist.items.filter(content_type=content_type)
-    }
+    # 카드의 판매가가 추가 시점 이후 바뀌었을 수 있으므로, 현재 판매가로 스냅샷을 갱신하고
+    # 추천 매입가를 다시 계산해 보여준다.
+    for item in items:
+        card = item.cached_card
+        if card is None:
+            continue
+        current_price = getattr(card, 'selling_price', 0) or 0
+        if item.selling_price_snapshot != current_price:
+            item.selling_price_snapshot = current_price
+            item.save(update_fields=['selling_price_snapshot', 'recommended_purchase_price'])
 
-    supports_rarity = plist.game_type in RARITY_PRICE_GAME_TYPES
-    price_map = get_rarity_price_map(plist.game_type) if supports_rarity else {}
-
-    cards_qs = card_model.objects.select_related('expansion').order_by('card_number')
-
-    expansion_code = request.GET.get('expansion', '')
-    if expansion_code:
-        cards_qs = cards_qs.filter(expansion__code=expansion_code)
-
-    all_rarities = list(
-        card_model.objects.exclude(rarity='').values_list('rarity', flat=True)
-        .distinct().order_by('rarity')
-    )
-    selected_rarities = request.GET.getlist('rarities')
-    if selected_rarities:
-        cards_qs = cards_qs.filter(rarity__in=selected_rarities)
-
-    status_filter = request.GET.get('status', 'all')
-    if status_filter == 'registered':
-        cards_qs = cards_qs.filter(id__in=registered_map.keys())
-    elif status_filter == 'unregistered':
-        cards_qs = cards_qs.exclude(id__in=registered_map.keys())
-
-    # 페이지네이션
-    per_page = 100
-    total_count = cards_qs.count()
-    page = max(1, int(request.GET.get('page', 1) or 1))
-    total_pages = max(1, -(-total_count // per_page))
-    page = min(page, total_pages)
-    offset = (page - 1) * per_page
-    cards_page = list(cards_qs[offset:offset + per_page])
-
-    rows = []
-    for card in cards_page:
-        item = registered_map.get(card.id)
-        if item is not None:
-            # 판매가가 추가 시점 이후 바뀌었을 수 있으므로 현재가로 갱신 후 추천가 재계산
-            current_price = getattr(card, 'selling_price', 0) or 0
-            if item.selling_price_snapshot != current_price:
-                item.selling_price_snapshot = current_price
-                item.save(update_fields=['selling_price_snapshot', 'recommended_purchase_price'])
-            rows.append({'registered': True, 'card': card, 'item': item})
-        else:
-            rows.append({
-                'registered': False,
-                'card': card,
-                'market_price': getattr(card, 'latest_market_price', None),
-                'computed_price': compute_rarity_price(card, price_map) if supports_rarity else None,
-            })
-
-    _half = 3
-    _start = max(1, page - _half)
-    _end = min(total_pages, page + _half)
-    if _end - _start < 6:
-        if _start == 1:
-            _end = min(total_pages, _start + 6)
-        else:
-            _start = max(1, _end - 6)
-    page_range = list(range(_start, _end + 1))
+    rows = [{'item': item, 'card': item.cached_card} for item in items]
 
     return render(request, 'dashboard/purchase_list_detail.html', {
         'plist': plist,
         'rows': rows,
         'game_label': GAME_TYPE_LABELS.get(plist.game_type, plist.game_type),
-        'supports_rarity': supports_rarity,
-        'total_count': total_count,
-        'registered_count': len(registered_map),
-        'expansions': expansion_model.objects.order_by('-release_date'),
-        'expansion_code': expansion_code,
-        'all_rarities': all_rarities,
-        'selected_rarities': selected_rarities,
-        'selected_rarities_json': safe_json_dumps(selected_rarities),
-        'status_filter': status_filter,
-        'page': page,
-        'total_pages': total_pages,
-        'page_range': page_range,
     })
 
 
@@ -198,7 +132,8 @@ def purchase_list_search_cards(request, list_id):
             Q(name__icontains=q)
             | Q(card_number__icontains=q)
             | Q(shop_product_code__icontains=q)
-        )[:20]
+        )
+        .order_by('name', 'card_number')[:60]
     )
 
     content_type = ContentType.objects.get_for_model(model)
