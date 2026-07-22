@@ -3,6 +3,22 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.3.4] - 2026-07-22
+
+### Added
+- 오프라인 매장 연동용 매입가 조회 API 추가:
+  `GET /api/purchase-lists/lookup/?game_type=<>&shop_product_code=<>`.
+  기존 매입리스트 API는 개별 등록된 카드만 조회 가능했는데, 실제로는
+  매장에서 스캔하는 아무 카드나(인기 카드든 일반 카드든) 매입가를 받아야
+  해서 신설. 조회 순서: ① 해당 게임에서 가장 최근에 만든 활성 매입리스트에
+  개별 등록돼 있으면 그 확정/추천가, ② 없으면 레어도별 매입 고정가
+  (설정된 경우, 일본판 제외), ③ 둘 다 없으면 null. API Key 인증 필요
+  (기존 카드 조회 API와 동일한 방식).
+
+### Known Issues
+- 매입리스트 관련 API(list/detail/items/lookup)가 `/api-docs/` 문서
+  페이지에 아직 반영 안 됨 — 별도 작업 필요.
+
 ## [0.3.3] - 2026-07-22
 
 ### Added

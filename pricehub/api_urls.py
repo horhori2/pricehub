@@ -94,6 +94,7 @@ urlpatterns = _tcg_api_urls(_pokemon_kr_views)
 
 _purchase_list_patterns = [
     path('', pav.PurchaseListListView.as_view(), name='purchase-list-list'),
+    path('lookup/', pav.PurchaseLookupView.as_view(), name='purchase-lookup'),
     path('<int:pk>/', pav.PurchaseListDetailView.as_view(), name='purchase-list-detail'),
     path('<int:pk>/items/', pav.PurchaseListItemsView.as_view(), name='purchase-list-items'),
 ]
