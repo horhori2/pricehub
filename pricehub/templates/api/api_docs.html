@@ -88,14 +88,34 @@
     <a class="sidebar-link" onclick="go('pokemon-card-detail')"><span class="method-tag tag-get">GET</span> 카드 상세</a>
     <a class="sidebar-link" onclick="go('pokemon-expansions')"><span class="method-tag tag-get">GET</span> 확장팩 목록</a>
     <a class="sidebar-link" onclick="go('pokemon-expansion-cards')"><span class="method-tag tag-get">GET</span> 확장팩 카드 목록</a>
+    <a class="sidebar-link" onclick="go('pokemon-price-snapshot')"><span class="method-tag tag-get">GET</span> 가격 스냅샷</a>
+    <a class="sidebar-link" onclick="go('pokemon-price-history')"><span class="method-tag tag-get">GET</span> 가격 이력</a>
     <a class="sidebar-link" onclick="go('pokemon-prices-latest')"><span class="method-tag tag-get">GET</span> 최신 시장가</a>
     <a class="sidebar-link" onclick="go('pokemon-prices-summary')"><span class="method-tag tag-get">GET</span> 수집 현황</a>
+
+    <div class="sidebar-section">포켓몬 일본판</div>
+    <a class="sidebar-link" onclick="go('jp-by-code')"><span class="method-tag tag-get">GET</span> 상품코드로 조회</a>
+    <a class="sidebar-link" onclick="go('jp-search')"><span class="method-tag tag-get">GET</span> 카드 검색</a>
+    <a class="sidebar-link" onclick="go('jp-expansions')"><span class="method-tag tag-get">GET</span> 확장팩 목록</a>
+    <a class="sidebar-link" onclick="go('jp-expansion-cards')"><span class="method-tag tag-get">GET</span> 확장팩 카드 목록</a>
+    <a class="sidebar-link" onclick="go('jp-price-snapshot')"><span class="method-tag tag-get">GET</span> 가격 스냅샷</a>
+    <a class="sidebar-link" onclick="go('jp-price-history')"><span class="method-tag tag-get">GET</span> 가격 이력</a>
 
     <div class="sidebar-section">원피스 한글판</div>
     <a class="sidebar-link" onclick="go('onepiece-by-code')"><span class="method-tag tag-get">GET</span> 상품코드로 조회</a>
     <a class="sidebar-link" onclick="go('onepiece-search')"><span class="method-tag tag-get">GET</span> 카드 검색</a>
     <a class="sidebar-link" onclick="go('onepiece-expansions')"><span class="method-tag tag-get">GET</span> 확장팩 목록</a>
     <a class="sidebar-link" onclick="go('onepiece-expansion-cards')"><span class="method-tag tag-get">GET</span> 확장팩 카드 목록</a>
+    <a class="sidebar-link" onclick="go('onepiece-price-snapshot')"><span class="method-tag tag-get">GET</span> 가격 스냅샷</a>
+    <a class="sidebar-link" onclick="go('onepiece-price-history')"><span class="method-tag tag-get">GET</span> 가격 이력</a>
+
+    <div class="sidebar-section">디지몬 한글판</div>
+    <a class="sidebar-link" onclick="go('digimon-by-code')"><span class="method-tag tag-get">GET</span> 상품코드로 조회</a>
+    <a class="sidebar-link" onclick="go('digimon-search')"><span class="method-tag tag-get">GET</span> 카드 검색</a>
+    <a class="sidebar-link" onclick="go('digimon-expansions')"><span class="method-tag tag-get">GET</span> 확장팩 목록</a>
+    <a class="sidebar-link" onclick="go('digimon-expansion-cards')"><span class="method-tag tag-get">GET</span> 확장팩 카드 목록</a>
+    <a class="sidebar-link" onclick="go('digimon-price-snapshot')"><span class="method-tag tag-get">GET</span> 가격 스냅샷</a>
+    <a class="sidebar-link" onclick="go('digimon-price-history')"><span class="method-tag tag-get">GET</span> 가격 이력</a>
 
     <div class="sidebar-section">매입리스트</div>
     <a class="sidebar-link" onclick="go('purchase-list-list')"><span class="method-tag tag-get">GET</span> 매입리스트 목록</a>
@@ -117,7 +137,9 @@
       <div class="auth-box">
         <h3>Base URL</h3>
         <div class="code-block">http://your-server/api/pokemon/kr/    # 포켓몬 한글판
-http://your-server/api/onepiece/kr/   # 원피스 한글판</div>
+http://your-server/api/pokemon/jp/    # 포켓몬 일본판
+http://your-server/api/onepiece/kr/   # 원피스 한글판
+http://your-server/api/digimon/kr/    # 디지몬 한글판</div>
       </div>
       <div class="auth-box">
         <h3>응답 형식</h3>
@@ -323,6 +345,64 @@ Authorization: Api-Key YOUR_API_KEY</div>
           <div class="code-label">요청 예시</div>
           <div class="code-block">GET /api/pokemon/kr/expansions/M2A/cards/?rarity=SAR
 Authorization: Api-Key YOUR_API_KEY</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="pokemon-price-snapshot">
+      <div class="section-title">포켓몬 한글판 — 가격 스냅샷</div>
+      <div class="section-desc">카드 하나의 판매처별 최신 가격 분포. DB에 캐시하지 말고 매번 실시간 호출할 것 — 매일 갱신되는 핵심 데이터다.</div>
+      <div class="endpoint" id="ep-pokemon-price-snapshot">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-pokemon-price-snapshot')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/pokemon/kr/cards/{id}/price-snapshot/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/pokemon/kr/cards/7655/price-snapshot/
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "market_items": [
+    { "mallName": "트레이너스", "price_int": 200, "clean_title": "포켓몬카드 뿔충이 C", "link": "https://...", "image": "https://..." }
+  ],
+  "stats": { "min": 200, "max": 350, "avg": 275, "median": 260, "count": 4 }
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="pokemon-price-history">
+      <div class="section-title">포켓몬 한글판 — 가격 이력</div>
+      <div class="section-desc">카드 하나의 기간별 가격 변화 이력. 가격 변화 그래프용.</div>
+      <div class="endpoint" id="ep-pokemon-price-history">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-pokemon-price-history')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/pokemon/kr/cards/{id}/price-history/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">range</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>week(7일) / month(30일, 기본값) / year(365일)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/pokemon/kr/cards/7655/price-history/?range=week
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "range": "week",
+  "history": [
+    { "date": "07/20", "prices": [{ "mallName": "트레이너스", "price": 200 }] },
+    { "date": "07/21", "prices": [{ "mallName": "트레이너스", "price": 210 }] }
+  ]
+}</div>
         </div>
       </div>
     </div>
@@ -533,6 +613,336 @@ Authorization: Api-Key YOUR_API_KEY</div>
           </table>
           <div class="code-label">요청 예시</div>
           <div class="code-block">GET /api/onepiece/kr/expansions/EB01/cards/?rarity=SEC
+Authorization: Api-Key YOUR_API_KEY</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="onepiece-price-snapshot">
+      <div class="section-title">원피스 한글판 — 가격 스냅샷</div>
+      <div class="section-desc">카드 하나의 판매처별 최신 가격 분포. DB에 캐시하지 말고 매번 실시간 호출할 것.</div>
+      <div class="endpoint" id="ep-onepiece-price-snapshot">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-onepiece-price-snapshot')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/onepiece/kr/cards/{id}/price-snapshot/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/onepiece/kr/cards/1234/price-snapshot/
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "market_items": [
+    { "mallName": "트레이너스", "price_int": 15000, "clean_title": "원피스카드 몽키디루피 SEC", "link": "https://...", "image": "https://..." }
+  ],
+  "stats": { "min": 15000, "max": 18000, "avg": 16200, "median": 16000, "count": 3 }
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="onepiece-price-history">
+      <div class="section-title">원피스 한글판 — 가격 이력</div>
+      <div class="endpoint" id="ep-onepiece-price-history">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-onepiece-price-history')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/onepiece/kr/cards/{id}/price-history/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">range</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>week(7일) / month(30일, 기본값) / year(365일)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/onepiece/kr/cards/1234/price-history/?range=week
+Authorization: Api-Key YOUR_API_KEY</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         포켓몬 일본판
+    ══════════════════════════════════════ -->
+
+    <div class="doc-section" id="jp-by-code">
+      <div class="section-title">포켓몬 일본판 — 상품코드로 카드 조회</div>
+      <div class="endpoint" id="ep-jp-by-code">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-jp-by-code')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/pokemon/jp/cards/by-product-code/{shop_product_code}/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/pokemon/jp/cards/by-product-code/PKMJP-M2A-001/
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "id": 321, "card_number": "001", "name": "フシギダネ", "rarity": "C",
+  "selling_price": null, "shop_product_code": "PKMJP-M2A-001",
+  "expansion": { "code": "M2A", "name": "MEGAドリームex" }
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="jp-search">
+      <div class="section-title">포켓몬 일본판 — 카드 검색</div>
+      <div class="endpoint" id="ep-jp-search">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-jp-search')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/pokemon/jp/cards/search/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">search</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>카드명·번호·확장팩명 통합 검색</td></tr>
+              <tr><td><span class="param-name">expansion</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>확장팩 코드</td></tr>
+              <tr><td><span class="param-name">rarity</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>레어도</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/pokemon/jp/cards/search/?name=フシギダネ
+Authorization: Api-Key YOUR_API_KEY</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="jp-expansions">
+      <div class="section-title">포켓몬 일본판 — 확장팩 목록</div>
+      <div class="endpoint" id="ep-jp-expansions">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-jp-expansions')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/pokemon/jp/expansions/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">응답 예시</div>
+          <div class="code-block">{
+  "count": 40,
+  "results": [
+    { "id": 5, "code": "M2A", "name": "MEGAドリームex", "image_url": "https://...", "release_date": "2026-01-01", "card_count": 180 }
+  ]
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="jp-expansion-cards">
+      <div class="section-title">포켓몬 일본판 — 확장팩별 카드 목록</div>
+      <div class="section-desc">한글판과 달리 <code>latest_market_price</code>가 없고(판매처 최저가 개념이 아님) <code>is_mirror</code>/<code>mirror_type</code>이 있다.</div>
+      <div class="endpoint" id="ep-jp-expansion-cards">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-jp-expansion-cards')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/pokemon/jp/expansions/{code}/cards/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/pokemon/jp/expansions/M2A/cards/
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "id": 321, "card_number": "001", "name": "フシギダネ", "rarity": "C",
+  "is_mirror": false, "mirror_type": "", "selling_price": null,
+  "shop_product_code": "PKMJP-M2A-001", "image_url": "https://...",
+  "expansion": { "code": "M2A", "name": "MEGAドリームex" }
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="jp-price-snapshot">
+      <div class="section-title">포켓몬 일본판 — 가격 스냅샷</div>
+      <div class="section-desc">한글판과 응답 형태가 다르다 — 판매처별 분포가 아니라 <strong>출처(카드러쉬/유유테이) × 등급별 최신가</strong>다.</div>
+      <div class="endpoint open" id="ep-jp-price-snapshot">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-jp-price-snapshot')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/pokemon/jp/cards/{id}/price-snapshot/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/pokemon/jp/cards/321/price-snapshot/
+Authorization: Api-Key YOUR_API_KEY</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "latest_prices": [
+    { "source": "카드러쉬", "condition": "S", "price": 30 },
+    { "source": "카드러쉬", "condition": "A-", "price": 70 }
+  ],
+  "stats": { "min": 30, "max": 70, "avg": 50, "median": 30, "count": 2 }
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="jp-price-history">
+      <div class="section-title">포켓몬 일본판 — 가격 이력</div>
+      <div class="section-desc">출처마다 수집 시각이 달라 날짜(일) 단위로 묶는다. <code>mallName</code> 자리에 <code>"카드러쉬 S급"</code>처럼 출처+등급 라벨이 들어간다.</div>
+      <div class="endpoint" id="ep-jp-price-history">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-jp-price-history')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/pokemon/jp/cards/{id}/price-history/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">range</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>week(7일) / month(30일, 기본값) / year(365일)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "range": "week",
+  "history": [
+    { "date": "07/20", "prices": [{ "mallName": "카드러쉬 S급", "price": 30 }] }
+  ]
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         디지몬 한글판
+    ══════════════════════════════════════ -->
+
+    <div class="doc-section" id="digimon-by-code">
+      <div class="section-title">디지몬 한글판 — 상품코드로 카드 조회</div>
+      <div class="endpoint" id="ep-digimon-by-code">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-digimon-by-code')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/digimon/kr/cards/by-product-code/{shop_product_code}/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/digimon/kr/cards/by-product-code/DGM-BTK04-001-K/
+Authorization: Api-Key YOUR_API_KEY</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="digimon-search">
+      <div class="section-title">디지몬 한글판 — 카드 검색</div>
+      <div class="endpoint" id="ep-digimon-search">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-digimon-search')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/digimon/kr/cards/search/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/digimon/kr/cards/search/?name=아구몬
+Authorization: Api-Key YOUR_API_KEY</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="digimon-expansions">
+      <div class="section-title">디지몬 한글판 — 확장팩 목록</div>
+      <div class="endpoint" id="ep-digimon-expansions">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-digimon-expansions')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/digimon/kr/expansions/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">응답 예시</div>
+          <div class="code-block">{
+  "count": 32,
+  "results": [
+    { "id": 4, "code": "BTK-04", "name": "그레이트 레전드", "image_url": "https://...", "release_date": "2025-11-01", "card_count": 150 }
+  ]
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="digimon-expansion-cards">
+      <div class="section-title">디지몬 한글판 — 확장팩별 카드 목록</div>
+      <div class="section-desc">다른 게임에 없는 <code>card_type</code>/<code>card_level</code>/<code>is_parallel</code>/<code>is_scarce</code> 필드가 추가로 있다.</div>
+      <div class="endpoint" id="ep-digimon-expansion-cards">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-digimon-expansion-cards')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/digimon/kr/expansions/{code}/cards/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "id": 900, "card_number": "001", "name": "아구몬", "rarity": "C",
+  "card_type": "디지몬", "card_level": "Lv.3", "is_parallel": false, "is_scarce": false,
+  "selling_price": 500, "shop_product_code": "DGM-BTK04-001-K", "image_url": "https://...",
+  "expansion": { "code": "BTK-04", "name": "그레이트 레전드" },
+  "latest_market_price": 500
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="digimon-price-snapshot">
+      <div class="section-title">디지몬 한글판 — 가격 스냅샷</div>
+      <div class="endpoint" id="ep-digimon-price-snapshot">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-digimon-price-snapshot')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/digimon/kr/cards/{id}/price-snapshot/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">응답 예시 (200 OK)</div>
+          <div class="code-block">{
+  "market_items": [
+    { "mallName": "트레이너스", "price_int": 500, "clean_title": "디지몬카드 아구몬", "link": "https://...", "image": "https://..." }
+  ],
+  "stats": { "min": 500, "max": 700, "avg": 600, "median": 550, "count": 2 }
+}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-section" id="digimon-price-history">
+      <div class="section-title">디지몬 한글판 — 가격 이력</div>
+      <div class="endpoint" id="ep-digimon-price-history">
+        <div class="endpoint-header" onclick="toggleEndpoint('ep-digimon-price-history')">
+          <span class="method-badge badge-get">GET</span>
+          <span class="endpoint-url">/api/digimon/kr/cards/{id}/price-history/</span>
+          <span class="endpoint-arrow">▶</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="auth-note">🔑 Api-Key 인증 필요</div>
+          <div class="code-label">Query Parameters</div>
+          <table class="param-table">
+            <thead><tr><th>파라미터</th><th>타입</th><th>필수</th><th>설명</th></tr></thead>
+            <tbody>
+              <tr><td><span class="param-name">range</span></td><td><span class="param-type">string</span></td><td><span class="param-req req-no">선택</span></td><td>week(7일) / month(30일, 기본값) / year(365일)</td></tr>
+            </tbody>
+          </table>
+          <div class="code-label">요청 예시</div>
+          <div class="code-block">GET /api/digimon/kr/cards/900/price-history/?range=week
 Authorization: Api-Key YOUR_API_KEY</div>
         </div>
       </div>
