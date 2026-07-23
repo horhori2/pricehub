@@ -38,13 +38,17 @@ def _get(path, params=None, timeout=5):
 def fetch_expansions(game_key):
     """확장팩 목록 (카탈로그 동기화용)"""
     path = _GAME_API_PATH[game_key]
-    return _get(f'/api/{path}/expansions/', timeout=15)
+    return _get(f'/api/{path}/expansions/', timeout=30)
 
 
 def fetch_cards(game_key, expansion_code):
-    """확장팩별 카드 목록 (카탈로그 동기화용)"""
+    """
+    확장팩별 카드 목록 (카탈로그 동기화용). 사용자 요청이 아니라 백그라운드
+    동기화라 응답 속도보다 완주가 중요함 — 카드 수가 많은 확장팩은 카드당
+    가격 인덱스 조회가 누적돼 수십 초 걸릴 수 있어 타임아웃을 넉넉히 잡는다.
+    """
     path = _GAME_API_PATH[game_key]
-    return _get(f'/api/{path}/expansions/{expansion_code}/cards/', timeout=15)
+    return _get(f'/api/{path}/expansions/{expansion_code}/cards/', timeout=60)
 
 
 def fetch_price_snapshot(game_key, source_id):
