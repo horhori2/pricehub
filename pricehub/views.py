@@ -430,6 +430,20 @@ def _price_history_view(request, cfg_key, pk):
     })
 
 
+def _jp_latest_prices(card):
+    """
+    일본판 카드의 출처×등급별 최신 가격 — {'출처_등급': CardPrice} 딕셔너리.
+    관리자 상세 페이지(pokemon_jp_card_detail)와 공개 API의 가격 스냅샷
+    (api_views.PriceSnapshotMixin)이 공용으로 쓴다.
+    """
+    latest_prices = {}
+    for price in card.prices.order_by('-collected_at'):
+        key = f'{price.source}_{price.condition}'
+        if key not in latest_prices:
+            latest_prices[key] = price
+    return latest_prices
+
+
 def _jp_price_history_data(card, days=7):
     """
     일본판 최근 N일 가격 이력. JapanCardPrice는 (출처, 등급, 가격)이
@@ -2053,12 +2067,7 @@ def pokemon_jp_card_detail(request, pk):
     card = get_object_or_404(JapanCard.objects.select_related('expansion'), pk=pk)
     base = '/pokemon/jp'
 
-    latest_prices = {}
-    for price in JapanCardPrice.objects.filter(card=card).order_by('-collected_at'):
-        key = f"{price.source}_{price.condition}"
-        if key not in latest_prices:
-            latest_prices[key] = price
-
+    latest_prices = _jp_latest_prices(card)
     price_values = [int(p.price) for p in latest_prices.values()]
     stats = _calc_stats(price_values)
 

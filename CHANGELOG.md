@@ -3,6 +3,24 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.6.3] - 2026-07-23
+
+### Fixed
+- **카드 목록 페이지 "판매가 초기화" 버튼이 동작하지 않던 버그** —
+  `dashboard.js`에 `showResetModal`이라는 이름의 함수가 두 번 정의돼 있어서
+  (카드 목록용: 인자 없음, 확장팩 목록용: `(code, name)`) 나중에 정의된
+  쪽이 항상 앞의 정의를 덮어썼음. 카드 목록 페이지에서 버튼을 누르면
+  "undefined의 모든 카드..." 메시지가 뜨고 확인 시 `RESET_URL_PREFIX`
+  미정의로 JS 에러가 나며 아무 것도 초기화되지 않았음. 카드 목록용 함수를
+  `showResetThisExpansionModal`로 이름을 분리해서 해결.
+
+### Changed
+- 어디서도 참조되지 않던 `pricehub/templates/dashboard/_pre_consolidation_backup/`
+  (예전 리팩터링 잔여물 템플릿 4개) 삭제.
+- 포켓몬 일본판 "출처×등급별 최신 가격" 집계 로직이 관리자 상세 페이지
+  (`views.py`)와 공개 API(`api_views.py`)에 각각 따로 구현돼 있던 걸
+  `_jp_latest_prices()` 공용 헬퍼로 통합.
+
 ## [0.6.2] - 2026-07-23
 
 ### Changed

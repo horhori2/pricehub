@@ -59,6 +59,7 @@ from .permissions import HasAPIKey
 from .views import (
     _PRICE_HISTORY_RANGE_DAYS,
     _calc_stats,
+    _jp_latest_prices,
     _jp_price_history_data,
     _parse_market_items,
     _price_history_data,
@@ -142,11 +143,7 @@ class PriceSnapshotMixin(APIKeyMixin, generics.GenericAPIView):
     def get(self, request, pk):
         card = get_object_or_404(self.card_model, pk=pk)
         if self.is_japan:
-            latest_prices = {}
-            for price in card.prices.order_by('-collected_at'):
-                key = f'{price.source}_{price.condition}'
-                if key not in latest_prices:
-                    latest_prices[key] = price
+            latest_prices = _jp_latest_prices(card)
             price_values = [int(p.price) for p in latest_prices.values()]
             data = [
                 {'source': p.source, 'condition': p.condition, 'price': int(p.price)}

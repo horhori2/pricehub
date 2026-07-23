@@ -138,8 +138,10 @@ async function savePrice(cardId) {
   } catch { showToast('저장 중 오류가 발생했어요'); }
 }
 
-/* ── 판매가 초기화 모달 공통 ── */
-function showResetModal() {
+/* ── 판매가 초기화 모달 (카드 목록 페이지 — 현재 보고 있는 확장팩 전체) ──
+   주의: expansion_list.html 쪽 showResetModal(code, name)과 이름이 겹쳐서
+   나중에 정의된 쪽이 항상 덮어쓰는 버그가 있었음 — 이름을 분리했다. */
+function showResetThisExpansionModal() {
   showModal(
     '⚠️', '판매가 초기화',
     document.getElementById('resetModalDesc')?.innerHTML
