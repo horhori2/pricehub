@@ -116,7 +116,7 @@
       <div class="section">
         <h2>🏪 판매처 목록</h2>
         {% if market_items %}
-        <div class="store-list">
+        <div class="store-list store-list-scroll">
           {% for item in market_items %}
           <div class="store-item">
             <div class="rank-badge {% if forloop.counter == 1 %}rank-1{% elif forloop.counter == 2 %}rank-2{% elif forloop.counter == 3 %}rank-3{% else %}rank-n{% endif %}">

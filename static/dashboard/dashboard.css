@@ -324,6 +324,7 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .content-grid { display: grid; grid-template-columns: 1fr 360px; gap: 24px; }
 .section h2 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
 .store-list { display: flex; flex-direction: column; gap: 10px; }
+.store-list-scroll { max-height: 560px; overflow-y: auto; padding-right: 4px; }
 .store-item { display: flex; align-items: center; gap: 14px; padding: 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
 .store-thumb { width: 48px; height: 48px; object-fit: contain; border-radius: 6px; background: var(--bg); flex-shrink: 0; }
 .store-thumb-placeholder { width: 48px; height: 48px; border-radius: 6px; background: var(--bg); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
