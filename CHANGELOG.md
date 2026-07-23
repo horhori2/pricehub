@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.5.4] - 2026-07-23
+
+### Added
+- `run_sync_catalog.sh` — pricesite 카탈로그 동기화용 cron 래퍼 스크립트
+  (기존 `run_collect_*.sh`와 동일한 형식). 가격 수집이 다 끝난 뒤 돌아야
+  그날 수집된 시장가가 카탈로그 캐시에 반영되므로, 마지막 가격 수집
+  cron(04:00 디지몬) 이후 시간대에 등록.
+
 ## [0.5.3] - 2026-07-23
 
 ### Fixed
