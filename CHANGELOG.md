@@ -3,6 +3,17 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.6.1] - 2026-07-23
+
+### Added
+- 커스텀 404/500 에러 페이지 — DEBUG=False일 때 노출되던 빈 기본 페이지 대신
+  다크 테마의 안내 페이지 표시 (`pricehub/templates/404.html`, `500.html`).
+- `robots.txt` — 공개 가격 검색 사이트(`/prices/`)만 크롤링 허용, 나머지
+  (관리자/API)는 전부 비공개 처리.
+- pricesite 테스트 코드 20개 추가 — 뷰(카탈로그 조회, 가격 API 연동, 읽기
+  전용 강제), api_client 캐싱, sync_catalog 커맨드의 upsert/정리 로직 검증.
+  지금까지 pricesite 쪽엔 테스트가 전혀 없었음.
+
 ## [0.6.0] - 2026-07-23
 
 ### Added

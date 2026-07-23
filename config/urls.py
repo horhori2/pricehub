@@ -1,8 +1,18 @@
 from django.contrib import admin
+from django.http import HttpResponse
 from django.urls import path, include
 from pricehub import api_urls
 
+
+def robots_txt(request):
+    # 관리자 대시보드/API는 크롤링될 이유가 없어 전부 막고, 공개 가격
+    # 검색 사이트(pricesite)만 명시적으로 허용한다.
+    content = 'User-agent: *\nAllow: /prices/\nDisallow: /\n'
+    return HttpResponse(content, content_type='text/plain')
+
+
 urlpatterns = [
+    path('robots.txt', robots_txt),
     path('admin/', admin.site.urls),
 
     # 대시보드 — 가격 관리자용 (루트에서 바로 접근)

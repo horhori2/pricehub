@@ -793,3 +793,31 @@ class PurchaseListCrudViewsTests(TestCase):
         data = res.json()
         self.assertTrue(data['success'])
         self.assertFalse(PurchaseList.objects.filter(id=plist.id).exists())
+
+
+class RobotsTxtTests(SimpleTestCase):
+    def test_disallows_everything_except_prices(self):
+        res = self.client.get('/robots.txt')
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res['Content-Type'], 'text/plain')
+        self.assertIn('Disallow: /', res.content.decode('utf-8'))
+        self.assertIn('Allow: /prices/', res.content.decode('utf-8'))
+
+
+class CustomErrorPageTests(TestCase):
+    def test_404_uses_custom_template_not_default_django_page(self):
+        with self.settings(DEBUG=False):
+            res = self.client.get('/this-path-does-not-exist/')
+        self.assertEqual(res.status_code, 404)
+        self.assertIn('404', res.content.decode('utf-8'))
+
+    def test_500_handler_renders_without_request_context(self):
+        # Django는 500.html을 request/컨텍스트 없이 렌더링하므로({% url %}/
+        # {% static %}만 안전) 그 상태 그대로 렌더 가능한지 확인한다.
+        from django.test import RequestFactory
+        from django.views.defaults import server_error
+
+        request = RequestFactory().get('/whatever/')
+        res = server_error(request)
+        self.assertEqual(res.status_code, 500)
+        self.assertIn('500', res.content.decode('utf-8'))
