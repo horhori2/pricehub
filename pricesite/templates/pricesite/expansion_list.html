@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+{% load static %}
+{% load cache_bust %}
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ label }} 확장팩 목록 · 카드 가격 검색</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static_v 'dashboard/dashboard.css' %}">
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <a href="{% url 'pricesite:home' %}" class="back-btn">← 홈</a>
+    <div class="breadcrumb"><strong style="color:var(--text)">{{ label }}</strong></div>
+  </div>
+</header>
+
+<main>
+  <div class="page-title">{{ label }} 확장팩</div>
+  <div class="page-sub" style="font-size:13px;color:var(--text-muted);margin-bottom:28px;">확장팩을 선택해 카드 가격을 확인하세요.</div>
+
+  {% if expansions %}
+  <div class="expansion-grid">
+    {% for expansion in expansions %}
+    <div class="expansion-card">
+      <a href="{% url 'pricesite:card-list' game_key expansion.code %}" class="exp-link">
+        <div class="exp-header">
+          <div>
+            <div class="exp-code">{{ expansion.code }}</div>
+            <div class="exp-name">{{ expansion.name }}</div>
+            <div class="exp-date">{% if expansion.release_date %}{{ expansion.release_date|date:"Y.m.d" }}{% endif %}</div>
+          </div>
+          {% if expansion.image_url %}
+          <img src="{{ expansion.image_url }}" alt="{{ expansion.name }}" class="exp-image" onerror="cardImgFallback(this)">
+          {% endif %}
+        </div>
+        <div class="exp-stats">
+          <div class="exp-stat"><span>카드 </span><strong>{{ expansion.card_count }}</strong></div>
+        </div>
+      </a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty">등록된 확장팩이 없습니다.</div>
+  {% endif %}
+</main>
+
+<script src="{% static_v 'dashboard/dashboard.js' %}"></script>
+</body>
+</html>

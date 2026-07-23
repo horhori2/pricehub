@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_filters',
     'pricehub',
+    'pricesite',
 ]
 
 # 캐시 — 기본값(LocMemCache)은 프로세스 로컬이라 gunicorn을 여러 워커로 띄우면

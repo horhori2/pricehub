@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+{% load static %}
+{% load cache_bust %}
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ expansion.name }} · {{ label }} · 카드 가격 검색</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static_v 'dashboard/dashboard.css' %}">
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <a href="{% url 'pricesite:expansion-list' game_key %}" class="back-btn">← {{ label }}</a>
+    <div class="breadcrumb">
+      <a href="{% url 'pricesite:home' %}">홈</a><span>/</span>
+      <a href="{% url 'pricesite:expansion-list' game_key %}">{{ label }}</a><span>/</span>
+      <strong style="color:var(--text)">{{ expansion.name }}</strong>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="page-code">{{ expansion.code }}</div>
+  <div class="page-title">{{ expansion.name }}</div>
+
+  <div class="action-bar" style="justify-content:space-between;margin-bottom:20px;">
+    <form method="get" class="search-box" style="max-width:360px;">
+      {% for r in selected_rarities %}<input type="hidden" name="rarities" value="{{ r }}">{% endfor %}
+      <input type="text" name="q" value="{{ q }}" class="search-input" placeholder="카드명 · 카드번호로 검색">
+      <button type="submit" class="search-btn">🔍 검색</button>
+    </form>
+    <span style="font-size:13px;color:var(--text-muted);">총 {{ total_count }}장</span>
+  </div>
+
+  {% if all_rarities %}
+  <div class="rarity-filter" style="margin-bottom:20px;">
+    <span class="filter-label">레어도</span>
+    <div class="rarity-divider"></div>
+    <a href="?{% if q %}q={{ q }}{% endif %}" class="rarity-chip {% if not selected_rarities %}active{% endif %}">전체</a>
+    {% for r in all_rarities %}
+    <a href="?{% if q %}q={{ q }}&{% endif %}rarities={{ r }}" class="rarity-chip {% if r in selected_rarities %}active{% endif %}">{{ r }}</a>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% if cards %}
+  <table class="card-table">
+    <thead>
+      <tr>
+        <th style="width:60px;"></th>
+        <th>카드</th>
+        <th>레어도</th>
+        {% if not is_japan %}<th>시장 최저가</th>{% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for card in cards %}
+      <tr onclick="location.href='{% url 'pricesite:card-detail' game_key card.id %}'">
+        <td>{% if card.image_url %}<img src="{{ card.image_url }}" class="card-thumb" onerror="cardImgFallback(this)">{% endif %}</td>
+        <td>
+          <a href="{% url 'pricesite:card-detail' game_key card.id %}" class="card-name-text">{{ card.name }}</a>
+          <div class="card-number-text">{{ card.card_number }}</div>
+        </td>
+        <td><span class="rarity-badge">{{ card.rarity }}</span></td>
+        {% if not is_japan %}
+        <td class="market-price">{% if card.latest_market_price %}{{ card.latest_market_price|floatformat:0 }}원{% else %}-{% endif %}</td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if total_pages > 1 %}
+  <div class="pagination-bar">
+    {% if page > 1 %}
+    <a class="pg-btn" href="?{% if q %}q={{ q }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}page={{ page|add:"-1" }}">← 이전</a>
+    {% else %}
+    <span class="pg-btn disabled">← 이전</span>
+    {% endif %}
+    <div class="pg-pages">
+      {% for p in page_range %}
+        {% if p == page %}
+        <span class="pg-num active">{{ p }}</span>
+        {% else %}
+        <a class="pg-num" href="?{% if q %}q={{ q }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}page={{ p }}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% if page < total_pages %}
+    <a class="pg-btn" href="?{% if q %}q={{ q }}&{% endif %}{% for r in selected_rarities %}rarities={{ r }}&{% endfor %}page={{ page|add:"1" }}">다음 →</a>
+    {% else %}
+    <span class="pg-btn disabled">다음 →</span>
+    {% endif %}
+    <span class="pg-info">{{ page }} / {{ total_pages }}페이지</span>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty">조건에 맞는 카드가 없습니다.</div>
+  {% endif %}
+</main>
+
+<script src="{% static_v 'dashboard/dashboard.js' %}"></script>
+</body>
+</html>

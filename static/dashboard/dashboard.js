@@ -359,10 +359,13 @@ function initPriceChart(marketItems) {
     options: {
       responsive: true,
       onClick: (event, elements) => {
-        if (elements.length > 0) setPrice(prices[elements[0].index]);
+        // setPrice()는 판매가 입력창이 있는 관리자 상세 페이지에만 정의돼 있음
+        // (읽기 전용 공개 가격검색 사이트에서도 이 차트를 재사용하므로 방어적으로 체크)
+        if (elements.length > 0 && typeof setPrice === 'function') setPrice(prices[elements[0].index]);
       },
       onHover: (event, elements) => {
-        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+        const clickable = elements.length > 0 && typeof setPrice === 'function';
+        event.native.target.style.cursor = clickable ? 'pointer' : 'default';
       },
       plugins: {
         legend: { display: false },

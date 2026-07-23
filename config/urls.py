@@ -9,6 +9,9 @@ urlpatterns = [
     # api-docs/ 포함 전체 대시보드 라우트는 pricehub.urls 안에 있음 (아래에서 include)
     path('', include('pricehub.urls', namespace='pricehub')),
 
+    # 일반 사용자용 가격 검색 사이트 — 완전 공개, 읽기 전용
+    path('prices/', include('pricesite.urls', namespace='pricesite')),
+
     # 매입리스트
     path('api/purchase-lists/', include(api_urls.purchase_list_urlpatterns)),
 
