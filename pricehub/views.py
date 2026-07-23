@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.core.cache import cache
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.db.models import OuterRef, Subquery, F, Count, Q
@@ -109,15 +110,35 @@ staff_required = user_passes_test(is_staff, login_url='/login/')
 # 로그인/로그아웃
 # ════════════════════════════════════════════════════════════════
 
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_LOCKOUT_SECONDS = 15 * 60  # 15분
+
+
+def _login_attempts_key(username):
+    # IP 기준은 nginx가 X-Forwarded-For를 신뢰할 수 있게 넘겨주는지 확인이
+    # 안 된 상태라(잘못되면 사용자 전체가 한 버킷으로 묶여 서로를 잠글 수
+    # 있음), 시도한 아이디 기준으로 잠근다 — 프록시 설정과 무관하게 안전함.
+    return f'login_attempts:{(username or "").strip().lower()}'
+
+
 def dashboard_login(request):
     error = None
     if request.method == 'POST':
-        user = authenticate(request,
-                            username=request.POST.get('username'),
-                            password=request.POST.get('password'))
+        username = request.POST.get('username')
+        attempts_key = _login_attempts_key(username)
+        attempts = cache.get(attempts_key, 0)
+
+        if attempts >= _LOGIN_MAX_ATTEMPTS:
+            error = f'로그인 시도가 너무 많습니다. {_LOGIN_LOCKOUT_SECONDS // 60}분 후 다시 시도해주세요.'
+            return render(request, 'dashboard/login.html', {'error': error})
+
+        user = authenticate(request, username=username, password=request.POST.get('password'))
         if user and user.is_staff:
+            cache.delete(attempts_key)
             login(request, user)
             return redirect('/')
+
+        cache.set(attempts_key, attempts + 1, _LOGIN_LOCKOUT_SECONDS)
         error = '아이디 또는 비밀번호가 올바르지 않습니다.'
     elif request.GET.get('expired'):
         error = '세션이 만료되었거나 다른 곳에서 로그인해 인증이 초기화됐습니다. 다시 로그인해주세요.'

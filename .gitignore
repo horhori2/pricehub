@@ -14,6 +14,9 @@ staticfiles/
 # 파일 기반 캐시(rate limit 등) 런타임 산출물
 django_cache/
 
+# DB 백업 덤프 (run_db_backup.sh 산출물) — 민감 데이터라 git에 안 넣음
+backups/
+
 ### Django.Python Stack ###
 # Byte-compiled / optimized / DLL files
 *.py[cod]

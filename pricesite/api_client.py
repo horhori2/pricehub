@@ -11,6 +11,7 @@ PRICEHUB_API_BASE_URL만 실제 도메인으로 바꾸면 그대로 동작한다
 """
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 _GAME_API_PATH = {
     'pokemon_kr': 'pokemon/kr',
@@ -18,6 +19,13 @@ _GAME_API_PATH = {
     'onepiece_kr': 'onepiece/kr',
     'digimon_kr': 'digimon/kr',
 }
+
+# 가격은 하루 1번만 갱신되므로, 같은 카드를 짧은 시간 안에 여러 번 조회해도
+# (트래픽 몰림·봇 등) pricehub API/DB를 매번 다시 두드리지 않도록 짧게
+# 캐시한다. DB에 영구 저장하는 게 아니라 TTL이 지나면 자동으로 다시
+# pricehub를 호출하므로 "가격은 캐시하지 않고 실시간으로" 원칙과 어긋나지
+# 않는다 — 부하 방지용 완충일 뿐, 하루 단위로 보면 항상 최신 값을 반영함.
+_PRICE_CACHE_TTL = 600  # 10분
 
 
 class PricehubAPIError(Exception):
@@ -54,14 +62,26 @@ def fetch_cards(game_key, expansion_code):
 def fetch_price_snapshot(game_key, source_id):
     """
     카드 최신 가격 스냅샷 — 한글판은 market_items(판매처별 분포),
-    일본판은 latest_prices(출처×등급별 최신가). 카드 상세 페이지에서
-    매 요청마다 실시간으로 호출한다(로컬에 캐시하지 않음).
+    일본판은 latest_prices(출처×등급별 최신가). 카드 상세 페이지 방문마다
+    호출되므로 짧게 캐시해서(_PRICE_CACHE_TTL) 부하를 줄인다.
     """
+    cache_key = f'pricesite:price-snapshot:{game_key}:{source_id}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
     path = _GAME_API_PATH[game_key]
-    return _get(f'/api/{path}/cards/{source_id}/price-snapshot/')
+    data = _get(f'/api/{path}/cards/{source_id}/price-snapshot/')
+    cache.set(cache_key, data, _PRICE_CACHE_TTL)
+    return data
 
 
 def fetch_price_history(game_key, source_id, range_key='week'):
-    """가격 변화 그래프용 기간별(1주/1개월/1년) 이력 — 실시간 호출."""
+    """가격 변화 그래프용 기간별(1주/1개월/1년) 이력 — 짧게 캐시(_PRICE_CACHE_TTL)."""
+    cache_key = f'pricesite:price-history:{game_key}:{source_id}:{range_key}'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
     path = _GAME_API_PATH[game_key]
-    return _get(f'/api/{path}/cards/{source_id}/price-history/', params={'range': range_key})
+    data = _get(f'/api/{path}/cards/{source_id}/price-history/', params={'range': range_key})
+    cache.set(cache_key, data, _PRICE_CACHE_TTL)
+    return data
