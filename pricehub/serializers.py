@@ -8,6 +8,7 @@ from rest_framework import serializers
 from .models import Expansion, Card, CardPrice
 from .models import OnePieceExpansion, OnePieceCard
 from .models import DigimonExpansion, DigimonCard
+from .models import JapanExpansion, JapanCard
 from .models import PurchaseList, PurchaseListItem
 
 
@@ -44,6 +45,7 @@ class CardListSerializer(serializers.ModelSerializer):
             'expansion_code', 'expansion_name',
             'selling_price',        # ← 관리자 설정 판매가
             'latest_price',         # ← 최신 시장가 (네이버)
+            'latest_market_price',  # ← 매일 갱신되는 시장 최저가 캐시
         ]
 
     def get_latest_price(self, obj):
@@ -113,14 +115,14 @@ class OnePieceExpansionListSerializer(serializers.ModelSerializer):
     card_count = serializers.IntegerField(read_only=True)
     class Meta:
         model = OnePieceExpansion
-        fields = ['code', 'name', 'release_date', 'card_count']
+        fields = ['id', 'code', 'name', 'image_url', 'release_date', 'card_count']
 
 class OnePieceCardListSerializer(serializers.ModelSerializer):
     expansion = serializers.SerializerMethodField()
     class Meta:
         model = OnePieceCard
         fields = ['id', 'card_number', 'name', 'rarity', 'selling_price',
-                  'shop_product_code', 'image_url', 'expansion']
+                  'shop_product_code', 'image_url', 'expansion', 'latest_market_price']
     def get_expansion(self, obj):
         return {'code': obj.expansion.code, 'name': obj.expansion.name}
 
@@ -129,7 +131,7 @@ class DigimonExpansionListSerializer(serializers.ModelSerializer):
     card_count = serializers.IntegerField(read_only=True)
     class Meta:
         model = DigimonExpansion
-        fields = ['code', 'name', 'release_date', 'card_count']
+        fields = ['id', 'code', 'name', 'image_url', 'release_date', 'card_count']
 
 
 class DigimonCardListSerializer(serializers.ModelSerializer):
@@ -139,7 +141,26 @@ class DigimonCardListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'card_number', 'name', 'rarity', 'card_type', 'card_level',
             'is_parallel', 'is_scarce', 'selling_price', 'shop_product_code',
-            'image_url', 'expansion',
+            'image_url', 'expansion', 'latest_market_price',
+        ]
+    def get_expansion(self, obj):
+        return {'code': obj.expansion.code, 'name': obj.expansion.name}
+
+
+class JapanExpansionListSerializer(serializers.ModelSerializer):
+    card_count = serializers.IntegerField(read_only=True)
+    class Meta:
+        model = JapanExpansion
+        fields = ['id', 'code', 'name', 'image_url', 'release_date', 'card_count']
+
+
+class JapanCardListSerializer(serializers.ModelSerializer):
+    expansion = serializers.SerializerMethodField()
+    class Meta:
+        model = JapanCard
+        fields = [
+            'id', 'card_number', 'name', 'rarity', 'is_mirror', 'mirror_type',
+            'selling_price', 'shop_product_code', 'image_url', 'expansion',
         ]
     def get_expansion(self, obj):
         return {'code': obj.expansion.code, 'name': obj.expansion.name}

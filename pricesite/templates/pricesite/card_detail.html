@@ -60,6 +60,12 @@
     </div>
   </div>
 
+  {% if api_error %}
+  <div class="section" style="text-align:center;color:var(--text-muted);padding:20px;">
+    ⚠️ {{ api_error }}
+  </div>
+  {% endif %}
+
   <!-- 가격 변화 그래프 -->
   <div class="section">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
@@ -81,7 +87,7 @@
     <div class="section-title"><span class="section-dot"></span>출처별 최신 가격</div>
     {% if latest_prices %}
     <div class="jp-price-grid">
-      {% for key, price in latest_prices.items %}
+      {% for price in latest_prices %}
       <div class="jp-price-item" style="cursor:default;">
         <div class="jp-price-source">{{ price.source }}</div>
         <div class="jp-price-condition cond-{% if price.condition == 'A-' %}Am{% else %}{{ price.condition }}{% endif %}">

@@ -33,10 +33,13 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 import django_filters
 
+from django.shortcuts import get_object_or_404
+
 from .models import (
     Expansion, Card, CardPrice,
     OnePieceExpansion, OnePieceCard, OnePieceCardPrice,
     DigimonExpansion, DigimonCard, DigimonCardPrice,
+    JapanExpansion, JapanCard, JapanCardPrice,
 )
 from .serializers import (
     ExpansionListSerializer,
@@ -48,9 +51,18 @@ from .serializers import (
     OnePieceCardListSerializer,
     DigimonExpansionListSerializer,
     DigimonCardListSerializer,
+    JapanExpansionListSerializer,
+    JapanCardListSerializer,
 )
 from .authentication import APIKeyAuthentication
 from .permissions import HasAPIKey
+from .views import (
+    _PRICE_HISTORY_RANGE_DAYS,
+    _calc_stats,
+    _jp_price_history_data,
+    _parse_market_items,
+    _price_history_data,
+)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -116,6 +128,51 @@ class CardSearchMixin(APIKeyMixin, generics.ListAPIView):
 
     def get_queryset(self):
         return self.card_model.objects.select_related('expansion').distinct()
+
+
+class PriceSnapshotMixin(APIKeyMixin, generics.GenericAPIView):
+    """
+    카드 최신 가격 스냅샷 — 한글판은 판매처별 가격 분포(market_items),
+    일본판은 출처×등급별 최신 가격(latest_prices). 매일 갱신되는 값이라
+    DB에 캐시하지 않고 요청마다 최신 데이터를 계산해 돌려준다.
+    """
+    card_model = None
+    is_japan = False
+
+    def get(self, request, pk):
+        card = get_object_or_404(self.card_model, pk=pk)
+        if self.is_japan:
+            latest_prices = {}
+            for price in card.prices.order_by('-collected_at'):
+                key = f'{price.source}_{price.condition}'
+                if key not in latest_prices:
+                    latest_prices[key] = price
+            price_values = [int(p.price) for p in latest_prices.values()]
+            data = [
+                {'source': p.source, 'condition': p.condition, 'price': int(p.price)}
+                for p in latest_prices.values()
+            ]
+            return Response({'latest_prices': data, 'stats': _calc_stats(price_values)})
+
+        latest_price_obj = card.prices.order_by('-collected_at').first()
+        market_items, stats = _parse_market_items(latest_price_obj)
+        return Response({'market_items': market_items, 'stats': stats})
+
+
+class PriceHistoryMixin(APIKeyMixin, generics.GenericAPIView):
+    """가격 변화 그래프용 기간별(1주/1개월/1년) 이력."""
+    card_model = None
+    is_japan = False
+
+    def get(self, request, pk):
+        card = get_object_or_404(self.card_model, pk=pk)
+        range_key = request.query_params.get('range', 'month')
+        days = _PRICE_HISTORY_RANGE_DAYS.get(range_key, 30)
+        if self.is_japan:
+            history = _jp_price_history_data(card, days=days)
+        else:
+            history = _price_history_data(card, card.prices, days=days)
+        return Response({'range': range_key, 'history': history})
 
 
 def _card_by_product_code_view(request, shop_product_code, card_model):
@@ -307,6 +364,14 @@ def card_by_product_code(request, shop_product_code):
     return _card_by_product_code_view(request, shop_product_code, Card)
 
 
+class PokemonPriceSnapshotView(PriceSnapshotMixin):
+    card_model = Card
+
+
+class PokemonPriceHistoryView(PriceHistoryMixin):
+    card_model = Card
+
+
 # ════════════════════════════════════════════════════════════════
 # 원피스 한글판
 # ════════════════════════════════════════════════════════════════
@@ -339,6 +404,14 @@ def onepiece_card_by_product_code(request, shop_product_code):
     return _card_by_product_code_view(request, shop_product_code, OnePieceCard)
 
 
+class OnePiecePriceSnapshotView(PriceSnapshotMixin):
+    card_model = OnePieceCard
+
+
+class OnePiecePriceHistoryView(PriceHistoryMixin):
+    card_model = OnePieceCard
+
+
 # ════════════════════════════════════════════════════════════════
 # 디지몬 한글판
 # ════════════════════════════════════════════════════════════════
@@ -369,3 +442,53 @@ class DigimonCardSearchView(CardSearchMixin):
 def digimon_card_by_product_code(request, shop_product_code):
     """상품코드로 디지몬 카드 조회"""
     return _card_by_product_code_view(request, shop_product_code, DigimonCard)
+
+
+class DigimonPriceSnapshotView(PriceSnapshotMixin):
+    card_model = DigimonCard
+
+
+class DigimonPriceHistoryView(PriceHistoryMixin):
+    card_model = DigimonCard
+
+
+# ════════════════════════════════════════════════════════════════
+# 포켓몬 일본판
+# ════════════════════════════════════════════════════════════════
+
+class JapanExpansionListView(ExpansionListMixin):
+    serializer_class = JapanExpansionListSerializer
+    expansion_model = JapanExpansion
+
+
+class JapanExpansionDetailView(ExpansionDetailMixin):
+    serializer_class = JapanExpansionListSerializer
+    expansion_model = JapanExpansion
+
+
+class JapanCardListView(CardListMixin):
+    serializer_class = JapanCardListSerializer
+    card_model = JapanCard
+
+
+class JapanCardSearchView(CardSearchMixin):
+    serializer_class = JapanCardListSerializer
+    card_model = JapanCard
+
+
+class JapanPriceSnapshotView(PriceSnapshotMixin):
+    card_model = JapanCard
+    is_japan = True
+
+
+class JapanPriceHistoryView(PriceHistoryMixin):
+    card_model = JapanCard
+    is_japan = True
+
+
+@api_view(['GET'])
+@authentication_classes([APIKeyAuthentication])
+@permission_classes([HasAPIKey])
+def japan_card_by_product_code(request, shop_product_code):
+    """상품코드로 포켓몬 일본판 카드 조회"""
+    return _card_by_product_code_view(request, shop_product_code, JapanCard)

@@ -19,4 +19,5 @@ urlpatterns = [
     path('api/pokemon/kr/',  include('pricehub.api_urls',               namespace='pokemon_kr')),
     path('api/onepiece/kr/', include(api_urls.onepiece_kr_urlpatterns)),
     path('api/digimon/kr/',  include(api_urls.digimon_kr_urlpatterns)),
+    path('api/pokemon/jp/',  include(api_urls.pokemon_jp_urlpatterns)),
 ]

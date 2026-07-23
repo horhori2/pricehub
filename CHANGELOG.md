@@ -3,6 +3,24 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.5.0] - 2026-07-23
+
+### Added
+- **pricesite를 pricehub DB 직접 조회 → REST API 기반 구조로 전환.**
+  pricesite가 나중에 별도 프로젝트/도메인으로 분리될 것을 염두에 두고,
+  더 이상 `pricehub.models`를 직접 import하지 않는다. 확장팩/카드 메타
+  데이터(이름·레어도·이미지 등, 신규 세트 발매 때만 바뀌는 정적 데이터)는
+  새 관리 커맨드 `sync_catalog`가 pricehub API를 통해 주기적으로 로컬
+  캐시(`pricesite` 앱의 신규 Expansion/Card 모델)에 채워두고, 목록·검색·
+  필터·페이지네이션은 이 로컬 캐시로 빠르게 처리한다. 반대로 매일 갱신
+  되는 핵심 가격 정보(판매처별 가격 분포, 가격 변화 이력)는 절대 로컬에
+  중복 저장하지 않고 카드 상세 페이지에서 매 요청마다 pricehub API를
+  실시간으로 호출해서 보여준다(`pricesite/api_client.py`). pricehub API에
+  없던 포켓몬 일본판 엔드포인트 및 게임별 가격 스냅샷/이력 엔드포인트를
+  새로 추가했고, API 호출은 서버 간 API Key로 인증(공개 사용자에게는
+  노출되지 않음). pricehub가 앞으로 다른 사이트에도 API로 정보를 제공할
+  수 있도록 하는 기반이기도 함.
+
 ## [0.4.0] - 2026-07-23
 
 ### Added

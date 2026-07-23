@@ -41,6 +41,16 @@ def _tcg_api_urls(views):
         patterns.append(
             path('prices/summary/', views['price_summary'], name='price-summary')
         )
+    if 'price_snapshot' in views:
+        patterns.append(
+            path('cards/<int:pk>/price-snapshot/',
+                 views['price_snapshot'].as_view(), name='card-price-snapshot')
+        )
+    if 'price_history' in views:
+        patterns.append(
+            path('cards/<int:pk>/price-history/',
+                 views['price_history'].as_view(), name='card-price-history')
+        )
     return patterns
 
 
@@ -53,6 +63,8 @@ _pokemon_kr_views = {
     'card_by_product_code': api_views.card_by_product_code,
     'price_latest':         api_views.LatestNaverPriceListView,
     'price_summary':        api_views.price_collection_summary,
+    'price_snapshot':       api_views.PokemonPriceSnapshotView,
+    'price_history':        api_views.PokemonPriceHistoryView,
 }
 
 _onepiece_kr_views = {
@@ -61,6 +73,8 @@ _onepiece_kr_views = {
     'expansion_card_list':  api_views.OnePieceCardListView,
     'card_search':          api_views.OnePieceCardSearchView,
     'card_by_product_code': api_views.onepiece_card_by_product_code,
+    'price_snapshot':       api_views.OnePiecePriceSnapshotView,
+    'price_history':        api_views.OnePiecePriceHistoryView,
 }
 
 _digimon_kr_views = {
@@ -69,6 +83,18 @@ _digimon_kr_views = {
     'expansion_card_list':  api_views.DigimonCardListView,
     'card_search':          api_views.DigimonCardSearchView,
     'card_by_product_code': api_views.digimon_card_by_product_code,
+    'price_snapshot':       api_views.DigimonPriceSnapshotView,
+    'price_history':        api_views.DigimonPriceHistoryView,
+}
+
+_pokemon_jp_views = {
+    'expansion_list':       api_views.JapanExpansionListView,
+    'expansion_detail':     api_views.JapanExpansionDetailView,
+    'expansion_card_list':  api_views.JapanCardListView,
+    'card_search':          api_views.JapanCardSearchView,
+    'card_by_product_code': api_views.japan_card_by_product_code,
+    'price_snapshot':       api_views.JapanPriceSnapshotView,
+    'price_history':        api_views.JapanPriceHistoryView,
 }
 
 # 원피스 한글판 (별도 include용)
@@ -81,6 +107,12 @@ onepiece_kr_urlpatterns = (
 digimon_kr_urlpatterns = (
     _tcg_api_urls(_digimon_kr_views),
     'digimon_kr',
+)
+
+# 포켓몬 일본판 (별도 include용)
+pokemon_jp_urlpatterns = (
+    _tcg_api_urls(_pokemon_jp_views),
+    'pokemon_jp',
 )
 
 # 포켓몬 한글판 (기본 include 대상)

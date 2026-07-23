@@ -85,6 +85,12 @@ REST_FRAMEWORK = {
     },
 }
 
+# pricesite(공개 가격 검색 사이트)가 pricehub REST API를 호출할 때 쓰는 서버 간
+# 인증 정보. 같은 서버에서 도는 동안엔 localhost로 호출하지만, 추후 pricesite가
+# 별도 프로젝트/도메인으로 분리돼도 이 두 값만 바꾸면 그대로 동작한다.
+PRICEHUB_API_BASE_URL = os.getenv('PRICEHUB_API_BASE_URL', 'http://127.0.0.1:8000')
+PRICEHUB_API_KEY = os.getenv('PRICEHUB_API_KEY', '')
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
