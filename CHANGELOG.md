@@ -3,6 +3,16 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.6.7] - 2026-07-23
+
+### Fixed
+- `scripts/` 하위 폴더로 운영 스크립트를 정리하면서(0.6.3) 깨졌던
+  `ModuleNotFoundError: No module named 'config'` — 스크립트가 두 단계
+  깊이(`scripts/<분류>/*.py`)로 이동해 프로젝트 루트가 더 이상 `sys.path`에
+  자동으로 잡히지 않던 것. `django.setup()` 이전에 프로젝트 루트를
+  `sys.path`에 추가하도록 `django.setup()`을 쓰는 스크립트 21개 전체에
+  동일하게 적용.
+
 ## [0.6.6] - 2026-07-23
 
 ### Added
