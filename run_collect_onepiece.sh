@@ -19,7 +19,7 @@ echo "========================================" >> logs/collect_onepiece_prices.
 echo "시작: $(date)" >> logs/collect_onepiece_prices.log
 
 # Python 스크립트 실행 (모든 카드 수집)
-python collect_onepiece_prices.py << EOF
+python scripts/collect/collect_onepiece_prices.py << EOF
 1
 yes
 EOF

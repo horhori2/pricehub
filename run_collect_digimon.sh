@@ -19,7 +19,7 @@ echo "========================================" >> logs/collect_digimon_prices.l
 echo "시작: $(date)" >> logs/collect_digimon_prices.log
 
 # Python 스크립트 실행 (cron 모드 - 모든 카드 자동 수집)
-CRON_MODE=true python collect_digimon_prices.py
+CRON_MODE=true python scripts/collect/collect_digimon_prices.py
 
 # 종료 로그
 echo "완료: $(date)" >> logs/collect_digimon_prices.log

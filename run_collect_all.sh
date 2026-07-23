@@ -6,7 +6,7 @@ export CRON_MODE=true
 
 cd /home/ubuntu/pricehub
 source /home/ubuntu/pricehub/venv/bin/activate
-python /home/ubuntu/pricehub/collect_all_prices.py >> /home/ubuntu/pricehub/logs/collect_all_prices.log 2>&1
+python /home/ubuntu/pricehub/scripts/collect/collect_all_prices.py >> /home/ubuntu/pricehub/logs/collect_all_prices.log 2>&1
 
 echo "Completed at $(date)" >> /home/ubuntu/pricehub/logs/collect_all_prices.log
 

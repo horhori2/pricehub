@@ -3,6 +3,16 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.6.2] - 2026-07-23
+
+### Changed
+- **루트에 흩어져 있던 운영 스크립트 25개를 `scripts/` 하위 목적별 폴더로 정리**
+  (`collect/` 가격 수집, `japan_sync/` 일본판 export·import, `catalog/` 신작
+  카드 크롤링, `maintenance/` 이미지·엑셀 업데이트, `cleanup/` 데이터 초기화,
+  `archive/` 완료된 1회성 스크립트). 스크립트 내부 로직은 그대로, 위치만
+  이동(`git mv`로 히스토리 보존) — `run_collect_*.sh`가 부르는 경로만 함께
+  수정해서 서버 crontab은 변경 불필요.
+
 ## [0.6.1] - 2026-07-23
 
 ### Added
