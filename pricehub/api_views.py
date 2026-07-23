@@ -26,7 +26,7 @@ TCG 카드 가격 API — API Key 인증 적용.
 from datetime import timedelta
 
 from django.utils import timezone
-from django.db.models import Count, Max, Prefetch, Subquery, OuterRef
+from django.db.models import Count, Max, Subquery, OuterRef
 from rest_framework import generics, filters, status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.response import Response
@@ -238,12 +238,12 @@ class ExpansionCardListView(CardListMixin):
     card_model = Card
 
     def get_queryset(self):
+        # prices를 통째로 prefetch하지 않는다 — 카드당 가격 이력이 수백 건씩
+        # 쌓여 있어(raw_data 포함 용량 큼) 확장팩 전체를 순회할 때 매우
+        # 느려짐. serializer가 카드별로 최신 1건만 인덱스 조회한다.
         return (
             Card.objects
             .select_related('expansion')
-            .prefetch_related(
-                Prefetch('prices', queryset=CardPrice.objects.order_by('-collected_at'))
-            )
             .filter(expansion__code=self.kwargs['code'])
         )
 
@@ -283,9 +283,6 @@ class CardSearchView(CardSearchMixin):
         return (
             Card.objects
             .select_related('expansion')
-            .prefetch_related(
-                Prefetch('prices', queryset=CardPrice.objects.order_by('-collected_at'))
-            )
             .distinct()
         )
 
@@ -300,13 +297,9 @@ class CardDetailView(APIKeyMixin, generics.RetrieveAPIView):
     serializer_class = CardDetailSerializer
 
     def get_queryset(self):
-        return (
-            Card.objects
-            .select_related('expansion')
-            .prefetch_related(
-                Prefetch('prices', queryset=CardPrice.objects.order_by('-collected_at'))
-            )
-        )
+        # prices는 prefetch하지 않는다 — CardDetailSerializer가
+        # price_limit만큼만 쿼리셋에서 직접 슬라이스(LIMIT)해서 가져온다.
+        return Card.objects.select_related('expansion')
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()

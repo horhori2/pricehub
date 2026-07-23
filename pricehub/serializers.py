@@ -49,8 +49,10 @@ class CardListSerializer(serializers.ModelSerializer):
         ]
 
     def get_latest_price(self, obj):
-        prices = obj.prices.all()
-        return CardPriceLatestSerializer(prices[0]).data if prices else None
+        # card_id + collected_at 인덱스를 타는 단건 조회 — 카드당 가격 이력이
+        # 수백 건씩 쌓여도(raw_data까지 포함해 용량이 큼) 전체를 안 불러온다.
+        latest = obj.prices.order_by('-collected_at').first()
+        return CardPriceLatestSerializer(latest).data if latest else None
 
 
 class CardDetailSerializer(serializers.ModelSerializer):
