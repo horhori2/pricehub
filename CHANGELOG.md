@@ -3,6 +3,15 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.6.4] - 2026-07-23
+
+### Changed
+- `bulk_price.html`(우선순위 자동완성)과 `shop_stats.html`에 거의 동일한
+  "우선순위 입력창 채우기/하이라이트/삭제" JS가 이름만 다르게
+  (`addToPriority`/`addShopToPriority` 등) 각각 구현돼 있던 걸 하나로
+  통합. 페이지별 차이(스크롤 여부, 삭제 시 localStorage 자동저장 여부)는
+  옵션 파라미터로 유지.
+
 ## [0.6.3] - 2026-07-23
 
 ### Fixed

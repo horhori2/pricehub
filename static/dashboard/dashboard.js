@@ -589,23 +589,28 @@ function renderRankTable() {
   }).join('');
 }
 
-function addToPriority(name) {
+/* 판매처 우선순위 입력창(#p1~#p5) 채우기/하이라이트/삭제 — bulk_price.html과
+   shop_stats.html이 공용으로 쓴다. scroll: 클릭한 입력창까지 스크롤할지
+   (shop_stats처럼 목록이 긴 페이지에서 필요), save: 삭제 시 localStorage에
+   자동저장할지(bulk_price만 이 기능이 있음). */
+function addToPriority(name, { scroll = false } = {}) {
   for (let i = 1; i <= 5; i++) {
-    if (document.getElementById(`p${i}`).value.trim() === name) { highlightPriorityInput(i); return; }
+    if (document.getElementById(`p${i}`).value.trim() === name) { highlightPriorityInput(i, scroll); return; }
   }
   for (let i = 1; i <= 5; i++) {
-    if (!document.getElementById(`p${i}`).value.trim()) { document.getElementById(`p${i}`).value = name; highlightPriorityInput(i); return; }
+    if (!document.getElementById(`p${i}`).value.trim()) { document.getElementById(`p${i}`).value = name; highlightPriorityInput(i, scroll); return; }
   }
-  document.getElementById('p5').value = name; highlightPriorityInput(5);
+  document.getElementById('p5').value = name; highlightPriorityInput(5, scroll);
 }
-function highlightPriorityInput(idx) {
+function highlightPriorityInput(idx, scroll = false) {
   const input = document.getElementById(`p${idx}`);
   input.style.borderColor = 'var(--accent2)'; input.style.background = 'rgba(124,107,255,0.06)';
   setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 800);
+  if (scroll) input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
-function clearPriority(idx) {
+function clearPriorityInput(idx, { save = false } = {}) {
   document.getElementById(`p${idx}`).value = '';
-  saveBulkSettings();
+  if (save) saveBulkSettings();
 }
 
 /* ================================================================
@@ -1350,7 +1355,7 @@ function renderShopRank() {
     const bw   = Math.round((s.count / MAX_COUNT) * 70);
     const dc   = s.diff < 0 ? 'diff-cheap' : s.diff > 0 ? 'diff-exp' : 'diff-same';
     const dl   = s.diff < 0 ? '▼' : s.diff > 0 ? '▲' : '=';
-    return `<tr class="clickable" onclick="addShopToPriority('${s.name.replace(/'/g, "\\'")}')">
+    return `<tr class="clickable" onclick="addToPriority('${s.name.replace(/'/g, "\\'")}', {scroll: true})">
       <td><span class="rank-badge ${rc}">${rank}</span></td>
       <td style="font-weight:600;font-size:13px;">${s.name}</td>
       <td><div class="count-bar-wrap"><div class="count-bar" style="width:${bw}px"></div><span class="count-val">${s.count}</span></div></td>
@@ -1359,23 +1364,6 @@ function renderShopRank() {
     </tr>`;
   }).join('');
 }
-
-function addShopToPriority(name) {
-  for (let i = 1; i <= 5; i++) {
-    if (document.getElementById(`p${i}`).value.trim() === name) { highlightShopInput(i); return; }
-  }
-  for (let i = 1; i <= 5; i++) {
-    if (!document.getElementById(`p${i}`).value.trim()) { document.getElementById(`p${i}`).value = name; highlightShopInput(i); return; }
-  }
-  document.getElementById('p5').value = name; highlightShopInput(5);
-}
-function highlightShopInput(idx) {
-  const input = document.getElementById(`p${idx}`);
-  input.style.borderColor = 'var(--accent2)'; input.style.background = 'rgba(124,107,255,0.06)';
-  setTimeout(() => { input.style.borderColor = ''; input.style.background = ''; }, 800);
-  input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-}
-function clearShopP(idx) { document.getElementById(`p${idx}`).value = ''; }
 
 async function runShopBulk() {
   const priorities = [1, 2, 3, 4, 5].map(i => document.getElementById(`p${i}`).value.trim()).filter(Boolean);

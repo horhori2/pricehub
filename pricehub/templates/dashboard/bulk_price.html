@@ -167,7 +167,7 @@
                      onblur="hideAutocomplete({{ num }})">
               <div class="autocomplete-list" id="ac{{ num }}"></div>
             </div>
-            <button onclick="clearPriority({{ num }})" title="삭제"
+            <button onclick="clearPriorityInput({{ num }}, {save: true})" title="삭제"
                     style="background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer;padding:2px 4px;flex-shrink:0;transition:color 0.15s;"
                     onmouseover="this.style.color='var(--danger)'"
                     onmouseout="this.style.color='var(--text-dim)'">×</button>
