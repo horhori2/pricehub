@@ -3,6 +3,24 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.6.5] - 2026-07-23
+
+### Fixed
+- 가격 상승 대기 페이지(`bulk_rise.html`)에서 수정 가격을 직접 입력해도
+  입력창 색이 "이전 판매가 유지" 상태와 똑같이 표시되던 버그 — 하락 페이지
+  쪽에서 복사할 때 편집 상태 분기(`--trend-down`)가 실수로 `--trend-up`으로
+  잘못 복붙됐던 것. 이번에 템플릿을 통합하면서 자연스럽게 정상화됨.
+
+### Changed
+- **`bulk_drop.html`/`bulk_rise.html` 템플릿(각 380줄 내외)과 뷰
+  (`_bulk_drop_view`/`_bulk_rise_view`, 각 107줄)를 하나로 통합.** 로직이
+  하락/상승 방향(비교식·부호·아이콘)만 다르고 나머지는 거의 동일했음 —
+  `dashboard/bulk_trend.html` 템플릿 하나 + `_bulk_trend_view(request,
+  cfg_key, trend)` 공용 뷰로 합치고, 기존 `_bulk_drop_view`/`_bulk_rise_view`는
+  얇은 래퍼로 남겨 URL 라우팅은 그대로 유지. 뷰 컨텍스트 키도
+  `drop_cards`/`rise_cards`, `avg_drop_pct`/`avg_rise_pct` 등으로 갈라져
+  있던 걸 `items`, `avg_pct` 등으로 일반화.
+
 ## [0.6.4] - 2026-07-23
 
 ### Changed

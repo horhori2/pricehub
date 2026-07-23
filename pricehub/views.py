@@ -1109,8 +1109,19 @@ def _common_issues_config(cfg):
     }
 
 
-def _bulk_drop_view(request, cfg_key):
-    """가격 하락 대기 목록 — modified_price < selling_price 인 카드"""
+_TREND_META = {
+    'drop': {'label': '하락', 'compare': lambda mod, sell: mod < sell},
+    'rise': {'label': '상승', 'compare': lambda mod, sell: mod > sell},
+}
+
+
+def _bulk_trend_view(request, cfg_key, trend):
+    """
+    가격 하락/상승 대기 목록 — modified_price가 selling_price보다 낮은(하락)
+    또는 높은(상승, 레어도 오매칭 등 확인 후 반영) 카드. bulk_drop/bulk_rise가
+    방향만 다르고 로직이 동일해서 trend('drop'/'rise')로 통합했다.
+    """
+    meta = _TREND_META[trend]
     cfg = _cfg(cfg_key)
     card_model  = cfg['card_model']
     price_model = cfg['price_model']
@@ -1118,7 +1129,7 @@ def _bulk_drop_view(request, cfg_key):
 
     expansion_code    = request.GET.get('expansion', '')
     selected_rarities = request.GET.getlist('rarities')
-    sort              = request.GET.get('sort', 'drop_pct')
+    sort              = request.GET.get('sort', 'pct')
     page              = max(1, int(request.GET.get('page', 1) or 1))
     per_page          = 100
 
@@ -1135,37 +1146,37 @@ def _bulk_drop_view(request, cfg_key):
     if selected_rarities:
         qs = qs.filter(rarity__in=selected_rarities)
 
-    all_drop_cards = []
+    all_items = []
     for card in qs:
         mod  = int(card.modified_price)
         sell = int(card.selling_price)
-        if mod < sell:
-            drop_amt = sell - mod
-            drop_pct = round((drop_amt / sell) * 100, 1)
-            all_drop_cards.append({
+        if meta['compare'](mod, sell):
+            amt = abs(mod - sell)
+            pct = round((amt / sell) * 100, 1)
+            all_items.append({
                 'card':           card,
                 'modified_price': mod,
                 'selling_price':  sell,
-                'drop_amt':       drop_amt,
-                'drop_pct':       drop_pct,
+                'amt':            amt,
+                'pct':            pct,
             })
 
-    if sort == 'drop_pct':
-        all_drop_cards.sort(key=lambda x: -x['drop_pct'])
-    elif sort == 'drop_amt':
-        all_drop_cards.sort(key=lambda x: -x['drop_amt'])
+    if sort == 'pct':
+        all_items.sort(key=lambda x: -x['pct'])
+    elif sort == 'amt':
+        all_items.sort(key=lambda x: -x['amt'])
     else:
-        all_drop_cards.sort(key=lambda x: getattr(x['card'], 'name_kr', None) or x['card'].name or '')
+        all_items.sort(key=lambda x: getattr(x['card'], 'name_kr', None) or x['card'].name or '')
 
-    total_count  = len(all_drop_cards)
-    avg_drop_pct = round(sum(d['drop_pct'] for d in all_drop_cards) / total_count, 1) if total_count else 0
-    max_drop     = max((d['drop_pct'] for d in all_drop_cards), default=0)
+    total_count = len(all_items)
+    avg_pct     = round(sum(d['pct'] for d in all_items) / total_count, 1) if total_count else 0
+    max_pct     = max((d['pct'] for d in all_items), default=0)
 
     # ── 페이지네이션 ──
-    total_pages  = max(1, -(-total_count // per_page))   # ceiling division
-    page         = min(page, total_pages)
-    offset       = (page - 1) * per_page
-    drop_cards   = all_drop_cards[offset:offset + per_page]
+    total_pages = max(1, -(-total_count // per_page))   # ceiling division
+    page        = min(page, total_pages)
+    offset      = (page - 1) * per_page
+    items       = all_items[offset:offset + per_page]
 
     # 페이지 번호 목록 (최대 7개, 현재 페이지 중심)
     _half = 3
@@ -1178,10 +1189,10 @@ def _bulk_drop_view(request, cfg_key):
             _start = max(1, _end - 6)
     page_range = list(range(_start, _end + 1))
 
-    drop_card_ids = [d['card'].pk for d in drop_cards]
+    item_card_ids = [d['card'].pk for d in items]
     seen_raw = {}
     for cp in (
-        price_model.objects.filter(card_id__in=drop_card_ids)
+        price_model.objects.filter(card_id__in=item_card_ids)
         .exclude(raw_data={}).exclude(raw_data=[])
         .order_by('-collected_at')
         .values('card_id', 'raw_data')
@@ -1189,15 +1200,17 @@ def _bulk_drop_view(request, cfg_key):
         if cp['card_id'] not in seen_raw:
             seen_raw[cp['card_id']] = cp['raw_data']
 
-    return render(request, 'dashboard/bulk_drop.html', {
-        'active_tab':             'drop',
-        'drop_cards':             drop_cards,
+    return render(request, 'dashboard/bulk_trend.html', {
+        'active_tab':             trend,
+        'trend':                  trend,
+        'trend_label':            meta['label'],
+        'items':                  items,
         'expansions':             expansions,
         'expansion_code':         expansion_code,
         'sort':                   sort,
         'total_count':            total_count,
-        'avg_drop_pct':           avg_drop_pct,
-        'max_drop':               max_drop,
+        'avg_pct':                avg_pct,
+        'max_pct':                max_pct,
         'all_rarities':           all_rarities,
         'selected_rarities':      selected_rarities,
         'selected_rarities_json': safe_json_dumps(selected_rarities),
@@ -1210,117 +1223,18 @@ def _bulk_drop_view(request, cfg_key):
             ('홈', '/'),
             (cfg['label'], f'{base_url}/expansions/'),
             ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
-            ('하락 대기 목록', None),
+            (f"{meta['label']} 대기 목록", None),
         ],
         'config': _common_issues_config(cfg),
     })
+
+
+def _bulk_drop_view(request, cfg_key):
+    return _bulk_trend_view(request, cfg_key, 'drop')
 
 
 def _bulk_rise_view(request, cfg_key):
-    """가격 상승 대기 목록 — modified_price > selling_price 인 카드 (레어도 오매칭 등 확인 후 반영)"""
-    cfg = _cfg(cfg_key)
-    card_model  = cfg['card_model']
-    price_model = cfg['price_model']
-    base_url    = cfg['base_url']
-
-    expansion_code    = request.GET.get('expansion', '')
-    selected_rarities = request.GET.getlist('rarities')
-    sort              = request.GET.get('sort', 'rise_pct')
-    page              = max(1, int(request.GET.get('page', 1) or 1))
-    per_page          = 100
-
-    all_rarities = _get_rarities(card_model, expansion_code or None)
-    expansions   = cfg['expansion_model'].objects.order_by('-release_date')
-
-    qs = card_model.objects.filter(
-        modified_price__gt=0,
-        selling_price__gt=0,
-    ).select_related('expansion')
-
-    if expansion_code:
-        qs = qs.filter(expansion__code=expansion_code)
-    if selected_rarities:
-        qs = qs.filter(rarity__in=selected_rarities)
-
-    all_rise_cards = []
-    for card in qs:
-        mod  = int(card.modified_price)
-        sell = int(card.selling_price)
-        if mod > sell:
-            rise_amt = mod - sell
-            rise_pct = round((rise_amt / sell) * 100, 1)
-            all_rise_cards.append({
-                'card':           card,
-                'modified_price': mod,
-                'selling_price':  sell,
-                'rise_amt':       rise_amt,
-                'rise_pct':       rise_pct,
-            })
-
-    if sort == 'rise_pct':
-        all_rise_cards.sort(key=lambda x: -x['rise_pct'])
-    elif sort == 'rise_amt':
-        all_rise_cards.sort(key=lambda x: -x['rise_amt'])
-    else:
-        all_rise_cards.sort(key=lambda x: getattr(x['card'], 'name_kr', None) or x['card'].name or '')
-
-    total_count  = len(all_rise_cards)
-    avg_rise_pct = round(sum(d['rise_pct'] for d in all_rise_cards) / total_count, 1) if total_count else 0
-    max_rise     = max((d['rise_pct'] for d in all_rise_cards), default=0)
-
-    # ── 페이지네이션 ──
-    total_pages  = max(1, -(-total_count // per_page))   # ceiling division
-    page         = min(page, total_pages)
-    offset       = (page - 1) * per_page
-    rise_cards   = all_rise_cards[offset:offset + per_page]
-
-    # 페이지 번호 목록 (최대 7개, 현재 페이지 중심)
-    _half = 3
-    _start = max(1, page - _half)
-    _end   = min(total_pages, page + _half)
-    if _end - _start < 6:
-        if _start == 1:
-            _end = min(total_pages, _start + 6)
-        else:
-            _start = max(1, _end - 6)
-    page_range = list(range(_start, _end + 1))
-
-    rise_card_ids = [d['card'].pk for d in rise_cards]
-    seen_raw = {}
-    for cp in (
-        price_model.objects.filter(card_id__in=rise_card_ids)
-        .exclude(raw_data={}).exclude(raw_data=[])
-        .order_by('-collected_at')
-        .values('card_id', 'raw_data')
-    ):
-        if cp['card_id'] not in seen_raw:
-            seen_raw[cp['card_id']] = cp['raw_data']
-
-    return render(request, 'dashboard/bulk_rise.html', {
-        'active_tab':             'rise',
-        'rise_cards':             rise_cards,
-        'expansions':             expansions,
-        'expansion_code':         expansion_code,
-        'sort':                   sort,
-        'total_count':            total_count,
-        'avg_rise_pct':           avg_rise_pct,
-        'max_rise':               max_rise,
-        'all_rarities':           all_rarities,
-        'selected_rarities':      selected_rarities,
-        'selected_rarities_json': safe_json_dumps(selected_rarities),
-        'card_raw_json':          safe_json_dumps(seen_raw, ensure_ascii=False),
-        'page':                   page,
-        'total_pages':            total_pages,
-        'per_page':               per_page,
-        'page_range':             page_range,
-        'breadcrumb': [
-            ('홈', '/'),
-            (cfg['label'], f'{base_url}/expansions/'),
-            ('일괄 판매가 설정', f'{base_url}/bulk-price/'),
-            ('상승 대기 목록', None),
-        ],
-        'config': _common_issues_config(cfg),
-    })
+    return _bulk_trend_view(request, cfg_key, 'rise')
 
 
 def _underpriced_view(request, cfg_key):

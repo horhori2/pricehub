@@ -623,21 +623,21 @@ class BulkRiseViewTests(TestCase):
 
         res = self.client.get(self.RISE_URL)
         self.assertEqual(res.status_code, 200)
-        rise_cards = res.context['rise_cards']
+        items = res.context['items']
 
-        self.assertEqual(len(rise_cards), 1)
-        self.assertEqual(rise_cards[0]['card'].id, rising.id)
-        self.assertEqual(rise_cards[0]['rise_amt'], 1000)
-        self.assertEqual(rise_cards[0]['rise_pct'], 100.0)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]['card'].id, rising.id)
+        self.assertEqual(items[0]['amt'], 1000)
+        self.assertEqual(items[0]['pct'], 100.0)
 
-    def test_sort_by_rise_amt_descending(self):
+    def test_sort_by_amt_descending(self):
         small = self._make_card(selling_price=10000, modified_price=11000, card_number='001')  # +1000
         big = self._make_card(selling_price=1000, modified_price=5000, card_number='002')      # +4000
 
-        res = self.client.get(self.RISE_URL, {'sort': 'rise_amt'})
-        rise_cards = res.context['rise_cards']
+        res = self.client.get(self.RISE_URL, {'sort': 'amt'})
+        items = res.context['items']
 
-        self.assertEqual([c['card'].id for c in rise_cards], [big.id, small.id])
+        self.assertEqual([c['card'].id for c in items], [big.id, small.id])
 
     def test_expansion_filter_narrows_results(self):
         other_expansion = Expansion.objects.create(
@@ -651,15 +651,15 @@ class BulkRiseViewTests(TestCase):
         )
 
         res = self.client.get(self.RISE_URL, {'expansion': 'OTHER'})
-        rise_cards = res.context['rise_cards']
+        items = res.context['items']
 
-        self.assertEqual(len(rise_cards), 1)
-        self.assertEqual(rise_cards[0]['card'].expansion.code, 'OTHER')
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]['card'].expansion.code, 'OTHER')
 
     def test_empty_when_no_cards_rising(self):
         res = self.client.get(self.RISE_URL)
         self.assertEqual(res.context['total_count'], 0)
-        self.assertEqual(res.context['avg_rise_pct'], 0)
+        self.assertEqual(res.context['avg_pct'], 0)
         self.assertContains(res, '가격 상승 대기 카드가 없습니다')
 
 

@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="csrf-token" content="{{ csrf_token }}">
-<title>하락 대기 · {{ config.label }}</title>
+<title>{{ trend_label }} 대기 · {{ config.label }}</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{% static_v 'dashboard/dashboard.css' %}">
 </head>
@@ -28,15 +28,15 @@
       <div class="control-row">
         <span class="ctrl-label">정렬</span>
         <div class="ctrl-divider"></div>
-        <button class="action-btn {% if sort == 'drop_pct' %}active-sort{% endif %}"
-                onclick="changeSort('drop_pct')">하락률순</button>
-        <button class="action-btn {% if sort == 'drop_amt' %}active-sort{% endif %}"
-                onclick="changeSort('drop_amt')">하락금액순</button>
+        <button class="action-btn {% if sort == 'pct' %}active-sort{% endif %}"
+                onclick="changeSort('pct')">{{ trend_label }}률순</button>
+        <button class="action-btn {% if sort == 'amt' %}active-sort{% endif %}"
+                onclick="changeSort('amt')">{{ trend_label }}금액순</button>
         <button class="action-btn {% if sort == 'name' %}active-sort{% endif %}"
                 onclick="changeSort('name')">이름순</button>
       </div>
 
-      <!-- 수정가 반영 (하락가 저장) -->
+      <!-- 수정가 반영 -->
       <div class="control-row">
         <span class="ctrl-label">수정가 반영</span>
         <div class="ctrl-divider"></div>
@@ -92,23 +92,29 @@
     <!-- 페이지 헤더 + 통계 -->
     <div class="page-header">
       <div style="display:flex;align-items:baseline;gap:8px;">
-        <div class="page-title" style="margin-bottom:0;">📉 가격 하락 대기</div>
+        <div class="page-title" style="margin-bottom:0;">{% if trend == 'rise' %}📈{% else %}📉{% endif %} 가격 {{ trend_label }} 대기</div>
         <div style="font-size:15px;font-weight:800;color:var(--warning);
                     font-family:'JetBrains Mono',monospace;" id="remainCount">{{ total_count }}개</div>
       </div>
       <div style="display:flex;gap:10px;align-items:center;">
         <div class="drop-stat-pill">
-          <span class="drop-stat-label">평균 하락률</span>
-          <span class="drop-stat-val">-{{ avg_drop_pct }}%</span>
+          <span class="drop-stat-label">평균 {{ trend_label }}률</span>
+          <span class="drop-stat-val">{% if trend == 'rise' %}+{% else %}-{% endif %}{{ avg_pct }}%</span>
         </div>
         <div class="drop-stat-pill">
-          <span class="drop-stat-label">최대 하락률</span>
-          <span class="drop-stat-val">-{{ max_drop }}%</span>
+          <span class="drop-stat-label">최대 {{ trend_label }}률</span>
+          <span class="drop-stat-val">{% if trend == 'rise' %}+{% else %}-{% endif %}{{ max_pct }}%</span>
         </div>
       </div>
     </div>
 
-    {% if drop_cards %}
+    {% if trend == 'rise' %}
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">
+      ⚠️ 레어도 필터링 오매칭 등으로 가격이 잘못 높게 잡혔을 수 있습니다. 판매처 목록을 확인하고 반영해주세요.
+    </div>
+    {% endif %}
+
+    {% if items %}
     <table class="issues-table">
       <thead>
         <tr>
@@ -122,12 +128,12 @@
           <th style="width:110px;">확장팩</th>
           <th style="width:110px;">이전 판매가</th>
           <th style="width:130px;">수정 가격</th>
-          <th style="width:150px;">하락폭</th>
+          <th style="width:150px;">{{ trend_label }}폭</th>
           <th style="width:80px;">액션</th>
         </tr>
       </thead>
       <tbody id="cardTableBody">
-        {% for item in drop_cards %}
+        {% for item in items %}
         <tr id="row-{{ item.card.id }}"
             data-id="{{ item.card.id }}"
             data-name="{{ item.card.name|escapejs }}"
@@ -137,7 +143,7 @@
             data-image="{{ item.card.image_url|default:'' }}"
             data-selling="{{ item.selling_price }}"
             data-modified="{{ item.modified_price }}"
-            data-drop-pct="{{ item.drop_pct }}"
+            data-drop-pct="{{ item.pct }}"
             onclick="showIssuesSidePanel({{ item.card.id }})">
 
           <td onclick="event.stopPropagation()">
@@ -171,7 +177,7 @@
             <div class="price-cell">
               <input type="number" class="price-input-issues" id="input-{{ item.card.id }}"
                      value="{{ item.modified_price }}" min="1" step="100"
-                     style="color:var(--trend-down);font-weight:700;width:100%;"
+                     style="color:{% if trend == 'rise' %}var(--trend-up){% else %}var(--trend-down){% endif %};font-weight:700;width:100%;"
                      onkeydown="if(event.key==='Enter') saveIssueEdit({{ item.card.id }})"
                      oninput="onDropPriceInput({{ item.card.id }}, this)">
               <span class="saved-badge" id="badge-{{ item.card.id }}">✓</span>
@@ -184,13 +190,13 @@
           <td style="padding-right:8px;">
             <div class="drop-bar-wrap">
               <div class="drop-bar-labels">
-                <span class="drop-pct-text">-{{ item.drop_pct }}%</span>
-                <span class="drop-amt-text">▼ {{ item.drop_amt|floatformat:0 }}원</span>
+                <span class="drop-pct-text"{% if trend == 'rise' %} style="color:var(--trend-up);"{% endif %}>{% if trend == 'rise' %}+{% else %}-{% endif %}{{ item.pct }}%</span>
+                <span class="drop-amt-text">{% if trend == 'rise' %}▲{% else %}▼{% endif %} {{ item.amt|floatformat:0 }}원</span>
               </div>
               <div class="drop-bar-bg">
-                <div class="drop-bar-fill"
-                     data-pct="{{ item.drop_pct }}"
-                     style="width:{% if item.drop_pct > 100 %}100{% else %}{{ item.drop_pct }}{% endif %}%"></div>
+                <div class="{{ trend }}-bar-fill"
+                     data-pct="{{ item.pct }}"
+                     style="width:{% if item.pct > 100 %}100{% else %}{{ item.pct }}{% endif %}%"></div>
               </div>
             </div>
           </td>
@@ -208,8 +214,8 @@
     {% else %}
     <div class="empty">
       <div style="font-size:40px;margin-bottom:12px;opacity:0.4;">✅</div>
-      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">가격 하락 대기 카드가 없습니다!</div>
-      <div style="font-size:13px;">일괄 설정 후 가격이 하락한 카드가 여기 표시됩니다.</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px;">가격 {{ trend_label }} 대기 카드가 없습니다!</div>
+      <div style="font-size:13px;">일괄 설정 후 가격이 {{ trend_label }}한 카드가 여기 표시됩니다.</div>
     </div>
     {% endif %}
   </div>
@@ -223,7 +229,7 @@
       <div class="side-title">판매처 목록 (클릭하면 가격 반영)</div>
       <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
       <div class="side-card-info" id="sideCardInfo"></div>
-      <!-- 하락 요약 -->
+      <!-- {{ trend_label }} 요약 -->
       <div id="sidePriceSummary" style="display:none;margin-top:10px;padding:10px 12px;
            background:var(--surface2);border:1px solid var(--border2);border-radius:8px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
@@ -233,14 +239,14 @@
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <span style="font-size:11px;color:var(--text-muted);">수정 가격</span>
-          <span id="sideNewPrice" style="font-size:13px;font-weight:700;color:var(--trend-down);
+          <span id="sideNewPrice" style="font-size:13px;font-weight:700;color:{% if trend == 'rise' %}var(--trend-up){% else %}var(--trend-down){% endif %};
                 font-family:'JetBrains Mono',monospace;"></span>
         </div>
         <div class="drop-bar-bg" style="height:4px;">
           <div id="sideDropBar" class="drop-bar-fill" style="width:0%"></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:4px;">
-          <span id="sideDropPct" style="font-size:11px;color:var(--trend-down);font-weight:700;"></span>
+          <span id="sideDropPct" style="font-size:11px;color:{% if trend == 'rise' %}var(--trend-up){% else %}var(--trend-down){% endif %};font-weight:700;"></span>
           <span id="sideDropAmt" style="font-size:11px;color:var(--text-muted);"></span>
         </div>
       </div>
@@ -281,7 +287,11 @@ function revertToSelling(cardId) {
   btn.title = '이전 판매가 유지 중';
 }
 
-/* ── 가격 직접 입력 시 ↩ 버튼 상태 갱신 ── */
+/* ── 가격 직접 입력 시 ↩ 버튼 상태 갱신 ──
+   주의: '유지'(이전 판매가 그대로) 상태는 항상 --trend-up, 직접 수정 중인
+   상태는 --trend-down — 이건 하락/상승 페이지 방향과 무관하게 "편집 상태"를
+   나타내는 색상이다(예전엔 bulk_rise.html 쪽에 이 else 분기가 실수로
+   --trend-up으로 복붙돼 있어서 편집 중에도 색이 안 바뀌는 버그가 있었음). */
 function onDropPriceInput(cardId, input) {
   const btn     = document.getElementById('revert-' + cardId);
   if (!btn) return;
