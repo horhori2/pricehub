@@ -239,6 +239,8 @@ class OnePieceCard(models.Model):
         ('P-R', 'P-R'),
         ('P-UC', 'P-UC'),
         ('P-C', 'P-C'),
+        ('D', 'D'),
+        ('P-D', 'P-D'),
     ]
 
     expansion = models.ForeignKey(OnePieceExpansion, on_delete=models.CASCADE, related_name='cards', verbose_name="확장팩")

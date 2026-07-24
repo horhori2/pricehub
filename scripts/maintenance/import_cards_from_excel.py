@@ -14,7 +14,10 @@ sys.path.insert(0, str(BASE_DIR))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
 django.setup()
 
-from pricehub.models import Expansion, Card
+from pricehub.models import Expansion, Card, OnePieceExpansion, OnePieceCard
+
+# 이 스크립트가 처리할 수 있는 게임 접두사 (상품코드 첫 세그먼트)
+SUPPORTED_GAMES = ('PKM', 'OPC')
 
 # 확장팩 정보 매핑
 EXPANSION_INFO = {
@@ -71,12 +74,18 @@ def is_japanese_card(shop_code: str) -> bool:
     return '-J-' in shop_code.upper() or shop_code.upper().endswith('-J')
 
 
-def card_exists(shop_code: str) -> bool:
+def get_game_type(shop_code: str) -> str:
+    """상품코드 접두사로 게임 종류 판별 (PKM/OPC/DGM 등)"""
+    return shop_code.upper().split('-', 1)[0]
+
+
+def card_exists(shop_code: str, game: str) -> bool:
     """카드가 이미 DB에 존재하는지 확인 (대소문자 구분 없이)"""
-    normalized_code = normalize_shop_code(shop_code)
-    
-    # 효율적인 쿼리로 변경
-    return Card.objects.filter(shop_product_code__iexact=shop_code).exists()
+    if game == 'PKM':
+        return Card.objects.filter(shop_product_code__iexact=shop_code).exists()
+    elif game == 'OPC':
+        return OnePieceCard.objects.filter(shop_product_code__iexact=shop_code).exists()
+    return False
 
 
 def parse_shop_code(shop_code: str) -> dict:
@@ -181,6 +190,36 @@ def parse_product_name(product_name: str) -> dict:
         'expansion_name': expansion_name
     }
 
+
+def parse_onepiece_product_name(product_name: str, expansion_code: str, card_number: str) -> dict:
+    """
+    원피스 상품명 파싱
+
+    예: "원피스카드 트라팔가 로 P-SEC EB03-062 한글판 ONE PIECE Heroines Edition"
+        → {name: '트라팔가 로', rarity: 'P-SEC'}
+
+    상품코드에서 이미 알고 있는 '{확장팩코드}-{카드번호}' 마커(예: 'EB03-062')를
+    상품명에서 찾아, 그 앞은 '카드명 레어도', 뒤는 '한글판 확장팩명'으로 나눈다.
+    """
+    if not product_name.startswith('원피스카드'):
+        return None
+
+    text = product_name.replace('원피스카드', '', 1).strip()
+    marker = f'{expansion_code}-{card_number}'
+    marker_idx = text.find(marker)
+    if marker_idx == -1:
+        return None
+
+    before_marker = text[:marker_idx].strip()
+    tokens = before_marker.rsplit(maxsplit=1)
+
+    valid_rarities = {choice[0] for choice in OnePieceCard.RARITY_CHOICES}
+    if len(tokens) == 2 and tokens[1] in valid_rarities:
+        return {'name': tokens[0], 'rarity': tokens[1]}
+
+    return {'name': before_marker, 'rarity': None}
+
+
 def get_or_create_expansion(expansion_code: str, skip_if_not_exists: bool = False) -> Expansion:
     """
     확장팩 가져오기 또는 생성
@@ -215,8 +254,24 @@ def get_or_create_expansion(expansion_code: str, skip_if_not_exists: bool = Fals
         
         if created:
             print(f"  📦 확장팩 생성: {expansion_name}")
-        
+
         return expansion
+
+
+def find_onepiece_expansion(expansion_code: str) -> OnePieceExpansion:
+    """
+    원피스 확장팩 찾기 (상품코드 접두사 → DB 확장팩)
+
+    상품코드의 확장팩 표기(예: 'EB03')와 DB의 OnePieceExpansion.code 표기(예:
+    'EBK-03')가 서로 달라 직접 매칭이 안 된다. 대신 같은 접두사를 쓰는 기존
+    원피스 카드를 찾아 그 카드가 연결된 확장팩을 그대로 사용한다 — 엑셀로
+    추가되는 카드는 보통 이미 카탈로그에 등록된 확장팩의 카드이기 때문.
+    """
+    sibling = OnePieceCard.objects.filter(
+        shop_product_code__istartswith=f'OPC-{expansion_code}-'
+    ).select_related('expansion').first()
+
+    return sibling.expansion if sibling else None
 
 
 def save_card_to_db(shop_code: str, parsed_shop: dict, parsed_name: dict, image_url: str = '') -> bool:
@@ -254,6 +309,35 @@ def save_card_to_db(shop_code: str, parsed_shop: dict, parsed_name: dict, image_
         
         return True
         
+    except Exception as e:
+        print(f"  ❌ DB 저장 오류: {e}")
+        return False
+
+
+def save_onepiece_card_to_db(shop_code: str, expansion: OnePieceExpansion, card_number: str, parsed_name: dict, image_url: str = '') -> bool:
+    """원피스 카드를 DB에 저장"""
+    try:
+        rarity = parsed_name['rarity'] if parsed_name['rarity'] else 'C'
+
+        if rarity not in [choice[0] for choice in OnePieceCard.RARITY_CHOICES]:
+            print(f"  ⚠️ 알 수 없는 레어도: {rarity}, 'C'로 저장")
+            rarity = 'C'
+
+        shop_code_upper = shop_code.upper()
+
+        OnePieceCard.objects.update_or_create(
+            shop_product_code=shop_code_upper,
+            defaults={
+                'expansion': expansion,
+                'card_number': card_number,
+                'name': parsed_name['name'],
+                'rarity': rarity,
+                'image_url': image_url,
+            }
+        )
+
+        return True
+
     except Exception as e:
         print(f"  ❌ DB 저장 오류: {e}")
         return False
@@ -302,34 +386,51 @@ def process_excel_file(file_path: str, dry_run: bool = True) -> tuple:
                 print(f"[건너뜀] {shop_code} - 일본판")
                 skipped_count += 1
                 continue
-            
+
+            # 게임 종류 판별 (상품코드 접두사)
+            game = get_game_type(shop_code)
+            if game not in SUPPORTED_GAMES:
+                print(f"[건너뜀] {shop_code} - 미지원 게임({game})")
+                skipped_count += 1
+                continue
+
             # 이미 존재하는 카드 체크 (대소문자 구분 없이)
-            if card_exists(shop_code):
+            if card_exists(shop_code, game):
                 print(f"[건너뜀] {shop_code} - 이미 존재")
                 skipped_count += 1
                 continue
-            
+
             # 상품코드 파싱
             parsed_shop = parse_shop_code(shop_code)
             if not parsed_shop:
                 print(f"[오류] {shop_code} - 상품코드 형식 오류")
                 error_count += 1
                 continue
-            
-            # DB에 확장팩이 있는지 확인
-            expansion = get_or_create_expansion(parsed_shop['expansion_code'], skip_if_not_exists=True)
-            if not expansion:
-                print(f"[건너뜀] {shop_code} - DB에 없는 확장팩: {parsed_shop['expansion_code']}")
-                skipped_count += 1
-                continue
-            
-            # 상품명 파싱
-            parsed_name = parse_product_name(product_name)
+
+            # 확장팩 확인 + 상품명 파싱 (게임별 분기)
+            if game == 'PKM':
+                expansion = get_or_create_expansion(parsed_shop['expansion_code'], skip_if_not_exists=True)
+                if not expansion:
+                    print(f"[건너뜀] {shop_code} - DB에 없는 확장팩: {parsed_shop['expansion_code']}")
+                    skipped_count += 1
+                    continue
+
+                parsed_name = parse_product_name(product_name)
+
+            else:  # OPC
+                expansion = find_onepiece_expansion(parsed_shop['expansion_code'])
+                if not expansion:
+                    print(f"[건너뜀] {shop_code} - 같은 확장팩({parsed_shop['expansion_code']}) 카드가 DB에 없어 확장팩을 알 수 없음")
+                    skipped_count += 1
+                    continue
+
+                parsed_name = parse_onepiece_product_name(product_name, parsed_shop['expansion_code'], parsed_shop['card_number'])
+
             if not parsed_name:
                 print(f"[오류] {shop_code} - 상품명 파싱 실패: {product_name}")
                 error_count += 1
                 continue
-            
+
             # 정보 출력
             print(f"[발견] {shop_code.upper()}")  # 대문자로 표시
             print(f"  카드명: {parsed_name['name']}")
@@ -337,10 +438,15 @@ def process_excel_file(file_path: str, dry_run: bool = True) -> tuple:
             print(f"  확장팩: {parsed_shop['expansion_code']} - {expansion.name}")
             if image_url:
                 print(f"  이미지: {image_url[:50]}...")  # 일부만 표시
-            
+
             # 실제 저장
             if not dry_run:
-                if save_card_to_db(shop_code, parsed_shop, parsed_name, image_url):
+                if game == 'PKM':
+                    saved = save_card_to_db(shop_code, parsed_shop, parsed_name, image_url)
+                else:  # OPC
+                    saved = save_onepiece_card_to_db(shop_code, expansion, parsed_shop['card_number'], parsed_name, image_url)
+
+                if saved:
                     print(f"  ✅ DB 저장 완료")
                     added_count += 1
                 else:
