@@ -309,7 +309,11 @@ class OnePieceCardPrice(models.Model):
         verbose_name = '원피스 한글판 가격'
         verbose_name_plural = '원피스 한글판 가격 목록'
         ordering = ['-collected_at']
-    
+        indexes = [
+            models.Index(fields=['card', '-collected_at']),
+            models.Index(fields=['collected_at']),
+        ]
+
     def __str__(self):
         return f"{self.card.name} - {self.price}원 ({self.collected_at.strftime('%Y-%m-%d')})"
 
@@ -512,6 +516,10 @@ class DigimonCardPrice(models.Model):
         verbose_name = '디지몬 한글판 가격'
         verbose_name_plural = '디지몬 한글판 가격 목록'
         ordering = ['-collected_at']
+        indexes = [
+            models.Index(fields=['card', '-collected_at']),
+            models.Index(fields=['collected_at']),
+        ]
 
     def __str__(self):
         return f"{self.card.name} - {self.price}원 ({self.collected_at.strftime('%Y-%m-%d')})"

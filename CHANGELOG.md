@@ -3,6 +3,22 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.7.3] - 2026-07-24
+
+### Fixed
+- `OnePieceCardPrice`/`DigimonCardPrice`에 `collected_at` 인덱스가 없어서
+  (포켓몬 `CardPrice`/일본판 `JapanCardPrice`는 이미 있었음) admin 가격 목록이
+  테이블이 커질수록 매번 풀스캔+파일정렬을 했음. 서버 디스크 여유공간이
+  적은 상태에서 이 정렬용 임시파일이 남은 공간을 다 먹어버려
+  `No space left on device` 에러 → admin 504 Gateway Timeout, 같은 시간대
+  가격 수집 스크립트의 DB 저장 실패로 이어짐. 두 모델에 인덱스 추가.
+
+### Known Issues
+- 서버 디스크 여유공간이 5.6GB로 빠듯함(`onepiece_card_price` 1.65GB,
+  `digimon_card_price` 772MB, 계속 증가 중 — 가격 수집 시 raw_data JSON을
+  매번 통째로 저장해서 커짐). 인덱스로 이번 증상은 막았지만, 디스크 공간
+  자체는 별도로 정리/증설이 필요.
+
 ## [0.7.2] - 2026-07-24
 
 ### Changed
