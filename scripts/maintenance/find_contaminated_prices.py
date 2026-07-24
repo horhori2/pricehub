@@ -7,9 +7,18 @@
 찾기 위함. 포켓몬/원피스/디지몬만 대상 — 일본판은 고정 페이지를 직접
 크롤링하는 방식이라 이름/레어도 검색+필터 개념 자체가 없어서 제외.
 
+메모리 주의사항: MySQL(mysqlclient)은 Django의 .iterator()를 쓰더라도
+드라이버 커서가 결과셋 전체를 한 번에 버퍼링한다 — 파이썬 쪽에서 모델
+객체로 안 쌓을 뿐, 그 앞 단계인 DB 드라이버 버퍼링 자체를 막지는 못한다.
+가격 이력 테이블이 수백만 행(수 GB)이라 그대로 쓰면 메모리를 통째로
+먹여버린다(실제로 이 문제로 서버가 한 번 다운됨). 그래서 반드시
+`WHERE id > 마지막id ORDER BY id LIMIT N` 수동 페이지네이션으로 매
+청크를 별도 쿼리로 날려서, MySQL 서버가 그때그때 청크 크기만큼만
+계산해서 보내주도록 한다.
+
 사용법:
-    python scripts/maintenance/find_contaminated_prices.py [pokemon] [onepiece] [digimon]
-    (인자 없으면 3개 다 검사)
+    python -u scripts/maintenance/find_contaminated_prices.py [pokemon] [onepiece] [digimon]
+    (인자 없으면 3개 다 검사. -u로 실행해야 진행 로그가 즉시 보임)
 """
 import os
 import sys
@@ -36,8 +45,18 @@ from pricehub.utils import (
     _onepiece_title_matches, _onepiece_rarity_flags, _BASE_CARD_NUMBER_RE,
 )
 
-CHUNK_SIZE = 5000
+# 청크 크기: 작을수록 메모리는 덜 쓰지만 쿼리 왕복이 늘어남.
+# raw_data가 카드당 최대 수십 KB일 수 있어 보수적으로 작게 잡음
+# (5000행 기준 최악의 경우도 수십 MB 선 — 서버 RAM 1.9GB에 안전한 수준).
+CHUNK_SIZE = 1000
+# 청크 사이에 짧게 쉬어서 CPU를 몰아 쓰지 않도록 함 — 이전에 CPU
+# 크레딧을 다 태워서 서버가 응답 불능이 된 적이 있어 반드시 필요.
+SLEEP_BETWEEN_CHUNKS = 0.05
 REPORT_DIR = BASE_DIR / 'scripts' / 'maintenance' / 'reports'
+
+
+def _log(msg):
+    print(msg, flush=True)
 
 
 def _normalize_raw(raw):
@@ -56,40 +75,66 @@ def _price_to_float(item):
         return 0.0
 
 
+def _iter_price_rows_paginated(price_model, total):
+    """
+    id 기준 keyset 페이지네이션으로 가격 이력을 청크 단위로 스트리밍.
+    매 청크를 별도 쿼리로 날리기 때문에 MySQL 드라이버가 결과셋 전체를
+    버퍼링하는 일이 없다 — .iterator()만 쓰는 것과 달리 진짜로 메모리를
+    적게 쓴다.
+    """
+    last_id = 0
+    scanned = 0
+    t0 = time.time()
+
+    while True:
+        chunk = list(
+            price_model.objects
+            .filter(id__gt=last_id)
+            .order_by('id')
+            .values('id', 'card_id', 'raw_data', 'collected_at')[:CHUNK_SIZE]
+        )
+        if not chunk:
+            break
+
+        for row in chunk:
+            yield row
+        last_id = chunk[-1]['id']
+        scanned += len(chunk)
+
+        if scanned % 50000 < CHUNK_SIZE:
+            elapsed = time.time() - t0
+            rate = scanned / elapsed if elapsed > 0 else 0
+            eta = (total - scanned) / rate if rate > 0 else 0
+            _log(f"  ...{scanned}/{total} ({elapsed:.0f}초 경과, {rate:.0f}행/초, 예상 잔여 {eta:.0f}초)")
+
+        del chunk
+        time.sleep(SLEEP_BETWEEN_CHUNKS)
+
+
 def scan_pokemon(writer):
-    print("\n" + "=" * 70)
-    print("[포켓몬] 카드 메타데이터 로딩")
-    cards = {
-        c.id: {
+    _log("\n" + "=" * 70)
+    _log("[포켓몬] 카드 메타데이터 로딩")
+    import re
+    cards = {}
+    for c in Card.objects.only('id', 'name', 'rarity', 'is_teukil', 'shop_product_code'):
+        cards[c.id] = {
             'name': c.name,
             'rarity': c.rarity,
             'is_teukil': c.is_teukil,
             'shop_product_code': c.shop_product_code,
-            'name_no_space': None,  # lazy
+            'name_no_space': re.sub(r'\s+', '', c.name).lower(),
             'is_mirror_rarity': c.rarity in MIRROR_RARITIES,
             'is_general_rarity': c.rarity in GENERAL_RARITIES,
             'is_irochi': c.rarity == '이로치',
         }
-        for c in Card.objects.all()
-    }
-    import re
-    for meta in cards.values():
-        meta['name_no_space'] = re.sub(r'\s+', '', meta['name']).lower()
 
     total = CardPrice.objects.count()
-    print(f"[포켓몬] 가격 이력 {total}건 스캔 시작")
+    _log(f"[포켓몬] 가격 이력 {total}건 스캔 시작 (청크 {CHUNK_SIZE}행)")
 
-    scanned = 0
     contaminated_rows = 0
-    t0 = time.time()
-
-    qs = CardPrice.objects.values('id', 'card_id', 'raw_data', 'collected_at').iterator(chunk_size=CHUNK_SIZE)
-    for row in qs:
+    scanned = 0
+    for row in _iter_price_rows_paginated(CardPrice, total):
         scanned += 1
-        if scanned % 200000 == 0:
-            elapsed = time.time() - t0
-            print(f"  ...{scanned}/{total} ({elapsed:.0f}초 경과)")
-
         meta = cards.get(row['card_id'])
         if not meta:
             continue
@@ -114,14 +159,14 @@ def scan_pokemon(writer):
         if row_bad:
             contaminated_rows += 1
 
-    print(f"[포켓몬] 완료: {scanned}건 스캔, 오염 행 {contaminated_rows}건 ({time.time()-t0:.0f}초)")
+    _log(f"[포켓몬] 완료: {scanned}건 스캔, 오염 행 {contaminated_rows}건")
 
 
 def scan_onepiece(writer):
-    print("\n" + "=" * 70)
-    print("[원피스] 카드 메타데이터 로딩")
+    _log("\n" + "=" * 70)
+    _log("[원피스] 카드 메타데이터 로딩")
     cards = {}
-    for c in OnePieceCard.objects.all():
+    for c in OnePieceCard.objects.only('id', 'card_number', 'rarity', 'shop_product_code'):
         is_manga, is_special, is_parallel = _onepiece_rarity_flags(c.rarity)
         cards[c.id] = {
             'card_number': c.card_number,
@@ -134,19 +179,12 @@ def scan_onepiece(writer):
         }
 
     total = OnePieceCardPrice.objects.count()
-    print(f"[원피스] 가격 이력 {total}건 스캔 시작")
+    _log(f"[원피스] 가격 이력 {total}건 스캔 시작 (청크 {CHUNK_SIZE}행)")
 
-    scanned = 0
     contaminated_rows = 0
-    t0 = time.time()
-
-    qs = OnePieceCardPrice.objects.values('id', 'card_id', 'raw_data', 'collected_at').iterator(chunk_size=CHUNK_SIZE)
-    for row in qs:
+    scanned = 0
+    for row in _iter_price_rows_paginated(OnePieceCardPrice, total):
         scanned += 1
-        if scanned % 200000 == 0:
-            elapsed = time.time() - t0
-            print(f"  ...{scanned}/{total} ({elapsed:.0f}초 경과)")
-
         meta = cards.get(row['card_id'])
         if not meta:
             continue
@@ -172,12 +210,12 @@ def scan_onepiece(writer):
         if row_bad:
             contaminated_rows += 1
 
-    print(f"[원피스] 완료: {scanned}건 스캔, 오염 행 {contaminated_rows}건 ({time.time()-t0:.0f}초)")
+    _log(f"[원피스] 완료: {scanned}건 스캔, 오염 행 {contaminated_rows}건")
 
 
 def scan_digimon(writer):
-    print("\n" + "=" * 70)
-    print("[디지몬] 카드 메타데이터 로딩")
+    _log("\n" + "=" * 70)
+    _log("[디지몬] 카드 메타데이터 로딩")
     cards = {
         c.id: {
             'card_number': c.card_number,
@@ -186,23 +224,18 @@ def scan_digimon(writer):
             'is_scarce': c.is_scarce,
             'is_special': c.is_special,
         }
-        for c in DigimonCard.objects.all()
+        for c in DigimonCard.objects.only(
+            'id', 'card_number', 'shop_product_code', 'is_parallel', 'is_scarce', 'is_special',
+        )
     }
 
     total = DigimonCardPrice.objects.count()
-    print(f"[디지몬] 가격 이력 {total}건 스캔 시작")
+    _log(f"[디지몬] 가격 이력 {total}건 스캔 시작 (청크 {CHUNK_SIZE}행)")
 
-    scanned = 0
     contaminated_rows = 0
-    t0 = time.time()
-
-    qs = DigimonCardPrice.objects.values('id', 'card_id', 'raw_data', 'collected_at').iterator(chunk_size=CHUNK_SIZE)
-    for row in qs:
+    scanned = 0
+    for row in _iter_price_rows_paginated(DigimonCardPrice, total):
         scanned += 1
-        if scanned % 200000 == 0:
-            elapsed = time.time() - t0
-            print(f"  ...{scanned}/{total} ({elapsed:.0f}초 경과)")
-
         meta = cards.get(row['card_id'])
         if not meta:
             continue
@@ -226,7 +259,7 @@ def scan_digimon(writer):
         if row_bad:
             contaminated_rows += 1
 
-    print(f"[디지몬] 완료: {scanned}건 스캔, 오염 행 {contaminated_rows}건 ({time.time()-t0:.0f}초)")
+    _log(f"[디지몬] 완료: {scanned}건 스캔, 오염 행 {contaminated_rows}건")
 
 
 def main():
@@ -235,11 +268,12 @@ def main():
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     out_path = REPORT_DIR / f'contaminated_prices_{time.strftime("%Y%m%d_%H%M%S")}.csv'
 
-    print("=" * 70)
-    print("오염 가격 데이터 검사 (읽기 전용)")
-    print(f"대상: {games}")
-    print(f"출력: {out_path}")
-    print("=" * 70)
+    _log("=" * 70)
+    _log("오염 가격 데이터 검사 (읽기 전용)")
+    _log(f"대상: {games}")
+    _log(f"청크 크기: {CHUNK_SIZE}행 (keyset 페이지네이션 — DB 드라이버 전체 버퍼링 방지)")
+    _log(f"출력: {out_path}")
+    _log("=" * 70)
 
     with open(out_path, 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
@@ -257,10 +291,10 @@ def main():
         if 'digimon' in games:
             scan_digimon(writer)
 
-    print("\n" + "=" * 70)
-    print(f"전체 완료: {time.time()-t0:.0f}초")
-    print(f"보고서: {out_path}")
-    print("=" * 70)
+    _log("\n" + "=" * 70)
+    _log(f"전체 완료: {time.time()-t0:.0f}초")
+    _log(f"보고서: {out_path}")
+    _log("=" * 70)
 
 
 if __name__ == '__main__':

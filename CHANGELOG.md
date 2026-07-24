@@ -3,6 +3,18 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.8.3] - 2026-07-24
+
+### Fixed
+- `find_contaminated_prices.py`가 `.iterator(chunk_size=...)`를 썼는데도
+  MySQL(mysqlclient) 드라이버가 결과셋 전체를 커서에 먼저 버퍼링해버려
+  — 파이썬 쪽 모델 객체화만 청크 단위였을 뿐, DB 드라이버 단계에서 이미
+  전부 메모리에 올라간 것 — 실행 중 서버(RAM 1.9GB) 메모리를 다 먹어
+  스와핑으로 서비스가 먹통이 된 사고 발생. `WHERE id > 마지막id ORDER BY
+  id LIMIT N` 수동 keyset 페이지네이션으로 바꿔 MySQL 서버가 매 청크마다
+  딱 필요한 만큼만 계산해서 보내도록 수정. 청크 사이 짧은 sleep 추가,
+  진행 로그 즉시 flush.
+
 ## [0.8.2] - 2026-07-24
 
 ### Added
