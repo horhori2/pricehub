@@ -1605,10 +1605,34 @@ def _verify_image_hash_cache_key(url):
     return 'verify_img_hash:' + hashlib.sha256(url.encode()).hexdigest()
 
 
+_verify_http_session = None
+
+
+def _get_verify_http_session():
+    """
+    이미지 다운로드용 공유 세션. HTTP 커넥션을 재사용(keep-alive)해서
+    요청마다 TCP/TLS 핸드셰이크를 새로 맺지 않도록 함 — 검증 대상 이미지가
+    대부분 같은 호스트(스토어 CDN 몇 개)에 몰려 있어 효과가 큼.
+    풀 크기는 동시 다운로드 수만큼 확보해서 커넥션 재사용이 워커 수에
+    발목 잡히지 않게 함.
+    """
+    global _verify_http_session
+    if _verify_http_session is None:
+        session = requests.Session()
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=_VERIFY_IMAGE_FETCH_WORKERS,
+            pool_maxsize=_VERIFY_IMAGE_FETCH_WORKERS,
+        )
+        session.mount('http://', adapter)
+        session.mount('https://', adapter)
+        _verify_http_session = session
+    return _verify_http_session
+
+
 def _fetch_image_hash(url):
     """이미지를 다운로드해 SHA256 해시로 반환. 실패(타임아웃/404 등) 시 None."""
     try:
-        resp = requests.get(url, timeout=_VERIFY_IMAGE_FETCH_TIMEOUT)
+        resp = _get_verify_http_session().get(url, timeout=_VERIFY_IMAGE_FETCH_TIMEOUT)
         resp.raise_for_status()
         return hashlib.sha256(resp.content).hexdigest()
     except Exception:

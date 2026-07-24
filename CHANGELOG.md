@@ -3,6 +3,13 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.8.1] - 2026-07-24
+
+### Changed
+- 이미지 내용 비교 다운로드가 매 요청마다 새 TCP/TLS 연결을 맺던 것을 커넥션
+  재사용(HTTP keep-alive, 공유 `requests.Session`)으로 변경 — 검증 대상
+  이미지가 대부분 같은 CDN 호스트 몇 개에 몰려 있어 재사용 효과가 큼.
+
 ## [0.8.0] - 2026-07-24
 
 ### Added
