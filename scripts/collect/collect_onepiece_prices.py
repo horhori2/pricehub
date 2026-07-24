@@ -137,12 +137,18 @@ def collect_prices_for_expansion(expansion_code: str):
             )
 
             general_price, valid_count, mall_name = result['general_price']
+            valid_items = result['valid_items']
             if general_price:
                 OnePieceCardPrice.objects.create(
                     card=card,
                     price=general_price,
-                    source=mall_name or '알 수 없음'
+                    source=mall_name or '알 수 없음',
+                    raw_data=valid_items,
                 )
+                # 최신 raw_data / 시장 최저가 캐시 업데이트
+                card.latest_raw_data = valid_items
+                card.latest_market_price = int(general_price)
+                card.save(update_fields=['latest_raw_data', 'latest_market_price'])
                 general_found += 1
                 print(f"  ✅ 저장: {int(general_price)}원 ({mall_name})")
             else:
@@ -202,6 +208,7 @@ def test_single_card(card_id: int):
     )
 
     general_price, valid_count, mall_name = result['general_price']
+    valid_items = result['valid_items']
 
     print("=" * 80)
     print("📊 검색 결과")
@@ -219,8 +226,13 @@ def test_single_card(card_id: int):
             OnePieceCardPrice.objects.create(
                 card=card,
                 price=general_price,
-                source=mall_name or '알 수 없음'
+                source=mall_name or '알 수 없음',
+                raw_data=valid_items,
             )
+            # 최신 raw_data / 시장 최저가 캐시 업데이트
+            card.latest_raw_data = valid_items
+            card.latest_market_price = int(general_price)
+            card.save(update_fields=['latest_raw_data', 'latest_market_price'])
             print("✅ 저장 완료")
     else:
         print("저장을 취소했습니다.")
