@@ -3,6 +3,17 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.8.4] - 2026-07-24
+
+### Added
+- `scripts/maintenance/clean_contaminated_prices.py` — `find_contaminated_prices.py`가
+  찾은 오염 가격 데이터의 후속 조치 스크립트. 가격 행의 `raw_data`에서
+  지금 필터 기준 유효하지 않은 상품만 제거하고(정상 상품은 보존), 남은
+  상품으로 최저가를 재계산. 남는 상품이 없으면 그 행을 삭제. 영향받은
+  카드는 `latest_market_price`/`latest_raw_data` 캐시도 함께 갱신. 기본은
+  미리보기(dry run), `--apply`를 붙여야 실제 반영. 메모리 안전을 위해
+  find_contaminated_prices.py와 동일한 keyset 페이지네이션 사용.
+
 ## [0.8.3] - 2026-07-24
 
 ### Fixed
