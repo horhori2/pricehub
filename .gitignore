@@ -55,6 +55,9 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
+# 진단 스크립트 산출물 (예: find_contaminated_prices.py)
+scripts/maintenance/reports/
+
 # Unit test / coverage reports
 htmlcov/
 .tox/

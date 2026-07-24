@@ -3,6 +3,20 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.8.2] - 2026-07-24
+
+### Added
+- `scripts/maintenance/find_contaminated_prices.py` — 포켓몬/원피스/디지몬
+  가격 이력(`raw_data`) 중 지금 필터 기준으로는 유효하지 않은 상품이 섞여
+  들어간 행을 찾아 CSV로 보고하는 읽기 전용 진단 스크립트. 과거 필터
+  버그로 저장된 오염 데이터(예: C등급 카드에 SAR 상품이 매칭된 사례)를
+  찾기 위함. 일본판은 검색+필터 방식이 아니라 대상에서 제외.
+
+### Changed
+- `filter_pokemon_items`/`filter_digimon_items`의 "상품 1건이 카드에
+  유효한가" 판정 로직을 `_pokemon_item_is_valid`/`_digimon_item_is_valid`로
+  분리(동작 동일, 순수 리팩터링) — 위 진단 스크립트에서 재사용하기 위함.
+
 ## [0.8.1] - 2026-07-24
 
 ### Changed

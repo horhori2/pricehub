@@ -194,6 +194,53 @@ def _has_high_rarity_keyword(clean_title: str) -> bool:
     return any(_word_boundary_match(kw, clean_title) for kw in HIGH_RARITY_KEYWORDS)
 
 
+def _pokemon_item_is_valid(title: str, card_name_no_space: str, rarity: Optional[str], is_teukil: bool,
+                            is_mirror_rarity: bool, is_general_rarity: bool, is_irochi: bool) -> bool:
+    """
+    포켓몬 상품 1건(제목)이 카드(이름·레어도·특일여부)에 유효한 매칭인지 판정.
+    _is_excluded()(판매처·일본판 공통 제외)는 호출 전에 처리되어 있어야 함.
+    filter_pokemon_items()의 매칭 로직 본체 — 오염 데이터 재검사 스크립트에서도
+    그대로 재사용하기 위해 분리.
+    """
+    if re.sub(r'\s+', '', title).lower().find(card_name_no_space) == -1:
+        return False
+    if is_teukil:
+        if '특일' not in title and '특별' not in title:
+            return False
+    else:
+        if '특일' in title or '특별' in title:
+            return False
+
+    if is_general_rarity:
+        if _has_high_rarity_keyword(title):
+            return False
+        if any(_word_boundary_match(h, title) for h in HIGHER_RARITIES.get(rarity, [])):
+            return False
+
+    elif is_irochi:
+        # 이로치/색이 다른/색다른 키워드 또는 단독 s/S 중 하나 이상 포함
+        has_irochi_kw = any(kw in title for kw in IROCHI_KEYWORDS)
+        has_shiny_s   = bool(_IROCHI_SHINY_S_RE.search(title))
+        if not (has_irochi_kw or has_shiny_s):
+            return False
+
+    elif rarity and rarity not in EXCLUDED_RARITIES:
+        if is_mirror_rarity:
+            required_kw = MIRROR_KEYWORDS.get(rarity)
+            if required_kw:
+                kws = required_kw if isinstance(required_kw, list) else [required_kw]
+                if not any(kw in title for kw in kws):
+                    return False
+        elif rarity == 'MUR':
+            if 'MUR' not in title.upper():
+                return False
+        else:
+            if not _word_boundary_match(rarity, title):
+                return False
+
+    return True
+
+
 def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str],
                           is_teukil: bool = False) -> FilterResult:
     """포켓몬카드 검색 결과 필터링"""
@@ -201,49 +248,15 @@ def filter_pokemon_items(items: List[dict], card_name: str, rarity: Optional[str
     is_general_rarity = rarity in GENERAL_RARITIES
     is_irochi         = rarity == '이로치'
     card_name_no_space = re.sub(r'\s+', '', card_name).lower()
-    valid_items = []
 
-    for item in items:
-        if _is_excluded(item):
-            continue
-        title = _clean_title(item['title'])
-        if re.sub(r'\s+', '', title).lower().find(card_name_no_space) == -1:
-            continue
-        if is_teukil:
-            if '특일' not in title and '특별' not in title:
-                continue
-        else:
-            if '특일' in title or '특별' in title:
-                continue
-
-        if is_general_rarity:
-            if _has_high_rarity_keyword(title):
-                continue
-            if any(_word_boundary_match(h, title) for h in HIGHER_RARITIES.get(rarity, [])):
-                continue
-
-        elif is_irochi:
-            # 이로치/색이 다른/색다른 키워드 또는 단독 s/S 중 하나 이상 포함
-            has_irochi_kw = any(kw in title for kw in IROCHI_KEYWORDS)
-            has_shiny_s   = bool(_IROCHI_SHINY_S_RE.search(title))
-            if not (has_irochi_kw or has_shiny_s):
-                continue
-
-        elif rarity and rarity not in EXCLUDED_RARITIES:
-            if is_mirror_rarity:
-                required_kw = MIRROR_KEYWORDS.get(rarity)
-                if required_kw:
-                    kws = required_kw if isinstance(required_kw, list) else [required_kw]
-                    if not any(kw in title for kw in kws):
-                        continue
-            elif rarity == 'MUR':
-                if 'MUR' not in title.upper():
-                    continue
-            else:
-                if not _word_boundary_match(rarity, title):
-                    continue
-
-        valid_items.append(item)
+    valid_items = [
+        item for item in items
+        if not _is_excluded(item)
+        and _pokemon_item_is_valid(
+            _clean_title(item['title']), card_name_no_space, rarity, is_teukil,
+            is_mirror_rarity, is_general_rarity, is_irochi,
+        )
+    ]
 
     return _build_price_result(valid_items)
 
@@ -425,6 +438,39 @@ def generate_digimon_search_query(
     return f"{prefix}{card_number}".strip()
 
 
+def _digimon_item_is_valid(title: str, card_number: str,
+                            is_parallel: bool = False, is_scarce: bool = False,
+                            is_special: bool = False) -> bool:
+    """
+    디지몬 상품 1건(제목)이 카드(카드번호·희소/패러렐/스페셜 여부)에 유효한
+    매칭인지 판정. _is_excluded()는 호출 전에 처리되어 있어야 함.
+    filter_digimon_items()의 매칭 로직 본체 — 오염 데이터 재검사 스크립트에서도
+    그대로 재사용하기 위해 분리.
+    """
+    if card_number not in title:
+        return False
+
+    has_scarce_kw = "희소" in title
+    if is_scarce and not has_scarce_kw:
+        return False
+    if not is_scarce and has_scarce_kw:
+        return False
+
+    has_parallel_kw = any(kw in title for kw in _DIGIMON_PARALLEL_KEYWORDS)
+    if is_parallel and not has_parallel_kw:
+        return False
+    if not is_parallel and has_parallel_kw:
+        return False
+
+    has_special_kw = "스페셜" in title or _word_boundary_match('SP', title.upper())
+    if is_special and not has_special_kw:
+        return False
+    if not is_special and has_special_kw:
+        return False
+
+    return True
+
+
 def filter_digimon_items(
     items: List[dict],
     card_number: str,
@@ -433,35 +479,13 @@ def filter_digimon_items(
     is_special: bool = False,
 ) -> FilterResult:
     """디지몬카드 검색 결과 필터링"""
-    valid_items = []
-
-    for item in items:
-        if _is_excluded(item):
-            continue
-        title = _clean_title(item['title'])
-
-        if card_number not in title:
-            continue
-
-        has_scarce_kw = "희소" in title
-        if is_scarce and not has_scarce_kw:
-            continue
-        if not is_scarce and has_scarce_kw:
-            continue
-
-        has_parallel_kw = any(kw in title for kw in _DIGIMON_PARALLEL_KEYWORDS)
-        if is_parallel and not has_parallel_kw:
-            continue
-        if not is_parallel and has_parallel_kw:
-            continue
-
-        has_special_kw = "스페셜" in title or _word_boundary_match('SP', title.upper())
-        if is_special and not has_special_kw:
-            continue
-        if not is_special and has_special_kw:
-            continue
-
-        valid_items.append(item)
+    valid_items = [
+        item for item in items
+        if not _is_excluded(item)
+        and _digimon_item_is_valid(
+            _clean_title(item['title']), card_number, is_parallel, is_scarce, is_special,
+        )
+    ]
 
     return _build_price_result(valid_items)
 
