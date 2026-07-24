@@ -5,10 +5,14 @@ pricehub/views.py
 - 홈: 게임(포켓몬/원피스/디지몬) × 언어(한글판/일본판) 선택
 - 각 카테고리별: 확장팩 목록 → 카드 목록 → 카드 상세 + 판매가 설정
 """
+import concurrent.futures
+import hashlib
 import json
 import logging
 import re
 from urllib.parse import urlencode
+
+import requests
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
@@ -1592,6 +1596,57 @@ def _verify_read_excel(uploaded_file):
     return data_rows
 
 
+_VERIFY_IMAGE_FETCH_TIMEOUT = 4            # 초 (동시 요청이라 개별 타임아웃은 짧게 잡음)
+_VERIFY_IMAGE_HASH_CACHE_TTL = 60 * 60 * 24 * 30  # 30일 (이미지 내용은 거의 안 바뀜)
+_VERIFY_IMAGE_FETCH_WORKERS = 16           # 동시 다운로드 수
+
+
+def _verify_image_hash_cache_key(url):
+    return 'verify_img_hash:' + hashlib.sha256(url.encode()).hexdigest()
+
+
+def _fetch_image_hash(url):
+    """이미지를 다운로드해 SHA256 해시로 반환. 실패(타임아웃/404 등) 시 None."""
+    try:
+        resp = requests.get(url, timeout=_VERIFY_IMAGE_FETCH_TIMEOUT)
+        resp.raise_for_status()
+        return hashlib.sha256(resp.content).hexdigest()
+    except Exception:
+        return None
+
+
+def _verify_image_hashes(urls):
+    """
+    여러 이미지 URL의 내용 해시를 동시에(스레드풀) 받아와 {url: hash_or_None} 로 반환.
+    URL별로 캐시(FileBasedCache, 워커 간 공유)해서 재검증 시 재다운로드하지 않음.
+
+    행마다 순차로 다운로드하면 URL 하나가 응답 없을 때마다 타임아웃만큼 그대로
+    누적돼(확인 필요한 행이 많으면 페이지가 몇 분씩 걸리거나 gunicorn 기본
+    타임아웃(30초)에 걸려 아예 응답이 끊김) 반드시 동시 처리해야 함.
+    """
+    unique_urls = {u for u in urls if u}
+    result = {}
+    to_fetch = []
+
+    for url in unique_urls:
+        cached = cache.get(_verify_image_hash_cache_key(url))
+        if cached is not None:
+            result[url] = cached or None  # 실패도 빈 문자열로 캐시해두므로 None으로 통일
+        else:
+            to_fetch.append(url)
+
+    if to_fetch:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=_VERIFY_IMAGE_FETCH_WORKERS) as executor:
+            future_to_url = {executor.submit(_fetch_image_hash, url): url for url in to_fetch}
+            for future in concurrent.futures.as_completed(future_to_url):
+                url = future_to_url[future]
+                digest = future.result()
+                result[url] = digest
+                cache.set(_verify_image_hash_cache_key(url), digest or '', _VERIFY_IMAGE_HASH_CACHE_TTL)
+
+    return result
+
+
 def _bulk_verify_view(request, cfg_key):
     """
     엑셀 업로드 → 상품코드(B열, 6행부터) 기준으로 DB 카드와 1:1 비교.
@@ -1684,8 +1739,10 @@ def _bulk_verify_view(request, cfg_key):
     db_map_lower = {code.lower(): card for code, card in db_map_exact.items()}
 
     results = []
-    auto_match_count = 0    # 이미지 URL이 완전히 동일 → 자동 확인 완료
-    needs_check_count = 0   # 등록은 되어 있으나 이미지 URL이 달라 육안 확인 필요
+    pending = []             # 이미지 내용 비교가 필요한 항목 (일괄 처리 대상)
+    pending_urls = set()
+    auto_match_count = 0    # 이미지가 같음(URL 동일 또는 내용 동일) → 자동 확인 완료
+    needs_check_count = 0   # 등록은 되어 있으나 이미지가 달라 육안 확인 필요
     notfound_count = 0      # DB에 상품코드 자체가 없음
 
     for row in excel_rows:
@@ -1707,26 +1764,54 @@ def _bulk_verify_view(request, cfg_key):
             continue
 
         # 이미지 URL이 글자 그대로 동일하면 같은 이미지로 간주해 자동 통과.
-        # 그 외(이미지가 다르거나 비어있는 경우)는 작업자가 직접 눈으로 비교해야 함.
-        image_url_same = bool(row['image']) and bool(card.image_url) and row['image'] == card.image_url
-        status = 'auto_match' if image_url_same else 'needs_check'
+        excel_image = row['image']
+        db_image = card.image_url
+        image_match = bool(excel_image) and bool(db_image) and excel_image == db_image
 
-        if status == 'auto_match':
-            auto_match_count += 1
-        else:
-            needs_check_count += 1
-
-        results.append({
+        entry = {
             'code':         code,
             'base_code':    _verify_base_code(code),
             'excel_name':   row['name'],
-            'excel_image':  row['image'],
+            'excel_image':  excel_image,
             'db_name':      card.name,
-            'db_image':     card.image_url,
+            'db_image':     db_image,
             'db_expansion': card.expansion.name if card.expansion_id else '',
-            'status':       status,
             'card_id':      card.pk,
-        })
+        }
+
+        if image_match:
+            entry['status'] = 'auto_match'
+            entry['match_reason'] = 'url'
+            auto_match_count += 1
+        elif excel_image and db_image:
+            # URL은 다르지만(스토어가 업로드 시 자체 서버로 재호스팅하는 경우) 실제
+            # 이미지 내용이 같을 수 있음 — 상태는 아래 일괄 다운로드 후 확정.
+            entry['status'] = None
+            entry['match_reason'] = None
+            pending.append(entry)
+            pending_urls.add(excel_image)
+            pending_urls.add(db_image)
+        else:
+            entry['status'] = 'needs_check'
+            entry['match_reason'] = None
+            needs_check_count += 1
+
+        results.append(entry)
+
+    # 내용 비교가 필요한 이미지들을 한 번에(동시) 받아와 비교 — 행마다 순차로
+    # 다운로드하면 확인 필요한 행이 많을 때 응답이 몇 분씩 걸릴 수 있음.
+    if pending_urls:
+        hash_map = _verify_image_hashes(pending_urls)
+        for entry in pending:
+            excel_hash = hash_map.get(entry['excel_image'])
+            db_hash = hash_map.get(entry['db_image'])
+            if excel_hash and db_hash and excel_hash == db_hash:
+                entry['status'] = 'auto_match'
+                entry['match_reason'] = 'content'
+                auto_match_count += 1
+            else:
+                entry['status'] = 'needs_check'
+                needs_check_count += 1
 
     # 보기 좋게: 확인이 필요한 항목 우선 정렬 (DB 미등록 → 육안확인 필요 → 자동일치)
     status_order = {'notfound': 0, 'needs_check': 1, 'auto_match': 2}

@@ -209,7 +209,7 @@
       <div class="verify-card-head">
         <span class="verify-code">{{ r.code }}</span>
         {% if r.status == 'auto_match' %}
-        <span class="verify-status-badge vsb-auto">URL 동일</span>
+        <span class="verify-status-badge vsb-auto">{% if r.match_reason == 'content' %}이미지 동일{% else %}URL 동일{% endif %}</span>
         {% elif r.status == 'needs_check' %}
         <span class="verify-status-badge vsb-needscheck">확인 필요</span>
         {% else %}
