@@ -14,7 +14,7 @@ def _tcg_api_urls(views):
     views 딕셔너리 keys:
         expansion_list, expansion_detail, expansion_card_list,
         card_search, card_detail (optional),
-        card_by_product_code,
+        card_by_product_code, card_bulk_by_product_code (optional),
         price_latest (optional), price_summary (optional)
     """
     patterns = [
@@ -29,6 +29,11 @@ def _tcg_api_urls(views):
         path('cards/by-product-code/<str:shop_product_code>/',
              views['card_by_product_code'],          name='card-by-product-code'),
     ]
+    if 'card_bulk_by_product_code' in views:
+        patterns.append(
+            path('cards/bulk-by-product-code/',
+                 views['card_bulk_by_product_code'], name='card-bulk-by-product-code')
+        )
     if 'card_detail' in views:
         patterns.append(
             path('cards/<int:pk>/', views['card_detail'].as_view(), name='card-detail')
@@ -61,6 +66,7 @@ _pokemon_kr_views = {
     'card_search':          api_views.CardSearchView,
     'card_detail':          api_views.CardDetailView,
     'card_by_product_code': api_views.card_by_product_code,
+    'card_bulk_by_product_code': api_views.card_bulk_by_product_code,
     'price_latest':         api_views.LatestNaverPriceListView,
     'price_summary':        api_views.price_collection_summary,
     'price_snapshot':       api_views.PokemonPriceSnapshotView,
@@ -73,6 +79,7 @@ _onepiece_kr_views = {
     'expansion_card_list':  api_views.OnePieceCardListView,
     'card_search':          api_views.OnePieceCardSearchView,
     'card_by_product_code': api_views.onepiece_card_by_product_code,
+    'card_bulk_by_product_code': api_views.onepiece_card_bulk_by_product_code,
     'price_snapshot':       api_views.OnePiecePriceSnapshotView,
     'price_history':        api_views.OnePiecePriceHistoryView,
 }
@@ -83,6 +90,7 @@ _digimon_kr_views = {
     'expansion_card_list':  api_views.DigimonCardListView,
     'card_search':          api_views.DigimonCardSearchView,
     'card_by_product_code': api_views.digimon_card_by_product_code,
+    'card_bulk_by_product_code': api_views.digimon_card_bulk_by_product_code,
     'price_snapshot':       api_views.DigimonPriceSnapshotView,
     'price_history':        api_views.DigimonPriceHistoryView,
 }

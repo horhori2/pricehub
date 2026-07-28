@@ -200,6 +200,46 @@ def _card_by_product_code_view(request, shop_product_code, card_model):
     })
 
 
+# 매장 쪽에서 상품코드 하나당 요청 하나씩(카드 최대 1만여 개) 반복 호출하던 걸
+# 청크 단위로 묶어 한 번에 조회하기 위한 벌크 버전 — by-product-code와 응답
+# 필드는 동일하되, shop_product_code를 키로 하는 딕셔너리로 여러 건을 한 번에 담는다.
+_BULK_MAX_CODES = 1000
+
+
+def _card_bulk_by_product_code_view(request, card_model):
+    """상품코드 목록(POST body: {"codes": [...]})으로 카드 여러 건을 한 번에 조회."""
+    codes = request.data.get('codes')
+    if not isinstance(codes, list) or not codes:
+        return Response({'error': "'codes' 배열이 필요합니다."}, status=status.HTTP_400_BAD_REQUEST)
+    if len(codes) > _BULK_MAX_CODES:
+        return Response(
+            {'error': f'한 번에 최대 {_BULK_MAX_CODES}개까지 조회할 수 있습니다.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    cards = (
+        card_model.objects
+        .select_related('expansion')
+        .filter(shop_product_code__in=codes)
+    )
+    results = {}
+    for card in cards:
+        selling_price = card.selling_price
+        results[card.shop_product_code] = {
+            'id': card.id,
+            'card_number': card.card_number,
+            'name': card.name,
+            'rarity': card.rarity,
+            'selling_price': selling_price if selling_price != 0 else None,
+            'shop_product_code': card.shop_product_code,
+            'expansion': {
+                'code': card.expansion.code,
+                'name': card.expansion.name,
+            },
+        }
+    return Response({'results': results})
+
+
 # ════════════════════════════════════════════════════════════════
 # 포켓몬 한글판
 # ════════════════════════════════════════════════════════════════
@@ -354,6 +394,14 @@ def card_by_product_code(request, shop_product_code):
     return _card_by_product_code_view(request, shop_product_code, Card)
 
 
+@api_view(['POST'])
+@authentication_classes([APIKeyAuthentication])
+@permission_classes([HasAPIKey])
+def card_bulk_by_product_code(request):
+    """상품코드 목록으로 포켓몬 카드 여러 건을 한 번에 조회"""
+    return _card_bulk_by_product_code_view(request, Card)
+
+
 class PokemonPriceSnapshotView(PriceSnapshotMixin):
     card_model = Card
 
@@ -394,6 +442,14 @@ def onepiece_card_by_product_code(request, shop_product_code):
     return _card_by_product_code_view(request, shop_product_code, OnePieceCard)
 
 
+@api_view(['POST'])
+@authentication_classes([APIKeyAuthentication])
+@permission_classes([HasAPIKey])
+def onepiece_card_bulk_by_product_code(request):
+    """상품코드 목록으로 원피스 카드 여러 건을 한 번에 조회"""
+    return _card_bulk_by_product_code_view(request, OnePieceCard)
+
+
 class OnePiecePriceSnapshotView(PriceSnapshotMixin):
     card_model = OnePieceCard
 
@@ -432,6 +488,14 @@ class DigimonCardSearchView(CardSearchMixin):
 def digimon_card_by_product_code(request, shop_product_code):
     """상품코드로 디지몬 카드 조회"""
     return _card_by_product_code_view(request, shop_product_code, DigimonCard)
+
+
+@api_view(['POST'])
+@authentication_classes([APIKeyAuthentication])
+@permission_classes([HasAPIKey])
+def digimon_card_bulk_by_product_code(request):
+    """상품코드 목록으로 디지몬 카드 여러 건을 한 번에 조회"""
+    return _card_bulk_by_product_code_view(request, DigimonCard)
 
 
 class DigimonPriceSnapshotView(PriceSnapshotMixin):
