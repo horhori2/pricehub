@@ -15,7 +15,7 @@ NAVER_CLIENT_SECRET = os.environ.get('NAVER_CLIENT_SECRET', '')
 
 # ── 공통 필터 ─────────────────────────────────────────────────────
 EXCLUDED_MALLS    = {'네이버', '쿠팡'}
-EXCLUDED_KEYWORDS = ['일본', '일본판', 'JP', 'JPN', '일판']
+EXCLUDED_KEYWORDS = ['일본', '일본판', 'JP', 'JPN', '일판', '일어판']
 
 # 우리 자신의 매장 — 시장 최저가(경쟁사 최저가) 계산에서 반드시 제외해야
 # "판매가가 시장 최저가보다 낮다"는 비교가 의미를 가진다.
