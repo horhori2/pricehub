@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.11.1] - 2026-07-29
+
+### Fixed
+- 배포 시 `collectstatic`을 건너뛰어서 nginx가 며칠 전 정적 파일(dashboard.js)을
+  그대로 서빙하는 바람에 저가 경고 페이지 신규 버튼들이 반응 없던 사고 대응.
+  `CLAUDE.md` 배포 절차에 `pip install`/`collectstatic --clear`/`migrate`
+  세 단계는 변경 내용과 무관하게 매번 실행하도록 명시.
+
 ## [0.11.0] - 2026-07-29
 
 ### Added

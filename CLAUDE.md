@@ -52,7 +52,13 @@ Claude Code가 이 저장소에서 작업할 때 따라야 하는 지침.
   cd ~/pricehub && source venv/bin/activate
   git pull origin master
   pip install -r requirements.txt
-  python manage.py collectstatic --noinput
+  python manage.py collectstatic --noinput --clear
   python manage.py migrate
   pm2 restart django-app
   ```
+  **`pip install` / `collectstatic --clear` / `migrate` 세 개는 이번에 뭐가 바뀌었는지와
+  무관하게 매 배포마다 항상 실행한다.** "이번엔 정적 파일만/DB만 바뀌었으니 이 단계는
+  건너뛰어도 되겠다"는 판단을 하지 말 것 — nginx가 `staticfiles/`(git에 없는 산출물)를
+  서빙하는데 `collectstatic`을 건너뛰면 며칠 전 정적 파일이 그대로 서빙되면서 새 JS/CSS가
+  반영 안 된 채로 눈치채기 힘든 버그처럼 보이는 사고가 실제로 있었다(`--clear`로 옛 파일
+  잔존까지 방지). `git pull`만 하고 `pm2 restart`로 끝내는 식의 축약 배포는 하지 않는다.
