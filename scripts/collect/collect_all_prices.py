@@ -1,5 +1,6 @@
 # collect_all_prices.py
 import os
+import sys
 import django
 import time
 import json

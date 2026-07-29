@@ -1,5 +1,6 @@
 # save_japan_cards_to_db.py
 import os
+import sys
 import django
 import requests
 from bs4 import BeautifulSoup

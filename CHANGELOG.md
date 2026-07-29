@@ -3,6 +3,17 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.11.3] - 2026-07-29
+
+### Fixed
+- `collect_all_prices.py`/`save_japan_cards_to_db.py`가 아예 실행이 안 되던
+  버그. `scripts/` 하위로 옮기며 진행했던 `sys.path` 일괄 수정(0.6.7) 때,
+  두 파일은 `import sys`가 파일 뒤쪽(`if __name__` 블록 등)에 이미 있어서
+  자동화 스크립트가 "이미 있음"으로 잘못 판단해 정작 필요한 맨 위쪽
+  `import sys`를 안 넣었던 것 — `sys.path.insert(...)` 호출 시점엔 아직
+  `sys`가 정의 안 돼서 `NameError`로 즉시 죽음. 나머지 19개 스크립트는
+  이 문제 없음(전수 재검사 완료).
+
 ## [0.11.2] - 2026-07-29
 
 ### Fixed
