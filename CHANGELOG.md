@@ -3,6 +3,12 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.10.1] - 2026-07-29
+
+### Changed
+- 일본판 가격 export 파일 교체 (`japan_prices_20260727_011604.json` →
+  `japan_prices_20260729_020805.json`).
+
 ## [0.10.0] - 2026-07-28
 
 ### Added
