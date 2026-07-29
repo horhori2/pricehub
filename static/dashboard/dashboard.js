@@ -1025,6 +1025,75 @@ function fillIssuePrice(cardId, price) {
   document.getElementById(`row-${cardId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+/* ── 행별 ↩ 버튼: 이전 판매가로 복원 / 유지 상태 토글 ──
+   하락/상승 대기(bulk_trend.html), 저가 경고(bulk_underpriced.html) 공용.
+   ↩ 버튼이 없는 페이지도 있어(예: 판매가 미설정) null 체크 필수. */
+function revertToSelling(cardId) {
+  const btn = document.getElementById('revert-' + cardId);
+  if (!btn || btn.classList.contains('kept')) return;
+  const input   = document.getElementById('input-' + cardId);
+  const selling = parseInt(btn.dataset.selling || '0', 10);
+  if (!selling || !input) return;
+  input.value = selling;
+  input.style.color = 'var(--trend-up)';
+  input.classList.add('prefilled');
+  btn.classList.add('kept');
+  btn.textContent = '유지';
+  btn.title = '이전 판매가 유지 중';
+}
+
+/* ── 가격 직접 입력 시 ↩ 버튼 상태 갱신 ──
+   주의: '유지'(이전 판매가 그대로) 상태는 항상 --trend-up, 직접 수정 중인
+   상태는 --trend-down — 이건 하락/상승 페이지 방향과 무관하게 "편집 상태"를
+   나타내는 색상이다(예전엔 bulk_rise.html 쪽에 이 else 분기가 실수로
+   --trend-up으로 복붙돼 있어서 편집 중에도 색이 안 바뀌는 버그가 있었음). */
+function onDropPriceInput(cardId, input) {
+  const btn = document.getElementById('revert-' + cardId);
+  if (!btn) return;
+  const selling = parseInt(btn.dataset.selling || '0', 10);
+  const current = parseInt(input.value || '0', 10);
+  if (current === selling) {
+    input.style.color = 'var(--trend-up)';
+    btn.classList.add('kept');
+    btn.textContent = '유지';
+    btn.title = '이전 판매가 유지 중';
+  } else {
+    input.style.color = 'var(--trend-down)';
+    btn.classList.remove('kept');
+    btn.textContent = '↩';
+    btn.title = `이전 판매가로 복원 (${selling.toLocaleString()}원)`;
+  }
+}
+
+/* ── 체크된 카드 전체: 이전 판매가를 수정 가격 입력란에 채우기 ── */
+function bulkFillOldPrice() {
+  const checked = [...document.querySelectorAll('.row-check:checked')];
+  if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
+
+  let filled = 0;
+  checked.forEach(cb => {
+    const cardId = cb.dataset.id;
+    const row    = document.getElementById('row-' + cardId);
+    const old    = parseInt(row?.dataset.selling || '0', 10);
+    if (!old) return;
+    const input  = document.getElementById('input-' + cardId);
+    if (input) {
+      input.value = old;
+      input.style.color = 'var(--trend-up)';
+      input.classList.add('prefilled');
+      filled++;
+      const btn = document.getElementById('revert-' + cardId);
+      if (btn) { btn.classList.add('kept'); btn.textContent = '유지'; btn.title = '이전 판매가 유지 중'; }
+    }
+  });
+
+  if (filled === 0) {
+    showIssueToast('이전 판매가 정보가 없습니다.', 'err');
+  } else {
+    showIssueToast(`↩ ${filled}개 카드에 이전 판매가 채워짐 (💾 저장 버튼으로 확정하세요)`, 'ok');
+  }
+}
+
 /* ── edit: 직접 입력한 가격으로 저장 ── */
 async function saveIssueEdit(cardId) {
   const input = document.getElementById(`input-${cardId}`);

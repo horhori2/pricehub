@@ -43,6 +43,16 @@
         <button class="action-btn success" id="saveAllBtn" onclick="approveChecked()">💾 체크된 카드 저장</button>
         <button class="action-btn" onclick="approveAll()">전체 저장</button>
       </div>
+
+      <!-- 수정가 변경 -->
+      <div class="control-row">
+        <span class="ctrl-label">수정가 변경</span>
+        <div class="ctrl-divider"></div>
+        <!-- 이전 판매가 복원 -->
+        <button class="action-btn" onclick="bulkFillOldPrice()"
+                style="white-space:nowrap;border-color:var(--accent,#7c6af7);color:var(--accent,#7c6af7);"
+                title="체크된 카드의 수정가격 입력란에 이전 판매가를 채웁니다">↩ 이전 판매가 유지</button>
+      </div>
     </div>
 
     <!-- 페이지 헤더 + 통계 -->
@@ -131,8 +141,13 @@
               <input type="number" class="price-input-issues" id="input-{{ item.card.id }}"
                      value="{{ item.market_price|floatformat:0 }}" min="1" step="100"
                      style="color:var(--trend-up);font-weight:700;width:100%;"
-                     onkeydown="if(event.key==='Enter') saveIssueEdit({{ item.card.id }})">
+                     onkeydown="if(event.key==='Enter') saveIssueEdit({{ item.card.id }})"
+                     oninput="onDropPriceInput({{ item.card.id }}, this)">
               <span class="saved-badge" id="badge-{{ item.card.id }}">✓</span>
+              <button class="revert-btn" id="revert-{{ item.card.id }}"
+                      data-selling="{{ item.selling_price }}"
+                      title="이전 판매가로 복원 ({{ item.selling_price|floatformat:0 }}원)"
+                      onclick="revertToSelling({{ item.card.id }})">↩</button>
             </div>
           </td>
           <td style="padding-right:8px;">

@@ -3,6 +3,18 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.10.0] - 2026-07-28
+
+### Added
+- 저가 경고 페이지(`bulk-price/underpriced/`)에 하락 대기 페이지에 있던
+  "↩ 이전 판매가 유지" 일괄 버튼과 행별 ↩ 복원 버튼 추가. 지금까지는 판매가를
+  이전 값으로 되돌리려면 직접 숫자를 입력해야 했음.
+
+### Changed
+- `revertToSelling`/`onDropPriceInput`/`bulkFillOldPrice`가 `bulk_trend.html`에만
+  인라인으로 있던 걸 `dashboard.js`로 옮겨 저가 경고 페이지와 공용으로 사용하도록
+  리팩토링 — 그대로 복붙하면 중복이라서 공용 함수로 통합.
+
 ## [0.9.0] - 2026-07-28
 
 ### Added
