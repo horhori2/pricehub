@@ -94,6 +94,11 @@ _MANGA_KEYWORDS           = ['망가', 'MANGA', 'manga']
 _PARALLEL_KEYWORDS        = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레', 'P-']
 _ONEPIECE_GENERAL_RARITIES = {'C', 'R', 'UC', 'SR', 'SEC'}
 
+# "두웅" — 덱 동봉 아크릴 스탠드 굿즈(EB03/OP13 등). 카드번호가 D1~D5 같은
+# 자체 부여 번호라 검색어로 못 써서(예: 'D4' 검색은 노이즈만 나옴) 완전히
+# 별도의 검색어·필터 로직을 쓴다.
+_DOONG_RARITIES = {'D', 'P-D'}
+
 
 # ════════════════════════════════════════════════════════════════
 # 공통 유틸
@@ -302,13 +307,57 @@ def _onepiece_rarity_flags(rarity: str):
     return is_manga, is_special, is_parallel
 
 
+def _doong_search_query(shop_product_code: str, card_name: str) -> str:
+    """
+    "두웅" 전용 검색어. 카드번호(D1~D5 등) 대신 상품코드의 확장팩 접두사
+    (예: 'OPC-EB03-D4-K' → 'EB03')와 카드명을 그대로 붙여서 검색한다.
+
+    예: shop_product_code='OPC-EB03-D4-K', card_name='금 두웅 (나미)'
+        → 'EB03 금 두웅 나미'
+    """
+    parts = shop_product_code.upper().split('-')
+    expansion_code = parts[1] if len(parts) > 1 else ''
+    flat_name = re.sub(r'\s+', ' ', card_name.replace('(', ' ').replace(')', ' ')).strip()
+    return f"{expansion_code} {flat_name}".strip()
+
+
+def _doong_item_is_valid(title: str, card_name: str, is_parallel: bool) -> bool:
+    """
+    "두웅" 상품 1건이 유효한지 판정.
+
+    실제 판매 상품명 표기가 "금"/"패러렐"/캐릭터명만 등 제각각이라, 패러렐
+    (금) 등급이면 이 중 하나라도 맞으면 유효로 본다(OR). 일반 등급이면
+    카드명 괄호 안 캐릭터명(있는 경우)만 확인한다.
+    예: '두웅 (나미)' → 괄호 안 '나미', '금 두웅' → 괄호 없음(캐릭터명 없음).
+    """
+    if '두웅' not in title:
+        return False
+
+    m = re.search(r'\(([^)]+)\)', card_name)
+    char_name = m.group(1).strip() if m else ''
+
+    if is_parallel:
+        if '금' in title:
+            return True
+        if any(kw in title for kw in _PARALLEL_KEYWORDS):
+            return True
+        return bool(char_name) and char_name in title
+
+    if char_name:
+        return char_name in title
+    return True
+
+
 def _onepiece_title_matches(title: str, base_number: str,
                              is_manga: bool, is_special: bool, is_parallel: bool,
-                             price: float, rarity: str = '') -> bool:
+                             price: float, rarity: str = '', card_name: str = '') -> bool:
     """
     원피스 카드번호·레어도 필터를 적용해 상품이 유효한지 반환.
     공통 제외(판매처·일본판)는 호출 전에 처리되어 있어야 함.
     """
+    if rarity in _DOONG_RARITIES:
+        return _doong_item_is_valid(title, card_name, is_parallel)
+
     if base_number not in title:
         return False
 
@@ -355,16 +404,21 @@ def generate_onepiece_search_query(
     rarity: str,
     expansion_name: str,
     card_number: str,
+    shop_product_code: str = '',
 ) -> str:
     """
     원피스 카드 검색어 생성.
 
+    D / P-D(두웅)  → '{확장팩코드} {카드명}' (_doong_search_query 참고)
     MANGA          → '망가 {base}'
     SP             → '스페셜 {base}'
     P-*            → '패러렐 {base}'
     ST* / P-프로모  → '원피스 {base}'
     그 외           → '{base}'
     """
+    if rarity in _DOONG_RARITIES:
+        return _doong_search_query(shop_product_code, card_name)
+
     base = _BASE_CARD_NUMBER_RE.sub('', card_number)
 
     if rarity == 'MANGA':
@@ -395,7 +449,7 @@ def filter_onepiece_items(
             continue
         title = _clean_title(item['title'])
         price = float(item['lprice'])
-        if _onepiece_title_matches(title, base_number, is_manga, is_special, is_parallel, price, rarity):
+        if _onepiece_title_matches(title, base_number, is_manga, is_special, is_parallel, price, rarity, card_name):
             valid_items.append(item)
 
     return _build_price_result(valid_items)
@@ -541,6 +595,7 @@ def get_onepiece_all_prices(
     rarity: str,
     expansion_name: str,
     card_number: str,
+    shop_product_code: str = '',
 ) -> dict:
     """
     원피스 카드 가격 통합 검색 (API 1회 호출).
@@ -552,7 +607,7 @@ def get_onepiece_all_prices(
             'valid_items':   유효 상품 전체 리스트,
         }
     """
-    search_query = generate_onepiece_search_query(card_name, rarity, expansion_name, card_number)
+    search_query = generate_onepiece_search_query(card_name, rarity, expansion_name, card_number, shop_product_code)
     logger.debug("[원피스] 검색어: %s", search_query)
 
     items = search_naver_shopping(search_query)

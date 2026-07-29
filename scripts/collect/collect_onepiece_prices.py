@@ -51,6 +51,7 @@ def collect_prices_for_all_cards():
                 rarity=card.rarity,
                 expansion_name=card.expansion.name,
                 card_number=card.card_number,
+                shop_product_code=card.shop_product_code,
             )
 
             general_price, valid_count, mall_name = result['general_price']
@@ -134,6 +135,7 @@ def collect_prices_for_expansion(expansion_code: str):
                 rarity=card.rarity,
                 expansion_name=card.expansion.name,
                 card_number=card.card_number,
+                shop_product_code=card.shop_product_code,
             )
 
             general_price, valid_count, mall_name = result['general_price']
@@ -205,6 +207,7 @@ def test_single_card(card_id: int):
         rarity=card.rarity,
         expansion_name=card.expansion.name,
         card_number=card.card_number,
+        shop_product_code=card.shop_product_code,
     )
 
     general_price, valid_count, mall_name = result['general_price']
