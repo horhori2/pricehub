@@ -5,7 +5,15 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import Client, SimpleTestCase, TestCase
 
 from pricehub.models import Card, CardPrice, Expansion, PurchaseList, PurchaseListItem, round_to_100
-from pricehub.utils import filter_digimon_items, filter_pokemon_items
+from pricehub.utils import (
+    _doong_item_is_valid,
+    _doong_search_query,
+    _is_excluded,
+    filter_digimon_items,
+    filter_onepiece_items,
+    filter_pokemon_items,
+    generate_onepiece_search_query,
+)
 
 
 def _item(title, price, mall='테스트몰'):
@@ -243,6 +251,162 @@ class FilterDigimonItemsTests(SimpleTestCase):
         self.assertEqual(valid[0]['lprice'], '1500')
 
 
+def _onepiece_item(title, price, mall='테스트몰'):
+    return {'title': title, 'lprice': str(price), 'mallName': mall}
+
+
+class IsExcludedTests(SimpleTestCase):
+    """공통 제외 조건(_is_excluded): 판매처·해외판 키워드는 3개 게임 필터가 공용으로 씀"""
+
+    def test_excludes_kream_mall(self):
+        self.assertTrue(_is_excluded(_onepiece_item('아무 카드', 1000, mall='KREAM')))
+
+    def test_excludes_naver_and_coupang_malls(self):
+        self.assertTrue(_is_excluded(_onepiece_item('아무 카드', 1000, mall='네이버')))
+        self.assertTrue(_is_excluded(_onepiece_item('아무 카드', 1000, mall='쿠팡')))
+
+    def test_does_not_exclude_normal_mall(self):
+        self.assertFalse(_is_excluded(_onepiece_item('아무 카드', 1000, mall='코방구')))
+
+    def test_excludes_overseas_version_keywords(self):
+        for keyword in ('일본', '일본판', '일판', '일어판', 'JP', 'JPN', '영문', '영문판', '미국', '미국판', '영어'):
+            with self.subTest(keyword=keyword):
+                item = _onepiece_item(f'포켓몬카드 뚜벅쵸 {keyword}', 1000)
+                self.assertTrue(_is_excluded(item), f'{keyword!r}가 포함된 제목은 제외돼야 함')
+
+    def test_does_not_exclude_normal_korean_title(self):
+        item = _onepiece_item('포켓몬카드 뚜벅쵸 한글판', 1000)
+        self.assertFalse(_is_excluded(item))
+
+
+class FilterOnePieceItemsTests(SimpleTestCase):
+    """원피스 필터링: 카드번호 매칭 + 망가/스페셜/패러렐/일반/기타 레어도"""
+
+    def test_base_number_must_be_in_title(self):
+        items = [_onepiece_item('원피스카드 다른번호 EB03-999', 1000)]
+        price, count, mall, valid = filter_onepiece_items(items, '나미', 'C', '확장팩', 'EB03-062')
+        self.assertEqual(count, 0)
+
+    def test_manga_requires_keyword_and_high_price(self):
+        items = [
+            _onepiece_item('원피스카드 나미 망가 EB03-062', 1600000),
+            _onepiece_item('원피스카드 나미 망가 EB03-062', 100000),   # 20만원 미만 → 제외
+            _onepiece_item('원피스카드 나미 EB03-062', 1600000),        # 망가 키워드 없음 → 제외
+        ]
+        price, count, mall, valid = filter_onepiece_items(items, '나미', 'MANGA', '확장팩', 'EB03-062')
+        self.assertEqual(count, 1)
+        self.assertEqual(valid[0]['lprice'], '1600000')
+
+    def test_special_requires_sp_keyword(self):
+        items = [
+            _onepiece_item('원피스카드 나미 SP EB03-062', 30000),
+            _onepiece_item('원피스카드 나미 EB03-062', 5000),
+        ]
+        price, count, mall, valid = filter_onepiece_items(items, '나미', 'SP', '확장팩', 'EB03-062')
+        self.assertEqual(count, 1)
+        self.assertEqual(valid[0]['lprice'], '30000')
+
+    def test_parallel_rarity_requires_parallel_keyword(self):
+        items = [
+            _onepiece_item('원피스카드 나미 패러렐 EB03-062', 20000),
+            _onepiece_item('원피스카드 나미 EB03-062', 5000),
+        ]
+        price, count, mall, valid = filter_onepiece_items(items, '나미', 'P-SR', '확장팩', 'EB03-062')
+        self.assertEqual(count, 1)
+        self.assertEqual(valid[0]['lprice'], '20000')
+
+    def test_general_rarity_excludes_parallel_and_special(self):
+        items = [
+            _onepiece_item('원피스카드 나미 EB03-062', 5000),
+            _onepiece_item('원피스카드 나미 패러렐 EB03-062', 20000),
+            _onepiece_item('원피스카드 나미 SP EB03-062', 30000),
+        ]
+        price, count, mall, valid = filter_onepiece_items(items, '나미', 'C', '확장팩', 'EB03-062')
+        self.assertEqual(count, 1)
+        self.assertEqual(valid[0]['lprice'], '5000')
+
+    def test_other_rarity_only_excludes_parallel(self):
+        items = [
+            _onepiece_item('원피스카드 나미 EB03-062', 5000),
+            _onepiece_item('원피스카드 나미 패러렐 EB03-062', 20000),
+        ]
+        price, count, mall, valid = filter_onepiece_items(items, '나미', 'L', '확장팩', 'EB03-062')
+        self.assertEqual(count, 1)
+        self.assertEqual(valid[0]['lprice'], '5000')
+
+
+class GenerateOnePieceSearchQueryTests(SimpleTestCase):
+    """원피스 검색어 생성: 레어도별 접두사 + 두웅(D/P-D) 특수 케이스 위임"""
+
+    def test_plain_rarity_returns_base_number(self):
+        query = generate_onepiece_search_query('나미', 'C', '확장팩', 'EB03-062')
+        self.assertEqual(query, 'EB03-062')
+
+    def test_manga_prefixes_query(self):
+        query = generate_onepiece_search_query('나미', 'MANGA', '확장팩', 'EB03-062_P2')
+        self.assertEqual(query, '망가 EB03-062')
+
+    def test_special_prefixes_query(self):
+        query = generate_onepiece_search_query('나미', 'SP', '확장팩', 'EB03-062')
+        self.assertEqual(query, '스페셜 EB03-062')
+
+    def test_parallel_prefixes_query(self):
+        query = generate_onepiece_search_query('나미', 'P-SR', '확장팩', 'EB03-062')
+        self.assertEqual(query, '패러렐 EB03-062')
+
+    def test_starter_deck_prefixes_with_onepiece(self):
+        query = generate_onepiece_search_query('나미', 'C', '확장팩', 'ST01-004')
+        self.assertEqual(query, '원피스 ST01-004')
+
+    def test_doong_rarity_delegates_to_doong_search_query(self):
+        query = generate_onepiece_search_query(
+            '금 두웅 (나미)', 'P-D', '확장팩', 'D4', shop_product_code='OPC-EB03-D4-K-V1',
+        )
+        self.assertEqual(query, 'EB03 금 두웅 나미')
+
+
+class DoongSearchQueryTests(SimpleTestCase):
+    """두웅(EB03/OP13 등 덱 동봉 굿즈) 전용 검색어 생성"""
+
+    def test_extracts_expansion_code_and_flattens_parens(self):
+        query = _doong_search_query('OPC-EB03-D4-K-V1', '금 두웅 (나미)')
+        self.assertEqual(query, 'EB03 금 두웅 나미')
+
+    def test_works_without_parens_in_name(self):
+        query = _doong_search_query('OPC-OP13-D1-K-V1', '금 두웅')
+        self.assertEqual(query, 'OP13 금 두웅')
+
+    def test_missing_expansion_segment_falls_back_to_empty(self):
+        query = _doong_search_query('OPC', '두웅 (히로인즈)')
+        self.assertEqual(query, '두웅 히로인즈')
+
+
+class DoongItemIsValidTests(SimpleTestCase):
+    """두웅 상품 유효성 판정: 캐릭터명/금/패러렐 키워드 OR 조건"""
+
+    def test_requires_doong_keyword_in_title(self):
+        self.assertFalse(_doong_item_is_valid('원피스카드 나미 EB03-062', '두웅 (나미)', is_parallel=False))
+
+    def test_plain_doong_requires_character_name_when_present(self):
+        self.assertTrue(_doong_item_is_valid('두웅 (나미) EB03-D4', '두웅 (나미)', is_parallel=False))
+        self.assertFalse(_doong_item_is_valid('두웅 (우타) EB03-D3', '두웅 (나미)', is_parallel=False))
+
+    def test_plain_doong_without_character_name_only_needs_doong_keyword(self):
+        self.assertTrue(_doong_item_is_valid('두웅 히로인즈 세트', '두웅 (히로인즈)', is_parallel=False))
+
+    def test_parallel_doong_accepts_gold_keyword(self):
+        self.assertTrue(_doong_item_is_valid('금 두웅 (나미) EB03-D4', '금 두웅 (나미)', is_parallel=True))
+
+    def test_parallel_doong_accepts_generic_parallel_keyword(self):
+        self.assertTrue(_doong_item_is_valid('패러렐 두웅 나미 EB03-D4', '금 두웅 (나미)', is_parallel=True))
+
+    def test_parallel_doong_accepts_character_name_alone(self):
+        self.assertTrue(_doong_item_is_valid('두웅 나미 특별판 EB03-D4', '금 두웅 (나미)', is_parallel=True))
+
+    def test_parallel_doong_rejects_when_none_of_the_signals_present(self):
+        self.assertFalse(_doong_item_is_valid('두웅 우타 EB03-D3', '금 두웅 (나미)', is_parallel=True))
+
+
 class RoundTo100Tests(SimpleTestCase):
     """100원 단위 반올림 (반올림 기준: .5는 올림)"""
 
@@ -389,6 +553,93 @@ class BulkRunViewTests(TestCase):
         self.assertEqual(card.selling_price, 0)
         self.assertEqual(data['needs_review_count'], 1)
         self.assertIn(card.id, data['needs_review_ids'])
+
+
+class UnderpricedReviewWorkflowTests(TestCase):
+    """
+    저가 경고(판매가 < 시장 최저가) 목록이 "하루치 확인하면 0건" 워크플로로
+    동작하는지 검증. 필터링으로 못 거르는 오매칭 등은 작업자가 판매처
+    목록을 보고 직접 판매가를 확정하면, 같은 시장가로는 다시 안 떠야 하고
+    시장가 자체가 바뀌면 다시 떠야 한다 (reviewed_market_price 메커니즘).
+    """
+
+    UNDERPRICED_URL = '/pokemon/kr/bulk-price/underpriced/'
+    EDIT_URL        = '/pokemon/kr/bulk-price/edit/'
+    APPROVE_URL     = '/pokemon/kr/bulk-price/approve/'
+
+    def setUp(self):
+        user_model = get_user_model()
+        self.staff = user_model.objects.create_user(
+            'staff_tester2', password='pw', is_staff=True, is_active=True,
+        )
+        self.client.force_login(self.staff)
+        self.expansion = Expansion.objects.create(
+            code='TEST2', name='테스트팩2', image_url='https://example.com/exp.png',
+        )
+        self.card = Card.objects.create(
+            expansion=self.expansion, card_number='001', name='쫀도기', rarity='C',
+            shop_product_code='TEST2-001', image_url='https://example.com/card.png',
+            selling_price=200, latest_market_price=10000,
+        )
+
+    def _card_ids_in_underpriced_list(self):
+        res = self.client.get(self.UNDERPRICED_URL)
+        return {d['card'].id for d in res.context['under_cards']}
+
+    def test_underpriced_card_appears_when_never_reviewed(self):
+        self.assertIn(self.card.id, self._card_ids_in_underpriced_list())
+
+    def test_manual_save_at_same_market_price_removes_from_list(self):
+        """작업자가 판매처 목록 보고 200원으로 확정 저장(시장가 10000은 오매칭) → 목록에서 빠짐"""
+        res = self.client.post(
+            self.EDIT_URL,
+            data=json.dumps({'card_id': self.card.id, 'price': 200}),
+            content_type='application/json',
+        )
+        self.assertTrue(res.json()['success'])
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.selling_price, 200)
+        self.assertEqual(self.card.reviewed_market_price, 10000)
+        self.assertNotIn(self.card.id, self._card_ids_in_underpriced_list())
+
+    def test_card_reappears_after_market_price_changes(self):
+        """리뷰 후에도, 다음 수집에서 시장가 자체가 달라지면 다시 노출"""
+        self.client.post(
+            self.EDIT_URL,
+            data=json.dumps({'card_id': self.card.id, 'price': 200}),
+            content_type='application/json',
+        )
+        self.card.latest_market_price = 250  # 다음날 수집에서 정상 가격으로 정정됨
+        self.card.save(update_fields=['latest_market_price'])
+        self.assertIn(self.card.id, self._card_ids_in_underpriced_list())
+
+    def test_approve_falls_back_to_market_price_when_no_modified_price(self):
+        """저가 경고 카드는 modified_price가 비어 있어도 '체크된 카드 저장'이 시장가를 반영해야 함"""
+        self.assertFalse(self.card.modified_price)
+        res = self.client.post(
+            self.APPROVE_URL,
+            data=json.dumps({'card_id': self.card.id}),
+            content_type='application/json',
+        )
+        data = res.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['new_price'], 10000)
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.selling_price, 10000)
+        self.assertEqual(self.card.reviewed_market_price, 10000)
+        self.assertNotIn(self.card.id, self._card_ids_in_underpriced_list())
+
+    def test_set_price_endpoint_also_marks_reviewed(self):
+        """카드 목록 페이지의 인라인 저장(set-price)도 동일하게 확인 완료 처리해야 함"""
+        res = self.client.post(
+            f'/pokemon/kr/cards/{self.card.id}/set-price/',
+            data=json.dumps({'selling_price': 200}),
+            content_type='application/json',
+        )
+        self.assertTrue(res.json()['success'])
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.reviewed_market_price, 10000)
+        self.assertNotIn(self.card.id, self._card_ids_in_underpriced_list())
 
 
 class PurchaseListItemComputeRecommendedPriceTests(SimpleTestCase):

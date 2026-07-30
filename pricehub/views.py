@@ -382,7 +382,9 @@ def _calc_stats(prices):
 
 
 def _set_price(model_class, pk, request):
-    """공통 판매가 저장 (AJAX POST)"""
+    """공통 판매가 저장 (AJAX POST). 저가 경고 판정용 reviewed_market_price가
+    있는 모델(한글판 3종)이면 같이 찍어서, 이 가격으로 확정한 카드가 같은
+    시장가로 저가 경고 목록에 다시 뜨지 않게 한다."""
     obj = get_object_or_404(model_class, pk=pk)
     try:
         data = json.loads(request.body)
@@ -390,7 +392,11 @@ def _set_price(model_class, pk, request):
         if price < 0:
             return JsonResponse({'success': False, 'error': '올바른 가격을 입력하세요.'})
         obj.selling_price = price if price > 0 else None
-        obj.save(update_fields=['selling_price'])
+        update_fields = ['selling_price']
+        if hasattr(obj, 'reviewed_market_price'):
+            obj.reviewed_market_price = getattr(obj, 'latest_market_price', None)
+            update_fields.append('reviewed_market_price')
+        obj.save(update_fields=update_fields)
         return JsonResponse({'success': True, 'selling_price': obj.selling_price})
     except (ValueError, TypeError) as e:
         return JsonResponse({'success': False, 'error': str(e)})
@@ -1259,6 +1265,12 @@ def _underpriced_view(request, cfg_key):
 
     # latest_market_price는 카드 테이블의 캐시 컬럼을 직접 필터링한다 — 카드마다
     # card_price 히스토리를 서브쿼리로 뒤지던 예전 방식은 히스토리가 쌓일수록 느려졌다.
+    #
+    # reviewed_market_price와 latest_market_price가 같은 카드는 제외한다 — 작업자가
+    # 이미 그 시장가를 보고 판매가를 확정한 카드라는 뜻(필터링으로 못 거르는 오매칭
+    # 등은 값을 그대로 두고 확정할 수도 있음). 이렇게 안 하면 매번 같은 카드가
+    # 계속 다시 떠서 "하루치 확인하면 0건" 이라는 작업 흐름이 성립하지 않는다.
+    # 다음 수집에서 시장가 자체가 바뀌면(reviewed_market_price와 달라지면) 다시 노출된다.
     qs = (
         card_model.objects
         .select_related('expansion')
@@ -1266,6 +1278,9 @@ def _underpriced_view(request, cfg_key):
             selling_price__gt=0,
             latest_market_price__isnull=False,
             selling_price__lt=F('latest_market_price'),
+        )
+        .filter(
+            Q(reviewed_market_price__isnull=True) | ~Q(reviewed_market_price=F('latest_market_price'))
         )
     )
 
@@ -1503,7 +1518,15 @@ def _bulk_inline_cards_view(request, cfg_key):
 
 
 def _bulk_approve_view(request, cfg_key):
-    """개별 카드 반영: modified_price → selling_price, modified_price 초기화"""
+    """
+    개별 카드 반영: modified_price(우선순위 매칭 대기) → selling_price.
+    저가 경고 카드는 modified_price가 채워져 있지 않으므로(그 페이지는
+    latest_market_price를 직접 보여줄 뿐 DB에 modified_price를 쓰지 않음),
+    modified_price가 없고 실제로 저가 경고 상태(판매가 < 시장 최저가)인
+    경우에 한해 시장 최저가를 반영값으로 대신 사용한다.
+    반영 후 modified_price 초기화 + reviewed_market_price를 그 시점 시장가로
+    찍어서, 저가 경고 목록 재조회 시 같은 시장가로는 다시 안 뜨게 한다.
+    """
     cfg = _cfg(cfg_key)
     card_model = cfg['card_model']
 
@@ -1514,13 +1537,23 @@ def _bulk_approve_view(request, cfg_key):
         return JsonResponse({'error': 'Invalid request'}, status=400)
 
     card = get_object_or_404(card_model, pk=card_id)
-    if not card.modified_price:
-        return JsonResponse({'error': 'modified_price 없음'}, status=400)
+    market_price = getattr(card, 'latest_market_price', None)
 
-    old_price           = int(card.selling_price) if card.selling_price else 0
-    card.selling_price  = card.modified_price
-    card.modified_price = 0
-    card.save(update_fields=['selling_price', 'modified_price'])
+    new_price = int(card.modified_price) if card.modified_price else 0
+    if not new_price and market_price and (not card.selling_price or card.selling_price < market_price):
+        new_price = market_price
+
+    if not new_price:
+        return JsonResponse({'error': '반영할 가격이 없습니다.'}, status=400)
+
+    old_price            = int(card.selling_price) if card.selling_price else 0
+    card.selling_price   = new_price
+    card.modified_price  = 0
+    update_fields = ['selling_price', 'modified_price']
+    if hasattr(card, 'reviewed_market_price'):
+        card.reviewed_market_price = market_price
+        update_fields.append('reviewed_market_price')
+    card.save(update_fields=update_fields)
 
     return JsonResponse({
         'success':   True,
@@ -1531,7 +1564,12 @@ def _bulk_approve_view(request, cfg_key):
 
 
 def _bulk_edit_view(request, cfg_key):
-    """개별 카드 가격 직접 편집 후 selling_price 저장, modified_price 초기화"""
+    """
+    개별 카드 가격 직접 편집 후 selling_price 저장, modified_price 초기화.
+    reviewed_market_price도 그 시점 시장가로 찍어서 저가 경고 목록에서
+    (같은 시장가로는) 다시 안 뜨게 한다 — 작업자가 판매처 목록을 보고
+    직접 확정한 가격이므로 "확인 완료" 처리.
+    """
     cfg = _cfg(cfg_key)
     card_model = cfg['card_model']
 
@@ -1545,10 +1583,14 @@ def _bulk_edit_view(request, cfg_key):
         return JsonResponse({'error': 'Invalid request'}, status=400)
 
     card = get_object_or_404(card_model, pk=card_id)
-    old_price           = int(card.selling_price) if card.selling_price else 0
-    card.selling_price  = new_price
-    card.modified_price = 0
-    card.save(update_fields=['selling_price', 'modified_price'])
+    old_price            = int(card.selling_price) if card.selling_price else 0
+    card.selling_price   = new_price
+    card.modified_price  = 0
+    update_fields = ['selling_price', 'modified_price']
+    if hasattr(card, 'reviewed_market_price'):
+        card.reviewed_market_price = getattr(card, 'latest_market_price', None)
+        update_fields.append('reviewed_market_price')
+    card.save(update_fields=update_fields)
 
     return JsonResponse({
         'success':   True,
