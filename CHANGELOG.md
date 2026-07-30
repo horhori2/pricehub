@@ -3,6 +3,22 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.13.0] - 2026-07-30
+
+### Added
+- 저가 경고 페이지에 하락/상승 대기 페이지에만 있던 "≤N% 일괄 반영"
+  (수정가 반영)과 "새 가격 일괄 적용"(수정가 변경) 기능 추가.
+
+### Changed
+- 하락/상승 대기·저가 경고 3개 페이지가 거의 동일한 "수정가 반영"/
+  "수정가 변경" 컨트롤 바 HTML을 각자 갖고 있던 걸 공용 partial
+  (`partials/_issues_bulk_price_controls.html`)로 통합.
+- `bulkSetPriceDrop()` → `bulkSetPrice()`로 이름 변경 — 이름과 달리
+  하락 전용이 아니라 3개 페이지 공용 함수였음.
+- `approveByPct()`가 한 번도 설정된 적 없는 `document.body.dataset.trend`를
+  참조해서 상승 대기 페이지에서도 항상 "하락"으로 잘못 표시되던 버그를,
+  페이지별 `PCT_THRESHOLD_LABEL` 상수로 교체하며 같이 수정.
+
 ## [0.12.2] - 2026-07-30
 
 ### Changed

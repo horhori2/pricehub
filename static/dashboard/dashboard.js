@@ -1157,7 +1157,9 @@ async function approveAll() {
 
 /* ── N% 이하 변동 카드만 일괄 approve (bulk_drop / bulk_rise 페이지 공용) ── */
 async function approveByPct() {
-  const trend = document.body.dataset.trend === 'rise' ? '상승' : '하락';
+  /* 페이지별로 다른 % 기준 라벨(하락폭/상승폭/차이) — 각 페이지에서
+     PCT_THRESHOLD_LABEL을 const로 선언, 없으면 '차이'로 기본 처리. */
+  const label = (typeof PCT_THRESHOLD_LABEL !== 'undefined') ? PCT_THRESHOLD_LABEL : '차이';
   const threshold = parseFloat(document.getElementById('dropPctThreshold')?.value) || 10;
   const rows = [...document.querySelectorAll('#cardTableBody tr:not(.resolved):not(.done)')]
     .filter(r => {
@@ -1165,10 +1167,10 @@ async function approveByPct() {
       return !isNaN(pct) && pct <= threshold;
     });
   if (!rows.length) {
-    showIssueToast(`${trend}폭 ${threshold}% 이하 카드가 없습니다.`, 'err');
+    showIssueToast(`${label} ${threshold}% 이하 카드가 없습니다.`, 'err');
     return;
   }
-  if (!confirm(`${trend}폭 ${threshold}% 이하 카드 ${rows.length}개에 ${trend}가를 반영할까요?`)) return;
+  if (!confirm(`${label} ${threshold}% 이하 카드 ${rows.length}개에 반영할까요?`)) return;
 
   const btn = document.getElementById('approveByPctBtn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>처리 중...'; }
@@ -1655,12 +1657,9 @@ function applyCardListRarityFilter() {
    bulk_unpriced: underOnly 없음
    ================================================================ */
 
-/**
- * 체크된 카드에 일괄 가격 적용
- * @param {boolean} [withUnderOnly=false]  true이면 현재 판매가 미만인 카드만 적용 (bulk_drop용)
- */
-/* ── bulk_drop: 체크된 카드에 일괄 가격 적용 (판매가 미만만 적용 옵션 포함) ── */
-async function bulkSetPriceDrop() {
+/* ── 체크된 카드에 일괄 가격 적용 (판매가 미만만 적용 옵션 포함) ──
+   하락/상승 대기, 저가 경고 페이지 공용(_issues_bulk_price_controls.html). */
+async function bulkSetPrice() {
   const price = parseInt(document.getElementById('bulkSetPriceInput').value, 10);
   if (!price || price <= 0) {
     showIssueToast('가격을 입력해주세요.', 'err'); return;

@@ -36,23 +36,7 @@
                 onclick="changeSort('name')">이름순</button>
       </div>
 
-      <!-- 판매가 저장 -->
-      <div class="control-row">
-        <span class="ctrl-label">판매가 반영</span>
-        <div class="ctrl-divider"></div>
-        <button class="action-btn success" id="saveAllBtn" onclick="approveChecked()">💾 체크된 카드 저장</button>
-        <button class="action-btn" onclick="approveAll()">전체 저장</button>
-      </div>
-
-      <!-- 수정가 변경 -->
-      <div class="control-row">
-        <span class="ctrl-label">수정가 변경</span>
-        <div class="ctrl-divider"></div>
-        <!-- 이전 판매가 복원 -->
-        <button class="action-btn" onclick="bulkFillOldPrice()"
-                style="white-space:nowrap;border-color:var(--accent,#7c6af7);color:var(--accent,#7c6af7);"
-                title="체크된 카드의 수정가격 입력란에 이전 판매가를 채웁니다">↩ 이전 판매가 유지</button>
-      </div>
+      {% include 'dashboard/partials/_issues_bulk_price_controls.html' %}
     </div>
 
     <!-- 페이지 헤더 + 통계 -->
@@ -213,6 +197,7 @@
 const APPROVE_URL          = '{{ config.approve_url }}';
 const EDIT_URL             = '{{ config.edit_url }}';
 const SET_PRICE_URL_PREFIX = '{{ config.set_price_url_prefix }}';
+const PCT_THRESHOLD_LABEL  = '차이';
 const CARD_RAW = (() => {
   try { return JSON.parse(document.getElementById('cardRawData').textContent); }
   catch { return {}; }
