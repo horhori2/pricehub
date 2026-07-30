@@ -642,6 +642,146 @@ class UnderpricedReviewWorkflowTests(TestCase):
         self.assertNotIn(self.card.id, self._card_ids_in_underpriced_list())
 
 
+class UnpricedWorkflowTests(TestCase):
+    """
+    작업 1: 판매가 미설정 — 신제품 발매 등으로 새로 등록된, 판매가가 아직
+    없는(selling_price=0) 카드를 작업자가 처음 설정하는 흐름.
+    """
+
+    UNPRICED_URL = '/pokemon/kr/bulk-price/unpriced/'
+    EDIT_URL     = '/pokemon/kr/bulk-price/edit/'
+
+    def setUp(self):
+        user_model = get_user_model()
+        self.staff = user_model.objects.create_user(
+            'staff_tester3', password='pw', is_staff=True, is_active=True,
+        )
+        self.client.force_login(self.staff)
+        self.expansion = Expansion.objects.create(
+            code='TEST3', name='테스트팩3', image_url='https://example.com/exp.png',
+        )
+        self.card = Card.objects.create(
+            expansion=self.expansion, card_number='001', name='신규카드', rarity='C',
+            shop_product_code='TEST3-001', image_url='https://example.com/card.png',
+            selling_price=0,
+        )
+
+    def _card_ids_in_unpriced_list(self):
+        res = self.client.get(self.UNPRICED_URL)
+        return {c.id for c in res.context['cards']}
+
+    def test_unset_card_appears_in_list(self):
+        self.assertIn(self.card.id, self._card_ids_in_unpriced_list())
+
+    def test_setting_price_removes_from_list(self):
+        res = self.client.post(
+            self.EDIT_URL,
+            data=json.dumps({'card_id': self.card.id, 'price': 300}),
+            content_type='application/json',
+        )
+        self.assertTrue(res.json()['success'])
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.selling_price, 300)
+        self.assertNotIn(self.card.id, self._card_ids_in_unpriced_list())
+
+    def test_bulk_set_price_endpoint_also_removes_from_list(self):
+        """판매가 미설정 페이지의 일괄 적용 버튼은 카드 목록과 같은 set-price 엔드포인트를 씀"""
+        res = self.client.post(
+            f'/pokemon/kr/cards/{self.card.id}/set-price/',
+            data=json.dumps({'selling_price': 300}),
+            content_type='application/json',
+        )
+        self.assertTrue(res.json()['success'])
+        self.assertNotIn(self.card.id, self._card_ids_in_unpriced_list())
+
+    def test_clearing_price_back_to_zero_does_not_crash(self):
+        """카드 목록에서 판매가를 0(미설정)으로 되돌려도 500 없이 저장되고, 다시 미설정 목록에 떠야 함.
+
+        selling_price는 null=True 없는 PositiveIntegerField라, 0을 None으로
+        바꿔 저장하면 NOT NULL 제약 위반(IntegrityError)이 났었다.
+        """
+        self.card.selling_price = 500
+        self.card.save(update_fields=['selling_price'])
+
+        res = self.client.post(
+            f'/pokemon/kr/cards/{self.card.id}/set-price/',
+            data=json.dumps({'selling_price': 0}),
+            content_type='application/json',
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.json()['success'])
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.selling_price, 0)
+        self.assertIn(self.card.id, self._card_ids_in_unpriced_list())
+
+
+class TrendResolveWorkflowTests(TestCase):
+    """
+    작업 2·3: 가격 하락/상승 대기 — 매일 수집한 가격 중 일괄 실행으로 잡힌
+    modified_price를 작업자가 판매처 목록 보고 확인 후 반영하면 목록에서
+    빠지는지 검증. (분류 로직 자체는 BulkRunViewTests에서 이미 검증하므로,
+    여기선 "목록 노출 → 저장 → 목록에서 빠짐" 사이클만 확인한다.)
+    """
+
+    EDIT_URL = '/pokemon/kr/bulk-price/edit/'
+
+    def setUp(self):
+        user_model = get_user_model()
+        self.staff = user_model.objects.create_user(
+            'staff_tester4', password='pw', is_staff=True, is_active=True,
+        )
+        self.client.force_login(self.staff)
+        self.expansion = Expansion.objects.create(
+            code='TEST4', name='테스트팩4', image_url='https://example.com/exp.png',
+        )
+
+    def _make_card(self, selling_price, modified_price, card_number='001'):
+        return Card.objects.create(
+            expansion=self.expansion, card_number=card_number, name='테스트카드',
+            rarity='U', shop_product_code=f'TEST4-{card_number}',
+            image_url='https://example.com/card.png',
+            selling_price=selling_price, modified_price=modified_price,
+        )
+
+    def _card_ids_in_trend_list(self, trend):
+        res = self.client.get(f'/pokemon/kr/bulk-price/{trend}/')
+        return {d['card'].id for d in res.context['items']}
+
+    def test_drop_card_appears_only_in_drop_list(self):
+        card = self._make_card(selling_price=10000, modified_price=3000)
+        self.assertIn(card.id, self._card_ids_in_trend_list('drop'))
+        self.assertNotIn(card.id, self._card_ids_in_trend_list('rise'))
+
+    def test_rise_card_appears_only_in_rise_list(self):
+        card = self._make_card(selling_price=3000, modified_price=10000, card_number='002')
+        self.assertIn(card.id, self._card_ids_in_trend_list('rise'))
+        self.assertNotIn(card.id, self._card_ids_in_trend_list('drop'))
+
+    def test_saving_resolves_drop_card_and_it_leaves_the_list(self):
+        card = self._make_card(selling_price=10000, modified_price=3000, card_number='003')
+        res = self.client.post(
+            self.EDIT_URL,
+            data=json.dumps({'card_id': card.id, 'price': 10000}),  # 오매칭으로 판단, 기존가 유지
+            content_type='application/json',
+        )
+        self.assertTrue(res.json()['success'])
+        card.refresh_from_db()
+        self.assertEqual(int(card.modified_price), 0)
+        self.assertNotIn(card.id, self._card_ids_in_trend_list('drop'))
+
+    def test_saving_resolves_rise_card_and_it_leaves_the_list(self):
+        card = self._make_card(selling_price=3000, modified_price=10000, card_number='004')
+        res = self.client.post(
+            self.EDIT_URL,
+            data=json.dumps({'card_id': card.id, 'price': 10000}),  # 상승 확인 후 반영
+            content_type='application/json',
+        )
+        self.assertTrue(res.json()['success'])
+        card.refresh_from_db()
+        self.assertEqual(int(card.modified_price), 0)
+        self.assertNotIn(card.id, self._card_ids_in_trend_list('rise'))
+
+
 class PurchaseListItemComputeRecommendedPriceTests(SimpleTestCase):
     """PurchaseListItem.compute_recommended_price — DB 저장 없이 순수 계산만 검증"""
 

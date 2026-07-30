@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.14.4] - 2026-07-30
+
+### Added
+- 작업 1(판매가 미설정)·2/3(하락·상승 대기) 워크플로 회귀 테스트 추가
+  (`UnpricedWorkflowTests`, `TrendResolveWorkflowTests`) — 목록 노출/저장/
+  목록에서 빠짐 사이클과, 판매가를 0으로 되돌려도 서버 에러 없이
+  저장되는지 검증.
+
 ## [0.14.3] - 2026-07-30
 
 ### Fixed
