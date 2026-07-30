@@ -1472,26 +1472,13 @@ function showShopToast(msg, type) {
 
 /* SET_PRICE_BASE: 각 페이지에서 const로 선언 */
 
-function openPriceInput(cardId, currentPrice) {
-  document.getElementById('disp-' + cardId).style.display = 'none';
-  const wrap = document.getElementById('edit-' + cardId);
-  wrap.classList.add('show');
-  const inp = document.getElementById('inp-' + cardId);
-  inp.value = currentPrice || '';
-  /* 편집 시작하면 "수정됨" 표시 제거 */
-  const row = document.getElementById('row-' + cardId);
-  if (row) row.classList.remove('row--saved');
-  setTimeout(() => { inp.focus(); inp.select(); }, 50);
-}
-
-function closePriceInput(cardId) {
-  document.getElementById('disp-' + cardId).style.display = '';
-  document.getElementById('edit-' + cardId).classList.remove('show');
-}
-
-function handlePriceKey(e, cardId) {
-  if (e.key === 'Enter')  saveInlinePrice(cardId);
-  if (e.key === 'Escape') closePriceInput(cardId);
+/* 판매가는 항상 텍스트로 보이고, 옆의 입력칸에 새 가격을 따로 입력 —
+   입력칸에 기존 판매가를 채워넣고 지우는 방식이면 수정 중 원래 얼마였는지
+   헷갈린다는 피드백으로 변경. 입력칸을 다시 건드리면 "수정됨" 표시 제거. */
+function onCardListPriceInput(cardId) {
+  document.getElementById('badge-' + cardId)?.classList.remove('show');
+  document.getElementById('inp-' + cardId)?.classList.remove('saved');
+  document.getElementById('row-' + cardId)?.classList.remove('row--saved');
 }
 
 async function saveInlinePrice(cardId) {
@@ -1510,11 +1497,12 @@ async function saveInlinePrice(cardId) {
     if (data.success) {
       const disp = document.getElementById('disp-' + cardId);
       disp.innerHTML = price > 0
-        ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-saved-badge">✓ 수정됨</span><span class="price-edit-hint">✎</span>`
-        : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
+        ? `<span class="price-set">${price.toLocaleString()}원</span>`
+        : `<span class="price-unset">미설정</span>`;
       const row = document.getElementById('row-' + cardId);
       if (row) { row.dataset.selling = price; row.classList.add('row--saved'); }
-      closePriceInput(cardId);
+      inp.classList.add('saved');
+      document.getElementById('badge-' + cardId)?.classList.add('show');
       showToast('저장됐습니다.');
     } else {
       showToast('저장 실패: ' + (data.error || ''));
@@ -1613,13 +1601,14 @@ async function saveBulkPrice() {
         const disp = document.getElementById('disp-' + cardId);
         if (disp) {
           disp.innerHTML = price > 0
-            ? `<span class="price-set">${price.toLocaleString()}원</span><span class="price-saved-badge">✓ 수정됨</span><span class="price-edit-hint">✎</span>`
-            : `<span class="price-unset">미설정</span><span class="price-edit-hint">✎</span>`;
+            ? `<span class="price-set">${price.toLocaleString()}원</span>`
+            : `<span class="price-unset">미설정</span>`;
         }
+        const inp = document.getElementById('inp-' + cardId);
+        if (inp) { inp.value = price > 0 ? price : ''; inp.classList.add('saved'); }
         const row = document.getElementById('row-' + cardId);
         if (row) { row.dataset.selling = price; row.classList.add('row--saved'); }
-        document.getElementById('edit-' + cardId)?.classList.remove('show');
-        disp && (disp.style.display = '');
+        document.getElementById('badge-' + cardId)?.classList.add('show');
       }
     } catch {}
   }));
