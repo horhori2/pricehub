@@ -3,6 +3,16 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.14.2] - 2026-07-30
+
+### Fixed
+- 판매가를 0(미설정)으로 되돌려 저장하면 서버 에러가 나던 문제 수정.
+  `selling_price`가 `null=True` 없는 `PositiveIntegerField`인데
+  `_set_price`가 0을 `None`으로 바꿔 저장해 NOT NULL 제약 위반
+  (`IntegrityError`)이 발생 — 카드 목록/즐겨찾기에서 판매가를 지워
+  다시 미설정 상태로 되돌리는 정상 플로우에서 500 에러가 날 수 있었음.
+  0을 그대로 저장하도록 수정.
+
 ## [0.14.1] - 2026-07-30
 
 ### Fixed

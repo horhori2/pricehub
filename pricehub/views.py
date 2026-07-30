@@ -391,7 +391,7 @@ def _set_price(model_class, pk, request):
         price = int(data.get('selling_price', 0))
         if price < 0:
             return JsonResponse({'success': False, 'error': '올바른 가격을 입력하세요.'})
-        obj.selling_price = price if price > 0 else None
+        obj.selling_price = price
         update_fields = ['selling_price']
         if hasattr(obj, 'reviewed_market_price'):
             obj.reviewed_market_price = getattr(obj, 'latest_market_price', None)
