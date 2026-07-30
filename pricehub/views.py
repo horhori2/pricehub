@@ -1383,7 +1383,7 @@ def _bulk_unpriced_view(request, cfg_key):
 
     expansion_code    = request.GET.get('expansion', '')
     selected_rarities = request.GET.getlist('rarities')
-    sort              = request.GET.get('sort', 'name')
+    sort              = request.GET.get('sort', 'number')
     page              = max(1, int(request.GET.get('page', 1) or 1))
     per_page          = 100
 
@@ -1395,7 +1395,10 @@ def _bulk_unpriced_view(request, cfg_key):
         qs = qs.filter(expansion__code=expansion_code)
     if selected_rarities:
         qs = qs.filter(rarity__in=selected_rarities)
-    qs = qs.order_by('expansion__code', 'card_number')
+    if sort == 'name':
+        qs = qs.order_by('name')
+    else:
+        qs = qs.order_by('expansion__code', 'card_number')
 
     total_count = qs.count()
 
