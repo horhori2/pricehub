@@ -108,6 +108,11 @@
       </div>
     </div>
 
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">
+      <strong style="color:var(--text-dim);">수정 가격</strong>은 마지막으로 실행한 "일괄 판매가 설정"의
+      <strong style="color:var(--text-dim);">판매처 우선순위</strong> 매칭 결과입니다(저가 경고 페이지의
+      시장 최저가와는 다른 값). 우선순위 판매처에 매물이 없으면 평균가/최고가 폴백값이 채워질 수 있습니다.
+    </div>
     {% if trend == 'rise' %}
     <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;">
       ⚠️ 레어도 필터링 오매칭 등으로 가격이 잘못 높게 잡혔을 수 있습니다. 판매처 목록을 확인하고 반영해주세요.
@@ -127,7 +132,7 @@
           <th style="width:70px;">레어도</th>
           <th style="width:110px;">확장팩</th>
           <th style="width:110px;">이전 판매가</th>
-          <th style="width:130px;">수정 가격</th>
+          <th style="width:130px;" title="마지막 일괄 판매가 설정의 판매처 우선순위 매칭 결과">수정 가격</th>
           <th style="width:150px;">{{ trend_label }}폭</th>
           <th style="width:80px;">액션</th>
         </tr>
