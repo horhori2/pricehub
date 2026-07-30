@@ -1101,6 +1101,22 @@ class BulkApproveAndEditViewTests(TestCase):
         )
         self.assertEqual(res.status_code, 400)
 
+    def test_approve_prefers_client_supplied_price_over_modified_price(self):
+        """"≤N% 일괄 반영"이 화면에 표시된(작업자가 고친) 값을 무시하고 DB의
+        modified_price를 그대로 저장했던 문제 — price를 같이 보내면 그 값이 이겨야 함."""
+        res = self.client.post(
+            '/pokemon/kr/bulk-price/approve/',
+            data=json.dumps({'card_id': self.card.id, 'price': 4200}),
+            content_type='application/json',
+        )
+        data = res.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['new_price'], 4200)
+
+        self.card.refresh_from_db()
+        self.assertEqual(self.card.selling_price, 4200)
+        self.assertEqual(self.card.modified_price, 0)
+
     def test_edit_sets_custom_price_and_resets_modified(self):
         res = self.client.post(
             '/pokemon/kr/bulk-price/edit/',

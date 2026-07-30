@@ -1534,17 +1534,22 @@ def _bulk_approve_view(request, cfg_key):
     card_model = cfg['card_model']
 
     try:
-        body    = json.loads(request.body)
-        card_id = int(body.get('card_id'))
+        body         = json.loads(request.body)
+        card_id      = int(body.get('card_id'))
+        client_price = int(body['price']) if body.get('price') else 0
     except (json.JSONDecodeError, TypeError, ValueError):
         return JsonResponse({'error': 'Invalid request'}, status=400)
 
     card = get_object_or_404(card_model, pk=card_id)
     market_price = getattr(card, 'latest_market_price', None)
 
-    new_price = int(card.modified_price) if card.modified_price else 0
-    if not new_price and market_price and (not card.selling_price or card.selling_price < market_price):
-        new_price = market_price
+    if client_price > 0:
+        # 작업자가 입력칸에서 직접 고친 값 — 화면에 보이는 값 그대로 반영(WYSIWYG).
+        new_price = client_price
+    else:
+        new_price = int(card.modified_price) if card.modified_price else 0
+        if not new_price and market_price and (not card.selling_price or card.selling_price < market_price):
+            new_price = market_price
 
     if not new_price:
         return JsonResponse({'error': '반영할 가격이 없습니다.'}, status=400)

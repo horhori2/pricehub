@@ -1178,10 +1178,16 @@ async function approveByPct() {
   let done = 0;
   await _runParallel(rows.map(r => parseInt(r.dataset.id)), async (cardId) => {
     try {
+      /* 입력칸에 표시된 값(작업자가 직접 고쳤을 수 있음)을 우선 반영 —
+         비워두면 서버가 modified_price(자동 계산된 제안가)로 대체함. */
+      const input = document.getElementById(`input-${cardId}`);
+      const price = parseInt(input?.value, 10);
+      const body  = { card_id: cardId };
+      if (price > 0) body.price = price;
       const res  = await fetch(APPROVE_URL, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
-        body:    JSON.stringify({ card_id: cardId }),
+        body:    JSON.stringify(body),
       });
       const data = await res.json();
       if (data.success) { markIssueDone(cardId); done++; }
