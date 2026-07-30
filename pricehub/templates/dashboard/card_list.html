@@ -122,6 +122,7 @@
             <a href="?filter={{ filter_type }}{% for r in selected_rarities %}&rarities={{ r }}{% endfor %}&sort=price_asc" style="color:var(--text-muted);text-decoration:none;">판매가 ↕</a>
             {% endif %}
           </th>
+          <th>수정</th>
           <th>수집일시</th>
           <th style="width:36px"></th>
           <th style="width:60px"></th>
@@ -160,26 +161,27 @@
             {% if card.latest_market_price %}<span class="market-price">{{ card.latest_market_price|floatformat:0 }}원</span>
             {% else %}<span class="price-unset">미수집</span>{% endif %}
           </td>
-          <td style="min-width:210px;">
-            <div class="price-cell">
-              <span id="disp-{{ card.id }}" style="min-width:56px;">
-                {% if card.selling_price %}
-                  <span class="price-set">{{ card.selling_price|floatformat:0 }}원</span>
-                  {% if card.latest_market_price and card.selling_price < card.latest_market_price %}
-                  <span title="판매가가 시장 최저가보다 낮습니다" style="color:var(--trend-down);font-size:11px;font-weight:700;">🔻</span>
-                  {% endif %}
-                {% else %}
-                  <span class="price-unset">미설정</span>
+          <td>
+            <span id="disp-{{ card.id }}">
+              {% if card.selling_price %}
+                <span class="price-set">{{ card.selling_price|floatformat:0 }}원</span>
+                {% if card.latest_market_price and card.selling_price < card.latest_market_price %}
+                <span title="판매가가 시장 최저가보다 낮습니다" style="color:var(--trend-down);font-size:11px;font-weight:700;">🔻</span>
                 {% endif %}
-              </span>
+              {% else %}
+                <span class="price-unset">미설정</span>
+              {% endif %}
+            </span>
+          </td>
+          <td style="min-width:170px;" onclick="event.stopPropagation()">
+            <div class="price-cell">
               <input type="number" class="price-input-issues" id="inp-{{ card.id }}"
                      value="{% if card.selling_price %}{{ card.selling_price|floatformat:0 }}{% endif %}"
                      placeholder="새 가격"
                      min="0" step="100"
                      onkeydown="if(event.key==='Enter') saveInlinePrice({{ card.id }})"
-                     oninput="onCardListPriceInput({{ card.id }})"
-                     onclick="event.stopPropagation()">
-              <button class="set-btn save-btn" onclick="event.stopPropagation(); saveInlinePrice({{ card.id }})">저장</button>
+                     oninput="onCardListPriceInput({{ card.id }})">
+              <button class="set-btn save-btn" onclick="saveInlinePrice({{ card.id }})">저장</button>
               <span class="saved-badge" id="badge-{{ card.id }}">✓ 수정됨</span>
             </div>
           </td>
