@@ -1657,14 +1657,20 @@ function applyCardListRarityFilter() {
    bulk_unpriced: underOnly 없음
    ================================================================ */
 
-/* ── 체크된 카드에 일괄 가격 적용 (판매가 미만만 적용 옵션 포함) ──
-   하락/상승 대기, 저가 경고 페이지 공용(_issues_bulk_price_controls.html). */
+/* ── 체크된 카드에 일괄 가격 적용 (안전장치 체크박스 옵션 포함) ──
+   하락/상승 대기, 저가 경고 페이지 공용(_issues_bulk_price_controls.html).
+   체크박스 방향은 페이지별 UNDER_ONLY_MODE 상수로 결정:
+   'below'(기본, 하락 대기) = 새 가격이 기존 판매가보다 낮을 때만 적용,
+   'above'(상승 대기·저가 경고) = 새 가격이 기존 판매가보다 높을 때만 적용
+   — 두 페이지 모두 판매가를 "올리는" 쪽이 정상 시나리오라, 방향이 반대면
+   체크박스를 켜는 순간 대상이 전부 걸러져 아무 일도 안 일어나 보였다. */
 async function bulkSetPrice() {
   const price = parseInt(document.getElementById('bulkSetPriceInput').value, 10);
   if (!price || price <= 0) {
     showIssueToast('가격을 입력해주세요.', 'err'); return;
   }
 
+  const mode      = (typeof UNDER_ONLY_MODE !== 'undefined') ? UNDER_ONLY_MODE : 'below';
   const underOnly = document.getElementById('bulkSetUnderOnly')?.checked;
   const checked   = [...document.querySelectorAll('.row-check:checked')];
   if (!checked.length) { showIssueToast('체크된 카드가 없습니다.', 'err'); return; }
@@ -1673,7 +1679,7 @@ async function bulkSetPrice() {
     if (!underOnly) return true;
     const row     = document.getElementById('row-' + cb.dataset.id);
     const current = parseInt(row?.dataset.selling || '0', 10);
-    return current > price;
+    return mode === 'above' ? current < price : current > price;
   });
 
   if (!targets.length) {
@@ -1692,10 +1698,9 @@ async function bulkSetPrice() {
       });
       const data = await res.json();
       if (data.success) {
-        const row = document.getElementById('row-' + cardId);
-        if (row) row.dataset.selling = price;
         const input = document.getElementById('input-' + cardId);
-        if (input) { input.value = price; input.classList.add('saved'); }
+        if (input) input.value = price;
+        markIssueDone(cardId);
         success++;
       } else skip++;
     } catch { skip++; }
@@ -1707,6 +1712,14 @@ async function bulkSetPrice() {
   showIssueToast(msg, success > 0 ? 'ok' : 'err');
   document.getElementById('bulkSetPriceInput').value = '';
 }
+
+/* ── "판매가 미만만" 체크박스 라벨을 UNDER_ONLY_MODE에 맞게 표시 ──
+   'above' 페이지(상승 대기·저가 경고)는 실제 필터 방향과 맞춰 "판매가 초과만"으로 표기. */
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof UNDER_ONLY_MODE === 'undefined' || UNDER_ONLY_MODE !== 'above') return;
+  const lbl = document.getElementById('underOnlyLabel');
+  if (lbl) lbl.textContent = '판매가 초과만';
+});
 
 /* ── bulk_unpriced: 체크된 카드에 일괄 가격 적용 ── */
 async function bulkSetPriceUnpriced() {

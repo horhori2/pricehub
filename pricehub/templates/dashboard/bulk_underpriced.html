@@ -198,6 +198,7 @@ const APPROVE_URL          = '{{ config.approve_url }}';
 const EDIT_URL             = '{{ config.edit_url }}';
 const SET_PRICE_URL_PREFIX = '{{ config.set_price_url_prefix }}';
 const PCT_THRESHOLD_LABEL  = '차이';
+const UNDER_ONLY_MODE      = 'above';
 const CARD_RAW = (() => {
   try { return JSON.parse(document.getElementById('cardRawData').textContent); }
   catch { return {}; }
