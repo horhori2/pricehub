@@ -14,7 +14,7 @@ NAVER_CLIENT_ID     = os.environ.get('NAVER_CLIENT_ID', '')
 NAVER_CLIENT_SECRET = os.environ.get('NAVER_CLIENT_SECRET', '')
 
 # ── 공통 필터 ─────────────────────────────────────────────────────
-EXCLUDED_MALLS    = {'네이버', '쿠팡'}
+EXCLUDED_MALLS    = {'네이버', '쿠팡', 'KREAM'}
 EXCLUDED_KEYWORDS = ['일본', '일본판', 'JP', 'JPN', '일판', '일어판', '영문', '영문판', '미국', '미국판', '영어']
 
 # 우리 자신의 매장 — 시장 최저가(경쟁사 최저가) 계산에서 반드시 제외해야
