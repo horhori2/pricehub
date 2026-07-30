@@ -41,6 +41,7 @@
         <span class="badge badge-rarity">{{ card.rarity }}</span>
         <span class="badge badge-code">No.{{ card.card_number }}</span>
         <span class="badge badge-code">{{ card.expansion.code }}</span>
+        <span class="badge badge-code" style="user-select:all;font-family:'JetBrains Mono',monospace;" title="상품코드(클릭하면 전체 선택돼서 복사하기 편함)">{{ card.shop_product_code }}</span>
         {% if card_type == 'pokemon_jp' and card.is_mirror %}
         <span class="badge badge-mirror">미러</span>
         {% endif %}

@@ -4,6 +4,7 @@ pricehub/urls.py
 from django.urls import path, include
 from . import views as v
 from . import purchase_views as pv
+from . import rarity_cleanup_views as rcv
 from pricehub import api_docs_views
 
 app_name = 'pricehub'
@@ -179,4 +180,10 @@ urlpatterns = [
          pv.rarity_price_settings, name='rarity-price-settings'),
     path('purchase-lists/rarity-prices/<str:game_type>/save/',
          pv.rarity_price_save, name='rarity-price-save'),
+
+    # ── 원피스·디지몬 레어도 정리 ──
+    path('purchase-lists/rarity-cleanup/<str:game_type>/',
+         rcv.rarity_cleanup_view, name='rarity-cleanup'),
+    path('purchase-lists/rarity-cleanup/<str:game_type>/<int:card_id>/save/',
+         rcv.rarity_cleanup_save, name='rarity-cleanup-save'),
 ]

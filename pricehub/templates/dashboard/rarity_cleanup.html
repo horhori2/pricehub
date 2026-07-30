@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+{% load static %}
+{% load cache_bust %}
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>{{ game_label }} 레어도 정리 · 매입리스트</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static_v 'dashboard/dashboard.css' %}">
+<style>
+  .rc-wrap { max-width: 1200px; margin: 0 auto; padding: 24px 28px 40px; }
+  .rc-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+  .rc-toolbar-links a { font-size: 12px; color: var(--text-muted); text-decoration: none; padding: 6px 12px; border: 1px solid var(--border2); border-radius: 7px; margin-left: 6px; }
+  .rc-toolbar-links a.active { color: var(--accent2); border-color: var(--accent2); }
+  .rc-group { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+  .rc-group-title { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .rc-group-title .name { font-family: 'Noto Sans KR', sans-serif; color: var(--text-muted); font-weight: 500; }
+  .rc-cards { display: flex; gap: 14px; flex-wrap: wrap; }
+  .rc-card { width: 168px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px; position: relative; transition: border-color .2s; }
+  .rc-card.saved { border-color: var(--accent2); }
+  .rc-card-img-wrap { width: 100%; height: 150px; display: flex; align-items: center; justify-content: center; background: var(--bg); border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+  .rc-card-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .rc-card-code { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-dim); word-break: break-all; margin-bottom: 2px; }
+  .rc-card-meta { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+  .rc-radio-group { display: flex; flex-direction: column; gap: 4px; }
+  .rc-radio-group label { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); cursor: pointer; padding: 3px 6px; border-radius: 6px; }
+  .rc-radio-group label:hover { background: var(--surface); }
+  .rc-radio-group input { accent-color: var(--accent2); cursor: pointer; }
+  .rc-select { width: 100%; padding: 6px 8px; background: var(--bg); border: 1px solid var(--border2); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; cursor: pointer; }
+  .rc-saved-badge { position: absolute; top: 8px; right: 8px; font-size: 12px; color: var(--accent2); opacity: 0; transition: opacity .3s; }
+  .rc-saved-badge.show { opacity: 1; }
+  .rc-empty-img { color: var(--text-dim); font-size: 28px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <a href="/purchase-lists/" class="back-btn">← 매입리스트</a>
+    <div class="breadcrumb"><strong style="color:var(--text)">{{ game_label }}</strong><span>/</span>레어도 정리</div>
+  </div>
+  <a href="/logout/" class="logout-btn">로그아웃</a>
+</header>
+
+<div class="rc-wrap">
+  <div class="page-title" style="margin-bottom:4px;">{{ game_label }} 레어도 정리</div>
+  <div class="page-sub" style="margin-bottom:20px;">
+    같은 카드번호끼리 묶어서 보여줍니다. 신제품 등록 시 크롤러가 순번만 보고 자동으로
+    추정해 저장한 레어도라 실제와 다른 경우가 많습니다 — 이미지 보고 맞는 레어도를 골라 저장하세요.
+    (선택지 중 아무것도 안 고른 상태가 아니라, 현재 DB에 저장된 값이 그대로 선택돼 있습니다.)
+  </div>
+
+  <div class="rc-toolbar">
+    <div style="font-size:12px;color:var(--text-dim);">
+      카드번호 그룹 총 {{ total_groups }}개 · {{ page }}/{{ total_pages }} 페이지
+    </div>
+    <div class="rc-toolbar-links">
+      <a href="?all=0" class="{% if only_dupes %}active{% endif %}">중복(2개 이상)만</a>
+      <a href="?all=1" class="{% if not only_dupes %}active{% endif %}">전체 카드번호</a>
+    </div>
+  </div>
+
+  {% if groups %}
+    {% for group_key, cards in groups %}
+    <div class="rc-group">
+      <div class="rc-group-title">
+        {{ group_key }}
+        <span class="name">{{ cards.0.name }}</span>
+        {% if cards|length > 1 %}<span style="color:var(--warning);font-size:11px;">· {{ cards|length }}개 중복</span>{% endif %}
+      </div>
+      <div class="rc-cards">
+        {% for card in cards %}
+        <div class="rc-card" id="rc-card-{{ card.id }}">
+          <span class="rc-saved-badge" id="rc-badge-{{ card.id }}">✓ 저장됨</span>
+          <div class="rc-card-img-wrap">
+            {% if card.image_url %}
+            <img src="{{ card.image_url }}" class="rc-card-img" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className:'rc-empty-img', textContent:'🃏'}))">
+            {% else %}
+            <div class="rc-empty-img">🃏</div>
+            {% endif %}
+          </div>
+          <div class="rc-card-code">{{ card.shop_product_code }}</div>
+          <div class="rc-card-meta">{{ card.card_number }} · {{ card.expansion.code }}</div>
+
+          {% if game_type == 'digimon_kr' %}
+          <div class="rc-radio-group">
+            <label>
+              <input type="radio" name="rc-cls-{{ card.id }}" value="none"
+                     {% if not card.is_parallel and not card.is_scarce and not card.is_special %}checked{% endif %}
+                     onchange="rcSaveDigimon({{ card.id }}, 'none')">
+              기본
+            </label>
+            <label>
+              <input type="radio" name="rc-cls-{{ card.id }}" value="parallel"
+                     {% if card.is_parallel %}checked{% endif %}
+                     onchange="rcSaveDigimon({{ card.id }}, 'parallel')">
+              패러렐
+            </label>
+            <label>
+              <input type="radio" name="rc-cls-{{ card.id }}" value="scarce"
+                     {% if card.is_scarce %}checked{% endif %}
+                     onchange="rcSaveDigimon({{ card.id }}, 'scarce')">
+              희소
+            </label>
+            <label>
+              <input type="radio" name="rc-cls-{{ card.id }}" value="special"
+                     {% if card.is_special %}checked{% endif %}
+                     onchange="rcSaveDigimon({{ card.id }}, 'special')">
+              스페셜
+            </label>
+          </div>
+          {% else %}
+          <select class="rc-select" onchange="rcSaveOnePiece({{ card.id }}, this.value)">
+            {% for value, label in onepiece_rarity_choices %}
+            <option value="{{ value }}" {% if card.rarity == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if total_pages > 1 %}
+    <div class="pagination-bar">
+      {% if page > 1 %}
+      <a class="pg-btn" href="?all={% if only_dupes %}0{% else %}1{% endif %}&page={{ page|add:"-1" }}">← 이전</a>
+      {% else %}
+      <span class="pg-btn disabled">← 이전</span>
+      {% endif %}
+      <div class="pg-pages">
+        {% for p in page_range %}
+          {% if p == page %}
+          <span class="pg-num active">{{ p }}</span>
+          {% else %}
+          <a class="pg-num" href="?all={% if only_dupes %}0{% else %}1{% endif %}&page={{ p }}">{{ p }}</a>
+          {% endif %}
+        {% endfor %}
+      </div>
+      {% if page < total_pages %}
+      <a class="pg-btn" href="?all={% if only_dupes %}0{% else %}1{% endif %}&page={{ page|add:"1" }}">다음 →</a>
+      {% else %}
+      <span class="pg-btn disabled">다음 →</span>
+      {% endif %}
+      <span class="pg-info">{{ page }} / {{ total_pages }}페이지</span>
+    </div>
+    {% endif %}
+  {% else %}
+  <div class="empty" style="padding:40px 0;text-align:center;color:var(--text-dim);">
+    표시할 카드가 없습니다.
+  </div>
+  {% endif %}
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const RARITY_CLEANUP_SAVE_BASE = '/purchase-lists/rarity-cleanup/{{ game_type }}/';
+
+function getCsrf() { return document.querySelector('meta[name="csrf-token"]').content; }
+
+function showRcToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type}`; t.style.display = 'block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.display = 'none'; }, 2000);
+}
+
+async function rcPost(cardId, payload) {
+  try {
+    const res = await fetch(`${RARITY_CLEANUP_SAVE_BASE}${cardId}/save/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrf() },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!data.success) { showRcToast('❌ ' + (data.error || '저장 실패'), 'err'); return; }
+    const card = document.getElementById(`rc-card-${cardId}`);
+    const badge = document.getElementById(`rc-badge-${cardId}`);
+    if (card) card.classList.add('saved');
+    if (badge) {
+      badge.classList.add('show');
+      clearTimeout(badge._timer);
+      badge._timer = setTimeout(() => badge.classList.remove('show'), 1500);
+    }
+  } catch (e) {
+    showRcToast('❌ 네트워크 오류', 'err');
+  }
+}
+
+function rcSaveDigimon(cardId, classification) { rcPost(cardId, { classification }); }
+function rcSaveOnePiece(cardId, rarity) { rcPost(cardId, { rarity }); }
+</script>
+</body>
+</html>

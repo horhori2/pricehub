@@ -19,6 +19,7 @@ from .purchase_config import (
     GAME_TYPE_CARD_MODEL, GAME_TYPE_LABELS, RARITY_PRICE_GAME_TYPES,
     attach_cards, compute_rarity_price, get_rarity_price_map,
 )
+from .rarity_cleanup_views import RARITY_CLEANUP_GAME_TYPES
 from .views import staff_required
 
 
@@ -54,6 +55,7 @@ def purchase_list_index(request):
             'list_count': len(lists),
             'active_count': sum(1 for l in lists if l.is_active),
             'supports_rarity': game_type in RARITY_PRICE_GAME_TYPES,
+            'supports_rarity_cleanup': game_type in RARITY_CLEANUP_GAME_TYPES,
         })
     return render(request, 'dashboard/purchase_list_index.html', {'games': games})
 
