@@ -1731,7 +1731,8 @@ async function bulkSetPriceUnpriced() {
       const data = await res.json();
       if (data.success) {
         const input = document.getElementById('input-' + cardId);
-        if (input) { input.value = price; input.classList.add('saved'); }
+        if (input) input.value = price;
+        markIssueDone(cardId);
         success++;
       } else skip++;
     } catch { skip++; }
