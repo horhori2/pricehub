@@ -516,6 +516,12 @@ def _underpriced_count(cfg):
     예전에는 카드마다 card_price 히스토리를 서브쿼리로 뒤졌는데, 히스토리가 쌓일수록
     느려지는 구조라 캐시 컬럼으로 대체했다.
 
+    _underpriced_view(실제 저가 경고 목록)와 반드시 같은 기준을 써야 한다 —
+    reviewed_market_price가 latest_market_price와 같은 카드(작업자가 이미 그
+    시장가를 보고 확정한 카드)는 목록에서 빠지므로 카운트에서도 똑같이 빼야
+    한다. 이걸 안 맞추면 작업자가 목록에서 다 처리해도 확장팩 목록 페이지의
+    "저가 경고" 숫자가 안 줄어드는 것처럼 보인다.
+
     일본판은 시장가(엔)와 판매가(원) 통화가 달라 비교가 성립하지 않으므로 호출측에서 제외한다.
     """
     card_model = cfg['card_model']
@@ -526,6 +532,9 @@ def _underpriced_count(cfg):
                 selling_price__gt=0,
                 latest_market_price__isnull=False,
                 selling_price__lt=F('latest_market_price'),
+            )
+            .filter(
+                Q(reviewed_market_price__isnull=True) | ~Q(reviewed_market_price=F('latest_market_price'))
             )
             .count()
         )
