@@ -214,7 +214,7 @@ def clean_onepiece(dry_run):
     _log(f"[원피스] 정리 시작 (dry_run={dry_run})")
     meta_of = {}
     for c in OnePieceCard.objects.only('id', 'name', 'card_number', 'rarity'):
-        is_manga, is_special, is_parallel = _onepiece_rarity_flags(c.rarity)
+        is_manga, is_special, is_parallel, is_redmanga = _onepiece_rarity_flags(c.rarity)
         meta_of[c.id] = {
             'name': c.name,
             'base_number': _BASE_CARD_NUMBER_RE.sub('', c.card_number),
@@ -222,6 +222,7 @@ def clean_onepiece(dry_run):
             'is_manga': is_manga,
             'is_special': is_special,
             'is_parallel': is_parallel,
+            'is_redmanga': is_redmanga,
         }
 
     def validator(item, meta):
@@ -229,7 +230,7 @@ def clean_onepiece(dry_run):
         price = _price_to_float(item)
         return (not _is_excluded(item)) and _onepiece_title_matches(
             title, meta['base_number'], meta['is_manga'], meta['is_special'],
-            meta['is_parallel'], price, meta['rarity'], meta['name'],
+            meta['is_parallel'], price, meta['rarity'], meta['name'], meta['is_redmanga'],
         )
 
     total = OnePieceCardPrice.objects.count()

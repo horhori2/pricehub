@@ -91,6 +91,7 @@ _IROCHI_SHINY_S_RE = re.compile(r'(?<![A-Za-z0-9])s(?![A-Za-z0-9])', re.IGNORECA
 _BASE_CARD_NUMBER_RE       = re.compile(r'_[Pp]\d+$', re.IGNORECASE)
 _SUPER_PARALLEL_KEYWORDS  = ['슈퍼 패러렐', '슈퍼패러렐', '슈퍼파라렐', '슈퍼 파라렐']
 _MANGA_KEYWORDS           = ['망가', 'MANGA', 'manga']
+_REDMANGA_KEYWORDS        = ['적망가', '레드망가', '레드', '적']
 _PARALLEL_KEYWORDS        = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레', 'P-']
 _ONEPIECE_GENERAL_RARITIES = {'C', 'R', 'UC', 'SR', 'SEC'}
 
@@ -300,11 +301,12 @@ def get_all_prices_for_card(card_name: str, rarity: str, expansion_name: str,
 # ════════════════════════════════════════════════════════════════
 
 def _onepiece_rarity_flags(rarity: str):
-    """레어도 문자열에서 is_manga, is_special, is_parallel 플래그 반환"""
+    """레어도 문자열에서 is_manga, is_special, is_parallel, is_redmanga 플래그 반환"""
     is_manga    = rarity == 'MANGA'
     is_special  = rarity == 'SP'
     is_parallel = rarity.startswith('P-')
-    return is_manga, is_special, is_parallel
+    is_redmanga = rarity == 'REDMANGA'
+    return is_manga, is_special, is_parallel, is_redmanga
 
 
 def _doong_search_query(shop_product_code: str, card_name: str) -> str:
@@ -350,7 +352,8 @@ def _doong_item_is_valid(title: str, card_name: str, is_parallel: bool) -> bool:
 
 def _onepiece_title_matches(title: str, base_number: str,
                              is_manga: bool, is_special: bool, is_parallel: bool,
-                             price: float, rarity: str = '', card_name: str = '') -> bool:
+                             price: float, rarity: str = '', card_name: str = '',
+                             is_redmanga: bool = False) -> bool:
     """
     원피스 카드번호·레어도 필터를 적용해 상품이 유효한지 반환.
     공통 제외(판매처·일본판)는 호출 전에 처리되어 있어야 함.
@@ -369,6 +372,12 @@ def _onepiece_title_matches(title: str, base_number: str,
             or any(kw in title for kw in _MANGA_KEYWORDS)
         )
         if not has_kw or price < 200000:
+            return False
+
+    elif is_redmanga:
+        # 적망가(레드망가) — 일반 망가 검색어("망가 {base}")로 찾되, 제목에
+        # 적망가/레드망가/레드/적 키워드가 있는 것만 유효로 본다.
+        if not any(kw in title for kw in _REDMANGA_KEYWORDS):
             return False
 
     elif is_special:
@@ -411,6 +420,7 @@ def generate_onepiece_search_query(
 
     D / P-D(두웅)  → '{확장팩코드} {카드명}' (_doong_search_query 참고)
     MANGA          → '망가 {base}'
+    REDMANGA       → '망가 {base}' (검색어는 MANGA와 동일, 결과 필터링에서 구분)
     SP             → '스페셜 {base}'
     P-*            → '패러렐 {base}'
     ST* / P-프로모  → '원피스 {base}'
@@ -421,7 +431,7 @@ def generate_onepiece_search_query(
 
     base = _BASE_CARD_NUMBER_RE.sub('', card_number)
 
-    if rarity == 'MANGA':
+    if rarity in ('MANGA', 'REDMANGA'):
         return f"망가 {base}"
     if rarity == 'SP':
         return f"스페셜 {base}"
@@ -441,7 +451,7 @@ def filter_onepiece_items(
 ) -> FilterResult:
     """원피스 카드 일반 필터링 (최저가 반환)"""
     base_number = _BASE_CARD_NUMBER_RE.sub('', card_number)
-    is_manga, is_special, is_parallel = _onepiece_rarity_flags(rarity)
+    is_manga, is_special, is_parallel, is_redmanga = _onepiece_rarity_flags(rarity)
     valid_items = []
 
     for item in items:
@@ -449,7 +459,7 @@ def filter_onepiece_items(
             continue
         title = _clean_title(item['title'])
         price = float(item['lprice'])
-        if _onepiece_title_matches(title, base_number, is_manga, is_special, is_parallel, price, rarity, card_name):
+        if _onepiece_title_matches(title, base_number, is_manga, is_special, is_parallel, price, rarity, card_name, is_redmanga):
             valid_items.append(item)
 
     return _build_price_result(valid_items)

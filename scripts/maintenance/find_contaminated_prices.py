@@ -167,7 +167,7 @@ def scan_onepiece(writer):
     _log("[원피스] 카드 메타데이터 로딩")
     cards = {}
     for c in OnePieceCard.objects.only('id', 'name', 'card_number', 'rarity', 'shop_product_code'):
-        is_manga, is_special, is_parallel = _onepiece_rarity_flags(c.rarity)
+        is_manga, is_special, is_parallel, is_redmanga = _onepiece_rarity_flags(c.rarity)
         cards[c.id] = {
             'name': c.name,
             'card_number': c.card_number,
@@ -177,6 +177,7 @@ def scan_onepiece(writer):
             'is_manga': is_manga,
             'is_special': is_special,
             'is_parallel': is_parallel,
+            'is_redmanga': is_redmanga,
         }
 
     total = OnePieceCardPrice.objects.count()
@@ -199,7 +200,7 @@ def scan_onepiece(writer):
             price = _price_to_float(item)
             valid = (not _is_excluded(item)) and _onepiece_title_matches(
                 title, meta['base_number'], meta['is_manga'], meta['is_special'],
-                meta['is_parallel'], price, meta['rarity'], meta['name'],
+                meta['is_parallel'], price, meta['rarity'], meta['name'], meta['is_redmanga'],
             )
             if not valid:
                 row_bad = True

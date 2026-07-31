@@ -241,6 +241,7 @@ class OnePieceCard(models.Model):
         ('C', 'C'),
         ('P', 'P'),
         ('MANGA', 'MANGA'),
+        ('REDMANGA', 'REDMANGA'),
         ('P-SEC', 'P-SEC'),
         ('P-SR', 'P-SR'),
         ('P-L', 'P-L'),
