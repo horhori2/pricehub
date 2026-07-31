@@ -3,6 +3,13 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.15.7] - 2026-07-31
+
+### Removed
+- 오래된 일본판 내보내기 스냅샷 3개 정리 (`japan_cards_export.json`,
+  `japan_prices_20260729_020805.json`, `japan_prices_20260730_091623.json`)
+  — 최신 스냅샷으로 대체됨.
+
 ## [0.15.6] - 2026-07-31
 
 ### Fixed
