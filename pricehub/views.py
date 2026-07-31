@@ -246,6 +246,15 @@ def home(request):
                 {'label': '매입리스트 바로가기', 'url': '/purchase-lists/'},
             ],
         },
+        {
+            'icon': '🔧',
+            'title': '레어도 정리',
+            'desc': '신제품 등록 시 크롤러가 카드번호 중복을 순번만 보고 추정한 레어도(디지몬 패러렐/희소/스페셜, 원피스 망가 등)를 이미지 보고 직접 확인·수정합니다.',
+            'items': [
+                {'label': '원피스 한글판', 'url': '/purchase-lists/rarity-cleanup/onepiece_kr/'},
+                {'label': '디지몬 한글판', 'url': '/purchase-lists/rarity-cleanup/digimon_kr/'},
+            ],
+        },
     ]
 
     return render(request, 'dashboard/home.html', {'categories': categories, 'tools': tools})
