@@ -3,6 +3,11 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.15.4] - 2026-07-31
+
+### Added
+- 일본판 카드 목록 내보내기 스냅샷(`japan_cards_export.json`) 저장.
+
 ## [0.15.3] - 2026-07-31
 
 ### Fixed
