@@ -178,9 +178,16 @@ def crawl_and_save_cards(category_id):
                 valid_rarities = {r[0] for r in DigimonCard.RARITY_CHOICES}
 
                 # 상품코드: 기본=접미사 없음, 패러렐=V1, 스페셜=V3.
-                # 희소는 크롤링만으론 구분할 방법이 없어서, 패러렐도 스페셜도 아닌데
-                # 기본 자리가 이미 차있으면 V2부터 시도하고(희소는 경험상 V2에 있을 확률이
-                # 높음), 실제로 V2에 저장되면 희소로 추정한다. 이후 확인/수정은 수동으로 진행.
+                # 패러렐도 스페셜도 아닌데 기본 자리가 이미 차있으면(V2로 밀림),
+                # 두 가지 경우가 있다:
+                #   1) 재록(옛날 카드번호가 새 확장팩에 다시 실림) — 이 카드번호가
+                #      "다른" 확장팩에 이미 등록돼 있다는 뜻이므로 무조건 패러렐로
+                #      확정한다(사람 확인 불필요).
+                #   2) 신규 카드 자체가 같은 확장팩 안에서 3번째 인쇄까지 나온 경우
+                #      — 희소/스페셜 중 어느 쪽인지 크롤링만으론 알 수 없어서
+                #      needs_rarity_check=True로 표시해두고, 레어도 정리 페이지에서
+                #      작업자가 이미지 보고 직접 판정하게 한다(더 이상 희소로
+                #      추정하지 않음 — 예전엔 무조건 희소로 찍어서 자주 틀렸음).
                 if is_parallel:
                     version = 1
                 elif is_special:
@@ -188,17 +195,24 @@ def crawl_and_save_cards(category_id):
                 else:
                     version = 0
 
+                needs_rarity_check = False
                 shop_product_code = generate_shop_product_code(card_number, version)
 
                 if version == 0 and DigimonCard.objects.filter(shop_product_code=shop_product_code).exists():
-                    version = 2
+                    is_reprint = DigimonCard.objects.filter(
+                        card_number=card_number
+                    ).exclude(expansion=expansion).exists()
+                    if is_reprint:
+                        is_parallel = True
+                        version = 1
+                    else:
+                        needs_rarity_check = True
+                        version = 2
                     shop_product_code = generate_shop_product_code(card_number, version)
 
                 while DigimonCard.objects.filter(shop_product_code=shop_product_code).exists():
                     version += 1
                     shop_product_code = generate_shop_product_code(card_number, version)
-
-                is_scarce = not is_parallel and not is_special and version == 2
 
                 DigimonCard.objects.create(
                     shop_product_code=shop_product_code,
@@ -209,15 +223,16 @@ def crawl_and_save_cards(category_id):
                     card_type=card_type,
                     card_level=card_level,
                     is_parallel=is_parallel,
-                    is_scarce=is_scarce,
+                    is_scarce=False,
                     is_special=is_special,
+                    needs_rarity_check=needs_rarity_check,
                     image_url=image_url,
                 )
 
                 tags    = (
                     (['패러렐'] if is_parallel else []) +
-                    (['희소']   if is_scarce   else []) +
-                    (['스페셜'] if is_special  else [])
+                    (['스페셜'] if is_special  else []) +
+                    (['확인필요(희소/스페셜)'] if needs_rarity_check else [])
                 )
                 tag_str = f' [{", ".join(tags)}]' if tags else ''
                 print(f'  [생성] {shop_product_code}: {card_name} ({card_number}, {rarity}){tag_str}')

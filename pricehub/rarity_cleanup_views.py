@@ -60,6 +60,7 @@ def _get_model(game_type):
 def rarity_cleanup_view(request, game_type):
     model = _get_model(game_type)
     only_dupes = request.GET.get('all') != '1'
+    needs_check_only = game_type == 'digimon_kr' and request.GET.get('needs_check') == '1'
     try:
         min_dupes = int(request.GET.get('min', 2))
     except (TypeError, ValueError):
@@ -72,9 +73,15 @@ def rarity_cleanup_view(request, game_type):
     for num in all_numbers:
         grouped_keys.setdefault(_group_key(game_type, num), []).append(num)
 
-    keys = sorted(grouped_keys.keys())
-    if only_dupes:
-        keys = [k for k in keys if len(grouped_keys[k]) >= min_dupes]
+    if needs_check_only:
+        needs_check_numbers = set(
+            model.objects.filter(needs_rarity_check=True).values_list('card_number', flat=True)
+        )
+        keys = sorted({_group_key(game_type, n) for n in needs_check_numbers})
+    else:
+        keys = sorted(grouped_keys.keys())
+        if only_dupes:
+            keys = [k for k in keys if len(grouped_keys[k]) >= min_dupes]
 
     total_groups = len(keys)
     total_pages = max(1, -(-total_groups // PAGE_SIZE))
@@ -114,6 +121,9 @@ def rarity_cleanup_view(request, game_type):
         'page_range': page_range,
         'only_dupes': only_dupes,
         'min_dupes': min_dupes,
+        'needs_check_only': needs_check_only,
+        'needs_check_total': DigimonCard.objects.filter(needs_rarity_check=True).count() if game_type == 'digimon_kr' else 0,
+        'is_digimon': game_type == 'digimon_kr',
         'onepiece_rarity_choices': OnePieceCard.RARITY_CHOICES if game_type == 'onepiece_kr' else None,
     })
 
@@ -135,7 +145,8 @@ def rarity_cleanup_save(request, game_type, card_id):
         card.is_parallel = classification == 'parallel'
         card.is_scarce = classification == 'scarce'
         card.is_special = classification == 'special'
-        card.save(update_fields=['is_parallel', 'is_scarce', 'is_special'])
+        card.needs_rarity_check = False
+        card.save(update_fields=['is_parallel', 'is_scarce', 'is_special', 'needs_rarity_check'])
         return JsonResponse({'success': True})
 
     if game_type == 'onepiece_kr':

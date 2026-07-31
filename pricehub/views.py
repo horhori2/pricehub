@@ -257,7 +257,13 @@ def home(request):
         },
     ]
 
-    return render(request, 'dashboard/home.html', {'categories': categories, 'tools': tools})
+    needs_rarity_check_count = DigimonCard.objects.filter(needs_rarity_check=True).count()
+
+    return render(request, 'dashboard/home.html', {
+        'categories': categories,
+        'tools': tools,
+        'needs_rarity_check_count': needs_rarity_check_count,
+    })
 
 
 # ════════════════════════════════════════════════════════════════

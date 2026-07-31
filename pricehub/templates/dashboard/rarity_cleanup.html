@@ -57,9 +57,13 @@
       카드번호 그룹 총 {{ total_groups }}개 · {{ page }}/{{ total_pages }} 페이지
     </div>
     <div class="rc-toolbar-links">
-      <a href="?all=0&min=2" class="{% if only_dupes and min_dupes == 2 %}active{% endif %}">중복(2개 이상)만</a>
-      <a href="?all=0&min=3" class="{% if only_dupes and min_dupes >= 3 %}active{% endif %}">중복(3개 이상)만</a>
-      <a href="?all=1" class="{% if not only_dupes %}active{% endif %}">전체 카드번호</a>
+      {% if is_digimon %}
+      <a href="?needs_check=1"
+         style="border-color:var(--warning);color:var(--warning);{% if needs_check_only %}background:rgba(245,166,35,0.15);font-weight:700;{% endif %}">⚠ 확인 필요만{% if needs_check_total %} ({{ needs_check_total }}){% endif %}</a>
+      {% endif %}
+      <a href="?all=0&min=2" class="{% if not needs_check_only and only_dupes and min_dupes == 2 %}active{% endif %}">중복(2개 이상)만</a>
+      <a href="?all=0&min=3" class="{% if not needs_check_only and only_dupes and min_dupes >= 3 %}active{% endif %}">중복(3개 이상)만</a>
+      <a href="?all=1" class="{% if not needs_check_only and not only_dupes %}active{% endif %}">전체 카드번호</a>
     </div>
   </div>
 
@@ -75,6 +79,9 @@
         {% for card in cards %}
         <div class="rc-card" id="rc-card-{{ card.id }}">
           <span class="rc-saved-badge" id="rc-badge-{{ card.id }}">✓ 저장됨</span>
+          {% if card.needs_rarity_check %}
+          <div style="font-size:10px;font-weight:700;color:var(--warning);background:rgba(245,166,35,0.12);border:1px solid rgba(245,166,35,0.3);border-radius:6px;padding:2px 6px;display:inline-block;margin-bottom:6px;">⚠ 확인 필요</div>
+          {% endif %}
           <div class="rc-card-img-wrap">
             {% if card.image_url %}
             <img src="{{ card.image_url }}" class="rc-card-img" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className:'rc-empty-img', textContent:'🃏'}))">
@@ -128,7 +135,7 @@
     {% if total_pages > 1 %}
     <div class="pagination-bar">
       {% if page > 1 %}
-      <a class="pg-btn" href="?all={% if only_dupes %}0{% else %}1{% endif %}&min={{ min_dupes }}&page={{ page|add:"-1" }}">← 이전</a>
+      <a class="pg-btn" href="?{% if needs_check_only %}needs_check=1{% else %}all={% if only_dupes %}0{% else %}1{% endif %}&min={{ min_dupes }}{% endif %}&page={{ page|add:"-1" }}">← 이전</a>
       {% else %}
       <span class="pg-btn disabled">← 이전</span>
       {% endif %}
@@ -137,12 +144,12 @@
           {% if p == page %}
           <span class="pg-num active">{{ p }}</span>
           {% else %}
-          <a class="pg-num" href="?all={% if only_dupes %}0{% else %}1{% endif %}&min={{ min_dupes }}&page={{ p }}">{{ p }}</a>
+          <a class="pg-num" href="?{% if needs_check_only %}needs_check=1{% else %}all={% if only_dupes %}0{% else %}1{% endif %}&min={{ min_dupes }}{% endif %}&page={{ p }}">{{ p }}</a>
           {% endif %}
         {% endfor %}
       </div>
       {% if page < total_pages %}
-      <a class="pg-btn" href="?all={% if only_dupes %}0{% else %}1{% endif %}&min={{ min_dupes }}&page={{ page|add:"1" }}">다음 →</a>
+      <a class="pg-btn" href="?{% if needs_check_only %}needs_check=1{% else %}all={% if only_dupes %}0{% else %}1{% endif %}&min={{ min_dupes }}{% endif %}&page={{ page|add:"1" }}">다음 →</a>
       {% else %}
       <span class="pg-btn disabled">다음 →</span>
       {% endif %}

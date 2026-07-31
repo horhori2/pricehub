@@ -473,6 +473,11 @@ class DigimonCard(models.Model):
     is_parallel = models.BooleanField(default=False, verbose_name="패러렐")
     is_scarce = models.BooleanField(default=False, verbose_name="희소")
     is_special = models.BooleanField(default=False, verbose_name="스페셜")
+    needs_rarity_check = models.BooleanField(
+        default=False, db_index=True, verbose_name="레어도 확인 필요",
+        help_text="신규 카드번호가 같은 확장팩 안에서 3번째 인쇄(V2)까지 나온 경우 — "
+                   "희소/스페셜 중 어느 쪽인지 크롤링만으론 알 수 없어 이미지 확인 필요."
+    )
     image_url = models.URLField(max_length=500, blank=True, verbose_name="이미지 URL")
     is_favorite = models.BooleanField(default=False, verbose_name='즐겨찾기', db_index=True)
     selling_price = models.PositiveIntegerField(
