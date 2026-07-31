@@ -3,6 +3,16 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.15.6] - 2026-07-31
+
+### Fixed
+- `collect_cardrush_prices.py`의 "특정 확장팩 가격 수집" 메뉴에 M6가
+  안 뜨던 문제 수정 — `CARDRUSH_EXPANSIONS`와 별개로 하드코딩된 메뉴용
+  MEGA 시리즈 목록에 M6 추가.
+
+### Added
+- 일본판 가격 내보내기 스냅샷(`japan_prices_20260731_054234.json`) 저장.
+
 ## [0.15.5] - 2026-07-31
 
 ### Added

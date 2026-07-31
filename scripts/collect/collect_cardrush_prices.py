@@ -571,7 +571,7 @@ if __name__ == '__main__':
     elif choice == '2':
         print("\n사용 가능한 확장팩:")
         print("\n[MEGA 시리즈]")
-        for code in ['M5', 'M4', 'M3', 'M2a', 'M2', 'M1S', 'M1L']:
+        for code in ['M6', 'M5', 'M4', 'M3', 'M2a', 'M2', 'M1S', 'M1L']:
             info = CARDRUSH_EXPANSIONS[code]
             print(f"  - {code}: {info['name']}")
         
