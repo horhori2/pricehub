@@ -98,8 +98,8 @@ class DigimonExpansionAdmin(admin.ModelAdmin):
 
 @admin.register(DigimonCard)
 class DigimonCardAdmin(admin.ModelAdmin):
-    list_display = ['name', 'card_number', 'expansion', 'rarity', 'is_parallel', 'is_scarce', 'created_at']
-    list_filter = ['expansion', 'rarity', 'is_parallel', 'is_scarce']
+    list_display = ['name', 'card_number', 'expansion', 'rarity', 'is_parallel', 'is_scarce', 'is_special', 'created_at']
+    list_filter = ['expansion', 'rarity', 'is_parallel', 'is_scarce', 'is_special']
     search_fields = ['name', 'card_number', 'shop_product_code']
     ordering = ['expansion', 'card_number']
 
