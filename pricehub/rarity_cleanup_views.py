@@ -60,6 +60,11 @@ def _get_model(game_type):
 def rarity_cleanup_view(request, game_type):
     model = _get_model(game_type)
     only_dupes = request.GET.get('all') != '1'
+    try:
+        min_dupes = int(request.GET.get('min', 2))
+    except (TypeError, ValueError):
+        min_dupes = 2
+    min_dupes = max(2, min_dupes)
     page = max(1, int(request.GET.get('page', 1) or 1))
 
     all_numbers = list(model.objects.values_list('card_number', flat=True))
@@ -69,7 +74,7 @@ def rarity_cleanup_view(request, game_type):
 
     keys = sorted(grouped_keys.keys())
     if only_dupes:
-        keys = [k for k in keys if len(grouped_keys[k]) > 1]
+        keys = [k for k in keys if len(grouped_keys[k]) >= min_dupes]
 
     total_groups = len(keys)
     total_pages = max(1, -(-total_groups // PAGE_SIZE))
@@ -108,6 +113,7 @@ def rarity_cleanup_view(request, game_type):
         'total_groups': total_groups,
         'page_range': page_range,
         'only_dupes': only_dupes,
+        'min_dupes': min_dupes,
         'onepiece_rarity_choices': OnePieceCard.RARITY_CHOICES if game_type == 'onepiece_kr' else None,
     })
 

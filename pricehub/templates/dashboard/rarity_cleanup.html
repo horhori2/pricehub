@@ -57,7 +57,8 @@
       카드번호 그룹 총 {{ total_groups }}개 · {{ page }}/{{ total_pages }} 페이지
     </div>
     <div class="rc-toolbar-links">
-      <a href="?all=0" class="{% if only_dupes %}active{% endif %}">중복(2개 이상)만</a>
+      <a href="?all=0&min=2" class="{% if only_dupes and min_dupes == 2 %}active{% endif %}">중복(2개 이상)만</a>
+      <a href="?all=0&min=3" class="{% if only_dupes and min_dupes >= 3 %}active{% endif %}">중복(3개 이상)만</a>
       <a href="?all=1" class="{% if not only_dupes %}active{% endif %}">전체 카드번호</a>
     </div>
   </div>
@@ -127,7 +128,7 @@
     {% if total_pages > 1 %}
     <div class="pagination-bar">
       {% if page > 1 %}
-      <a class="pg-btn" href="?all={% if only_dupes %}0{% else %}1{% endif %}&page={{ page|add:"-1" }}">← 이전</a>
+      <a class="pg-btn" href="?all={% if only_dupes %}0{% else %}1{% endif %}&min={{ min_dupes }}&page={{ page|add:"-1" }}">← 이전</a>
       {% else %}
       <span class="pg-btn disabled">← 이전</span>
       {% endif %}
@@ -136,12 +137,12 @@
           {% if p == page %}
           <span class="pg-num active">{{ p }}</span>
           {% else %}
-          <a class="pg-num" href="?all={% if only_dupes %}0{% else %}1{% endif %}&page={{ p }}">{{ p }}</a>
+          <a class="pg-num" href="?all={% if only_dupes %}0{% else %}1{% endif %}&min={{ min_dupes }}&page={{ p }}">{{ p }}</a>
           {% endif %}
         {% endfor %}
       </div>
       {% if page < total_pages %}
-      <a class="pg-btn" href="?all={% if only_dupes %}0{% else %}1{% endif %}&page={{ page|add:"1" }}">다음 →</a>
+      <a class="pg-btn" href="?all={% if only_dupes %}0{% else %}1{% endif %}&min={{ min_dupes }}&page={{ page|add:"1" }}">다음 →</a>
       {% else %}
       <span class="pg-btn disabled">다음 →</span>
       {% endif %}
