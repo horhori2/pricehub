@@ -23,6 +23,7 @@ from django.utils import timezone
 # 카드러쉬 확장팩 매핑
 CARDRUSH_EXPANSIONS = {
     # MEGA 시리즈
+    'M6': {'name': 'ストームエメラルダ', 'url': 'https://www.cardrush-pokemon.jp/product-group/582'},
     'M5': {'name': 'アビスアイ', 'url': 'https://www.cardrush-pokemon.jp/product-group/569'},
     'M4': {'name': 'ニンジャスピナー', 'url': 'https://www.cardrush-pokemon.jp/product-group/556'},
     'M3': {'name': 'ムニキスゼロ', 'url': 'https://www.cardrush-pokemon.jp/product-group/533'},

@@ -20,6 +20,7 @@ from pricehub.models import JapanExpansion, JapanCard
 # ==================== 일본판 확장팩 목록 ====================
 JAPAN_EXPANSIONS = [
     # M 시리즈
+    {'code': 'M6', 'url_code': 'm06'},
     {'code': 'M5', 'url_code': 'm05'},
     {'code': 'M4', 'url_code': 'm04'},
     {'code': 'M3', 'url_code': 'm03'},

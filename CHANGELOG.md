@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.15.5] - 2026-07-31
+
+### Added
+- 일본판 포켓몬 신제품 M6(拡張パック ストームエメラルダ) 카탈로그/가격
+  수집 대상 추가 — `save_japan_cards_to_db.py`, `collect_cardrush_prices.py`,
+  `collect_yuyutei_prices.py`. `collect_yuyutei_prices.py`에 누락돼있던
+  M5 매핑도 같이 추가.
+
 ## [0.15.4] - 2026-07-31
 
 ### Added
