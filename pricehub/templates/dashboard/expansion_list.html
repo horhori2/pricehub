@@ -29,8 +29,8 @@
   <div class="page-title">{{ title }} 확장팩</div>
   <div class="page-sub" style="font-size:13px;color:var(--text-muted);margin-bottom:28px;">확장팩을 선택해 카드별 판매가를 설정하세요.</div>
 
-  <!-- 통계 카드 -->
-  <div class="stats-row-grid" style="{% if bulk_underpriced_url %}grid-template-columns: repeat(5, 1fr);{% elif bulk_unpriced_url %}grid-template-columns: repeat(4, 1fr);{% endif %}">
+  <!-- 정보 카드 (전체 확장팩/카드 수 — 작업 목록과 무관한 참고용 수치) -->
+  <div class="stats-row-grid" style="grid-template-columns: repeat(2, 1fr); max-width:420px; margin-bottom:16px;">
 
     <div class="stat-card">
       <div class="stat-label">전체 확장팩</div>
@@ -41,6 +41,12 @@
       <div class="stat-label">전체 카드</div>
       <div class="stat-value green">{{ total_cards }}</div>
     </div>
+
+  </div>
+
+  <!-- TASK — 작업자가 실제로 처리해야 하는 목록들 -->
+  <div class="page-sub" style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;font-family:'JetBrains Mono',monospace;margin-bottom:8px;">📋 TASK</div>
+  <div class="stats-row-grid" style="{% if bulk_underpriced_url %}grid-template-columns: repeat(4, 1fr);{% elif bulk_unpriced_url %}grid-template-columns: repeat(3, 1fr);{% endif %}">
 
     <!-- 판매가 미설정 -->
     {% if bulk_unpriced_url %}
@@ -62,6 +68,15 @@
        title="가격 하락 대기 카드 목록 보기">
       <div class="stat-label">가격 하락 대기 →</div>
       <div class="stat-value" style="color:var(--danger);" id="statDrop">···</div>
+    </a>
+    {% endif %}
+
+    <!-- 가격 상승 대기 (마찬가지로 비동기) -->
+    {% if bulk_rise_url %}
+    <a href="{{ bulk_rise_url }}" class="stat-card stat-card-link"
+       title="가격 상승 대기 카드 목록 보기">
+      <div class="stat-label">가격 상승 대기 →</div>
+      <div class="stat-value" style="color:var(--trend-up);" id="statRise">···</div>
     </a>
     {% endif %}
 
@@ -163,7 +178,7 @@ const CARD_DETAIL_BASE_URL = '{{ card_detail_base_url }}';
 const RESET_URL_PREFIX     = '{{ reset_prices_url_prefix }}';
 const RESET_ALL_URL        = '{{ reset_all_url }}';
 
-/* 하락 대기 / 저가 경고 카운트 — 무거운 집계라 페이지 로딩을 막지 않도록
+/* 하락/상승 대기 / 저가 경고 카운트 — 무거운 집계라 페이지 로딩을 막지 않도록
    확장팩 목록이 먼저 뜬 뒤 별도로 fetch해서 채운다. */
 (function () {
   const statsUrl = '{{ expansion_stats_url }}';
@@ -171,15 +186,19 @@ const RESET_ALL_URL        = '{{ reset_all_url }}';
   fetch(statsUrl)
     .then(res => res.json())
     .then(data => {
-      const dropEl = document.getElementById('statDrop');
+      const dropEl  = document.getElementById('statDrop');
+      const riseEl  = document.getElementById('statRise');
       const underEl = document.getElementById('statUnderpriced');
       if (dropEl)  dropEl.textContent  = data.total_drop.toLocaleString();
+      if (riseEl)  riseEl.textContent  = data.total_rise.toLocaleString();
       if (underEl) underEl.textContent = data.total_underpriced.toLocaleString();
     })
     .catch(() => {
-      const dropEl = document.getElementById('statDrop');
+      const dropEl  = document.getElementById('statDrop');
+      const riseEl  = document.getElementById('statRise');
       const underEl = document.getElementById('statUnderpriced');
       if (dropEl)  dropEl.textContent  = '-';
+      if (riseEl)  riseEl.textContent  = '-';
       if (underEl) underEl.textContent = '-';
     });
 })();

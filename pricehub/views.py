@@ -565,6 +565,7 @@ def _expansion_list_view(request, cfg_key, extra_ctx=None):
         'breadcrumb': [('홈', '/'), (cfg['label'], None)],
         'card_detail_base_url': f'{base_url}/cards/',
         'bulk_drop_url':     f'{base_url}/bulk-price/drop/',
+        'bulk_rise_url':     f'{base_url}/bulk-price/rise/',
         'bulk_unpriced_url': f'{base_url}/bulk-price/unpriced/',
         'bulk_underpriced_url': f'{base_url}/bulk-price/underpriced/' if cfg_key != 'pokemon_jp' else '',
     }
@@ -593,11 +594,20 @@ def _expansion_stats_view(request, cfg_key):
     except Exception:
         drop_count = 0
 
+    try:
+        rise_count = card_model.objects.filter(
+            selling_price__gt=0,
+            modified_price__gt=F('selling_price'),
+        ).count()
+    except Exception:
+        rise_count = 0
+
     # 일본판은 시장가(엔)·판매가(원) 통화가 달라 비교 대상에서 제외
     underpriced_count = _underpriced_count(cfg) if cfg_key != 'pokemon_jp' else 0
 
     return JsonResponse({
         'total_drop': drop_count,
+        'total_rise': rise_count,
         'total_underpriced': underpriced_count,
     })
 
