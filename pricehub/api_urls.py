@@ -5,6 +5,7 @@ from django.urls import path, include
 from pricehub import api_docs_views
 from . import api_views
 from . import purchase_api_views as pav
+from .bulk_api_views import bulk_price_api_urls
 
 
 def _tcg_api_urls(views):
@@ -107,17 +108,17 @@ _pokemon_jp_views = {
 
 # 원피스 한글판 (별도 include용)
 onepiece_kr_urlpatterns = (
-    _tcg_api_urls(_onepiece_kr_views),
+    _tcg_api_urls(_onepiece_kr_views) + bulk_price_api_urls('onepiece_kr'),
     'onepiece_kr',
 )
 
 # 디지몬 한글판 (별도 include용)
 digimon_kr_urlpatterns = (
-    _tcg_api_urls(_digimon_kr_views),
+    _tcg_api_urls(_digimon_kr_views) + bulk_price_api_urls('digimon_kr'),
     'digimon_kr',
 )
 
-# 포켓몬 일본판 (별도 include용)
+# 포켓몬 일본판 (별도 include용) — bulk-price(일괄 판매가 설정)는 일본판에 없음
 pokemon_jp_urlpatterns = (
     _tcg_api_urls(_pokemon_jp_views),
     'pokemon_jp',
@@ -125,7 +126,7 @@ pokemon_jp_urlpatterns = (
 
 # 포켓몬 한글판 (기본 include 대상)
 app_name = 'pokemon_kr'
-urlpatterns = _tcg_api_urls(_pokemon_kr_views)
+urlpatterns = _tcg_api_urls(_pokemon_kr_views) + bulk_price_api_urls('pokemon_kr')
 
 
 # ════════════════════════════════════════════════════════════════

@@ -1563,7 +1563,7 @@ def _bulk_inline_cards_view(request, cfg_key):
         if cp['card_id'] not in seen_raw:
             seen_raw[cp['card_id']] = cp['raw_data']
 
-    # 하락 모드면 drop_pct 계산 추가
+    # 하락/상승 모드면 drop_pct 계산 추가 (상승은 음수로 나타남)
     result_cards = []
     for c in cards:
         item = {
@@ -1577,7 +1577,7 @@ def _bulk_inline_cards_view(request, cfg_key):
             'expansion_code': c['expansion__code'],
             'expansion_name': c['expansion__name'],
         }
-        if mode == 'drop' and item['selling_price'] > 0:
+        if mode in ('drop', 'rise') and item['selling_price'] > 0:
             drop_amt = item['selling_price'] - item['modified_price']
             item['drop_pct'] = round((drop_amt / item['selling_price']) * 100, 1)
         result_cards.append(item)
