@@ -38,7 +38,10 @@ from .models import (
     JapanExpansion, JapanCard, JapanCardPrice,
     DigimonExpansion, DigimonCard, DigimonCardPrice,
 )
-from .utils import OUR_SHOPS, safe_json_dumps
+from .utils import (
+    OUR_SHOPS, safe_json_dumps,
+    generate_pokemon_search_query, generate_onepiece_search_query, generate_digimon_search_query,
+)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -659,6 +662,22 @@ _TAG_FUNCS = {
     'pokemon_kr':  _pokemon_kr_tags,
 }
 
+# 카드별 네이버쇼핑 검색어 계산 함수 (수동 가격 확인 링크용).
+# 2026-08 네이버 쇼핑 검색 오픈API 서비스 종료로 자동 수집이 중단되어, 사이드 패널에서
+# 사람이 직접 클릭해 검색 결과를 보고 판매가를 입력하는 방식으로 대체했다.
+# 일본판(pokemon_jp)은 cardrush/yuyutei를 직접 크롤링하는 별도 방식이라 여기서 제외.
+_SEARCH_QUERY_FUNCS = {
+    'pokemon_kr':  lambda card, expansion: generate_pokemon_search_query(
+        card.name, card.rarity, expansion.name,
+    ),
+    'onepiece_kr': lambda card, expansion: generate_onepiece_search_query(
+        card.name, card.rarity, expansion.name, card.card_number, card.shop_product_code,
+    ),
+    'digimon_kr':  lambda card, expansion: generate_digimon_search_query(
+        card.name, card.card_number, card.is_parallel, card.is_scarce, card.is_special,
+    ),
+}
+
 
 def _card_list_view(request, cfg_key, code, extra_ctx=None):
     cfg = _cfg(cfg_key)
@@ -782,6 +801,13 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
             if cp['card_id'] not in seen_raw:
                 seen_raw[cp['card_id']] = cp['raw_data']
 
+    # 카드별 네이버쇼핑 수동 검색어 (사이드 패널 "검색" 링크용)
+    search_query_func = _SEARCH_QUERY_FUNCS.get(cfg_key)
+    card_search_queries = (
+        {c.pk: search_query_func(c, expansion) for c in cards_list}
+        if search_query_func else {}
+    )
+
     fav_ctx = {}
     if 'toggle_favorite_url_base' in cfg:
         fav_ctx = {
@@ -797,6 +823,7 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
         'selected_rarities': selected_rarities,
         'selected_rarities_json': safe_json_dumps(selected_rarities),
         'card_raw_json':    safe_json_dumps(seen_raw, ensure_ascii=False),
+        'card_search_query_json': safe_json_dumps(card_search_queries, ensure_ascii=False),
         'total_count':      total_count,
         'page':             page,
         'total_pages':      total_pages,

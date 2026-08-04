@@ -947,6 +947,18 @@ function showIssuesSidePanel(cardId) {
   document.getElementById('sideCardInfo').textContent =
     `${row.dataset.number} · ${row.dataset.rarity}`;
 
+  /* 수동 검색 링크 (네이버쇼핑 API 종료로 자동 수집 대신 사람이 직접 확인) */
+  const searchLink = document.getElementById('sideSearchLink');
+  if (searchLink) {
+    const query = (typeof CARD_SEARCH_QUERY !== 'undefined') ? CARD_SEARCH_QUERY[String(cardId)] : null;
+    if (query) {
+      searchLink.href = `https://search.shopping.naver.com/search/all?query=${encodeURIComponent(query)}&frm=NVSCPRO`;
+      searchLink.style.display = 'block';
+    } else {
+      searchLink.style.display = 'none';
+    }
+  }
+
   /* 하락/상승 요약 (부호로 방향 판단) */
   const summaryEl = document.getElementById('sidePriceSummary');
   if (summaryEl) {

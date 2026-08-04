@@ -250,6 +250,11 @@
       <div class="side-title">판매처 목록 <span style="font-size:10px;font-weight:400;color:var(--text-dim);">(클릭하면 가격 반영)</span></div>
       <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
       <div class="side-card-info" id="sideCardInfo"></div>
+      <a id="sideSearchLink" href="#" target="_blank" rel="noopener noreferrer" style="display:none;margin-top:8px;
+         padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;
+         font-size:12px;font-weight:700;color:var(--accent2);text-decoration:none;text-align:center;">
+        🔍 네이버쇼핑에서 검색
+      </a>
     </div>
     <div class="side-empty" id="sideEmpty">
       <div class="side-empty-icon">🏪</div>
@@ -278,6 +283,7 @@
 <div id="fav-toast"></div>
 
 <script id="cardRawData" type="application/json">{{ card_raw_json|safe }}</script>
+<script id="cardSearchQueryData" type="application/json">{{ card_search_query_json|safe }}</script>
 <script src="{% static_v 'dashboard/dashboard.js' %}"></script>
 <script>
 /* 페이지별 설정값 */
@@ -287,6 +293,12 @@ const SET_PRICE_BASE  = '{{ detail_base_url }}';
 
 const CARD_RAW = (() => {
   try { return JSON.parse(document.getElementById('cardRawData').textContent); }
+  catch { return {}; }
+})();
+
+/* 카드별 네이버쇼핑 검색어 — 자동 가격 수집 API 종료로 수동 검색 링크에 사용 */
+const CARD_SEARCH_QUERY = (() => {
+  try { return JSON.parse(document.getElementById('cardSearchQueryData').textContent); }
   catch { return {}; }
 })();
 
