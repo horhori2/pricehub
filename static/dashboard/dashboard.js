@@ -947,6 +947,17 @@ function showIssuesSidePanel(cardId) {
   document.getElementById('sideCardInfo').textContent =
     `${row.dataset.number} · ${row.dataset.rarity}`;
 
+  /* 판매처 목록이 수집된 날짜 (raw_data 스냅샷 시점 — 목록 전체가 같은 시점) */
+  const collectedInfo = document.getElementById('sideCollectedInfo');
+  if (collectedInfo) {
+    if (row.dataset.collected) {
+      collectedInfo.textContent = `📅 수집일시: ${row.dataset.collected}`;
+      collectedInfo.style.display = 'block';
+    } else {
+      collectedInfo.style.display = 'none';
+    }
+  }
+
   /* 수동 검색 링크 (네이버쇼핑 API 종료로 자동 수집 대신 사람이 직접 확인) */
   const searchLink = document.getElementById('sideSearchLink');
   if (searchLink) {

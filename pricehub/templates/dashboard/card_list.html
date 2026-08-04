@@ -139,6 +139,7 @@
             data-number="{{ card.shop_product_code|default:card.card_number }}"
             data-rarity="{{ card.rarity }}"
             data-image="{{ card.image_url|default:'' }}"
+            data-collected="{% if card.latest_collected_at %}{{ card.latest_collected_at|date:'Y.m.d H:i' }}{% endif %}"
             onclick="handleCardRowClick({{ card.id }})">
           <td style="padding:11px 10px;" onclick="event.stopPropagation()">
             <input type="checkbox" class="card-check" data-id="{{ card.id }}"
@@ -258,6 +259,7 @@
       <div class="side-title">판매처 목록 <span style="font-size:10px;font-weight:400;color:var(--text-dim);">(클릭하면 가격 반영)</span></div>
       <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
       <div class="side-card-info" id="sideCardInfo"></div>
+      <div class="side-card-info" id="sideCollectedInfo" style="display:none;"></div>
       <a id="sideSearchLink" href="#" target="_blank" rel="noopener noreferrer" style="display:none;margin-top:8px;
          padding:6px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;
          font-size:12px;font-weight:700;color:var(--accent2);text-decoration:none;text-align:center;">
