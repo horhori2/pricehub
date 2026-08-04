@@ -474,6 +474,29 @@ _DIGIMON_PARALLEL_KEYWORDS = [
     '패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레',
 ]
 
+# 판매자가 "패러렐"을 한글 대신 영문 약어로만 표기하는 경우 — 위 키워드로는
+# 못 잡아서 일반 카드 raw_data에 패러렐 상품이 그대로 섞여 들어갔었음
+# (예: "...BT9-081)PSR", "...데크스도루고라몬 [P]", "...데크스도루고라몬 P").
+_DIGIMON_PARALLEL_ABBREV_RE = [
+    re.compile(r'(?<![A-Za-z0-9])PSR(?![A-Za-z0-9])', re.IGNORECASE),
+    re.compile(r'\[P\]', re.IGNORECASE),
+    re.compile(r'\(P\)', re.IGNORECASE),
+]
+# 제목 맨 끝에 단독으로 붙은 "P"
+_DIGIMON_TRAILING_P_RE = re.compile(r'(?<![A-Za-z0-9])P$')
+
+
+def _has_digimon_parallel_abbrev(title: str, card_number: str = '') -> bool:
+    # 프로모 계열 카드번호('P-', 'LM-' — 둘 다 PROMO 확장팩 소속)는
+    # "(P)"/"[P]"/단독 "P"가 패러렐이 아니라 "프로모"를 뜻하는 표기라
+    # 약어 판정 자체를 적용하지 않는다.
+    if card_number.startswith(('P-', 'LM-')):
+        return False
+    stripped = title.strip()
+    if any(p.search(stripped) for p in _DIGIMON_PARALLEL_ABBREV_RE):
+        return True
+    return bool(_DIGIMON_TRAILING_P_RE.search(stripped))
+
 def generate_digimon_search_query(
     card_name: str,
     card_number: str,
@@ -520,7 +543,10 @@ def _digimon_item_is_valid(title: str, card_number: str,
     if not is_scarce and has_scarce_kw:
         return False
 
-    has_parallel_kw = any(kw in title for kw in _DIGIMON_PARALLEL_KEYWORDS)
+    has_parallel_kw = (
+        any(kw in title for kw in _DIGIMON_PARALLEL_KEYWORDS)
+        or _has_digimon_parallel_abbrev(title, card_number)
+    )
     if is_parallel and not has_parallel_kw:
         return False
     if not is_parallel and has_parallel_kw:
