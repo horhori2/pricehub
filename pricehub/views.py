@@ -10,7 +10,7 @@ import hashlib
 import json
 import logging
 import re
-from urllib.parse import urlencode
+from urllib.parse import urlencode, quote
 
 import requests
 
@@ -662,6 +662,8 @@ _TAG_FUNCS = {
     'pokemon_kr':  _pokemon_kr_tags,
 }
 
+NAVER_SHOPPING_SEARCH_URL = 'https://search.shopping.naver.com/search/all'
+
 # 카드별 네이버쇼핑 검색어 계산 함수 (수동 가격 확인 링크용).
 # 2026-08 네이버 쇼핑 검색 오픈API 서비스 종료로 자동 수집이 중단되어, 사이드 패널에서
 # 사람이 직접 클릭해 검색 결과를 보고 판매가를 입력하는 방식으로 대체했다.
@@ -801,12 +803,17 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
             if cp['card_id'] not in seen_raw:
                 seen_raw[cp['card_id']] = cp['raw_data']
 
-    # 카드별 네이버쇼핑 수동 검색어 (사이드 패널 "검색" 링크용)
+    # 카드별 네이버쇼핑 수동 검색어 (사이드 패널 "검색" 링크 + 행별 검색 버튼용)
     search_query_func = _SEARCH_QUERY_FUNCS.get(cfg_key)
-    card_search_queries = (
-        {c.pk: search_query_func(c, expansion) for c in cards_list}
-        if search_query_func else {}
-    )
+    card_search_queries = {}
+    if search_query_func:
+        for c in cards_list:
+            query = search_query_func(c, expansion)
+            card_search_queries[c.pk] = query
+            c.naver_search_url = f'{NAVER_SHOPPING_SEARCH_URL}?query={quote(query)}&frm=NVSCPRO'
+    else:
+        for c in cards_list:
+            c.naver_search_url = None
 
     fav_ctx = {}
     if 'toggle_favorite_url_base' in cfg:

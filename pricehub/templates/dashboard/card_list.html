@@ -125,6 +125,7 @@
           <th>수정</th>
           <th>수집일시</th>
           <th style="width:36px"></th>
+          <th style="width:70px"></th>
           <th style="width:60px"></th>
         </tr>
       </thead>
@@ -173,15 +174,16 @@
               {% endif %}
             </span>
           </td>
-          <td style="min-width:170px;" onclick="event.stopPropagation()">
+          <td style="min-width:170px;">
             <div class="price-cell">
               <input type="number" class="price-input-issues" id="inp-{{ card.id }}"
                      value="{% if card.selling_price %}{{ card.selling_price|floatformat:0 }}{% endif %}"
                      placeholder="새 가격"
                      min="0" step="100"
+                     onclick="event.stopPropagation()"
                      onkeydown="if(event.key==='Enter') saveInlinePrice({{ card.id }})"
                      oninput="onCardListPriceInput({{ card.id }})">
-              <button class="set-btn save-btn" onclick="saveInlinePrice({{ card.id }})">저장</button>
+              <button class="set-btn save-btn" onclick="event.stopPropagation(); saveInlinePrice({{ card.id }})">저장</button>
               <span class="saved-badge" id="badge-{{ card.id }}">✓ 수정됨</span>
             </div>
           </td>
@@ -198,6 +200,12 @@
                     onclick="toggleFavorite(this)">
               {% if card.is_favorite %}⭐{% else %}☆{% endif %}
             </button>
+          </td>
+          <td onclick="event.stopPropagation()">
+            {% if card.naver_search_url %}
+            <a href="{{ card.naver_search_url }}" target="_blank" rel="noopener noreferrer"
+               class="set-btn" title="네이버쇼핑에서 검색">🔍 검색</a>
+            {% endif %}
           </td>
           <td onclick="event.stopPropagation()">
             <a href="{{ detail_base_url }}/{{ card.id }}/" class="set-btn">상세</a>
