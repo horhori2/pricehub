@@ -551,6 +551,17 @@ def _has_digimon_rbk01_marker(title: str) -> bool:
     return any(kw in title for kw in _DIGIMON_RBK01_MARKERS)
 
 
+# LMK-1.0/LMK-2.0(스페셜 리미티드 카드 팩 vol.1/2) — RBK-01과 같은 유형의
+# 재록 확장팩. 수록 카드가 전부 패러렐로 분류되고, 원본 확장팩의 패러렐
+# 카드와 카드번호가 그대로 겹친다. 판매자 제목에 "LM"(LM패러렐/LM 1.0
+# 버전/LMK-01 수록판/LMK 패러렐 등)이 있으면 이쪽, 없으면 원본 쪽이다.
+_DIGIMON_LMK_MARKER = 'LM'
+
+
+def _has_digimon_lmk_marker(title: str) -> bool:
+    return _DIGIMON_LMK_MARKER in title
+
+
 def generate_digimon_search_query(
     card_name: str,
     card_number: str,
@@ -582,7 +593,8 @@ def generate_digimon_search_query(
 def _digimon_item_is_valid(title: str, card_number: str,
                             is_parallel: bool = False, is_scarce: bool = False,
                             is_special: bool = False,
-                            rbk01_marker_required: Optional[bool] = None) -> bool:
+                            rbk01_marker_required: Optional[bool] = None,
+                            lmk_marker_required: Optional[bool] = None) -> bool:
     """
     디지몬 상품 1건(제목)이 카드(카드번호·희소/패러렐/스페셜 여부)에 유효한
     매칭인지 판정. _is_excluded()는 호출 전에 처리되어 있어야 함.
@@ -595,6 +607,14 @@ def _digimon_item_is_valid(title: str, card_number: str,
         False -> 이 카드번호가 RBK-01에도 있어서 겹침 — 재록 표시가 있으면
                  그건 RBK-01 상품이니 이 카드(원본)에서는 제외.
         None  -> RBK-01과 무관한 카드 — 검사 안 함.
+
+    lmk_marker_required: LMK-1.0/LMK-2.0(스페셜 리미티드 카드 팩) 재록과
+    카드번호가 겹치는 카드에서만 의미 있음. rbk01_marker_required와 동일한
+    방식이며, 재록 표시는 "LM" 포함 여부로 판단.
+    주의: 카드번호 자체가 'LM-'로 시작하는 카드(예: LM-020)는 카드번호를
+    매칭시키는 것만으로 제목에 항상 "LM"이 들어가 있어서 이 검사가
+    트리비얼하게 항상 참이 되어버린다 — 호출하는 쪽에서 이런 카드번호에는
+    반드시 None을 넘겨서 검사를 건너뛰어야 한다.
     """
     if card_number not in title:
         return False
@@ -602,6 +622,11 @@ def _digimon_item_is_valid(title: str, card_number: str,
     if rbk01_marker_required is True and not _has_digimon_rbk01_marker(title):
         return False
     if rbk01_marker_required is False and _has_digimon_rbk01_marker(title):
+        return False
+
+    if lmk_marker_required is True and not _has_digimon_lmk_marker(title):
+        return False
+    if lmk_marker_required is False and _has_digimon_lmk_marker(title):
         return False
 
     has_scarce_kw = "희소" in title or _has_digimon_scarce_star(title)
@@ -636,6 +661,7 @@ def filter_digimon_items(
     is_scarce: bool = False,
     is_special: bool = False,
     rbk01_marker_required: Optional[bool] = None,
+    lmk_marker_required: Optional[bool] = None,
 ) -> FilterResult:
     """디지몬카드 검색 결과 필터링"""
     valid_items = [
@@ -643,7 +669,7 @@ def filter_digimon_items(
         if not _is_excluded(item)
         and _digimon_item_is_valid(
             _clean_title(item['title']), card_number, is_parallel, is_scarce, is_special,
-            rbk01_marker_required,
+            rbk01_marker_required, lmk_marker_required,
         )
     ]
 
@@ -657,6 +683,7 @@ def get_digimon_all_prices(
     is_scarce: bool = False,
     is_special: bool = False,
     rbk01_marker_required: Optional[bool] = None,
+    lmk_marker_required: Optional[bool] = None,
 ) -> dict:
     """
     디지몬카드 가격 통합 검색 (API 1회 호출).
@@ -683,7 +710,7 @@ def get_digimon_all_prices(
     logger.debug("[디지몬] 검색 결과: %d개", len(items))
 
     min_price, valid_count, min_price_mall, valid_items = filter_digimon_items(
-        items, card_number, is_parallel, is_scarce, is_special, rbk01_marker_required,
+        items, card_number, is_parallel, is_scarce, is_special, rbk01_marker_required, lmk_marker_required,
     )
 
     if min_price:

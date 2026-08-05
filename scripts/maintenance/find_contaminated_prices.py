@@ -219,9 +219,13 @@ def scan_digimon(writer):
     _log("\n" + "=" * 70)
     _log("[디지몬] 카드 메타데이터 로딩")
 
-    # RBK-01(라이징 윈드) 재록 확장팩과 카드번호가 겹치는 카드 판별용.
+    # RBK-01(라이징 윈드)/LMK-1.0/LMK-2.0(스페셜 리미티드 카드 팩) 재록
+    # 확장팩과 카드번호가 겹치는 카드 판별용.
     rbk01_card_numbers = set(
         DigimonCard.objects.filter(expansion__code='RBK-01').values_list('card_number', flat=True)
+    )
+    lmk_card_numbers = set(
+        DigimonCard.objects.filter(expansion__code__in=('LMK-1.0', 'LMK-2.0')).values_list('card_number', flat=True)
     )
 
     cards = {}
@@ -234,6 +238,17 @@ def scan_digimon(writer):
             rbk01_marker_required = False
         else:
             rbk01_marker_required = None
+
+        if c.card_number.startswith('LM-'):
+            # 카드번호 자체에 "LM"이 들어있어 마커 검사가 트리비얼해짐.
+            lmk_marker_required = None
+        elif c.expansion.code in ('LMK-1.0', 'LMK-2.0'):
+            lmk_marker_required = True
+        elif c.card_number in lmk_card_numbers:
+            lmk_marker_required = False
+        else:
+            lmk_marker_required = None
+
         cards[c.id] = {
             'card_number': c.card_number,
             'shop_product_code': c.shop_product_code,
@@ -241,6 +256,7 @@ def scan_digimon(writer):
             'is_scarce': c.is_scarce,
             'is_special': c.is_special,
             'rbk01_marker_required': rbk01_marker_required,
+            'lmk_marker_required': lmk_marker_required,
         }
 
     total = DigimonCardPrice.objects.count()
@@ -262,7 +278,7 @@ def scan_digimon(writer):
             title = _clean_title(item.get('title', ''))
             valid = (not _is_excluded(item)) and _digimon_item_is_valid(
                 title, meta['card_number'], meta['is_parallel'], meta['is_scarce'], meta['is_special'],
-                meta['rbk01_marker_required'],
+                meta['rbk01_marker_required'], meta['lmk_marker_required'],
             )
             if not valid:
                 row_bad = True

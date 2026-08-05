@@ -78,6 +78,27 @@ def _digimon_rbk01_marker_required(card):
     return None
 
 
+def _digimon_lmk_marker_required(card):
+    """
+    LMK-1.0/LMK-2.0(스페셜 리미티드 카드 팩)도 RBK-01과 같은 유형의 재록
+    확장팩 — 원본 카드번호와 그대로 겹친다. _digimon_item_is_valid의
+    lmk_marker_required 파라미터 참고.
+
+    카드번호 자체가 'LM-'로 시작하는 카드(예: LM-020)는 카드번호 매칭만으로
+    제목에 항상 "LM"이 들어가 있어 검사가 트리비얼해지므로 None(검사 안 함)
+    으로 고정한다.
+    """
+    if card.card_number.startswith('LM-'):
+        return None
+    if card.expansion.code in ('LMK-1.0', 'LMK-2.0'):
+        return True
+    if DigimonCard.objects.filter(
+        card_number=card.card_number, expansion__code__in=('LMK-1.0', 'LMK-2.0'),
+    ).exclude(pk=card.pk).exists():
+        return False
+    return None
+
+
 def _collect_digimon(card):
     return get_digimon_all_prices(
         card_name=card.name,
@@ -86,6 +107,7 @@ def _collect_digimon(card):
         is_scarce=card.is_scarce,
         is_special=card.is_special,
         rbk01_marker_required=_digimon_rbk01_marker_required(card),
+        lmk_marker_required=_digimon_lmk_marker_required(card),
     )
 
 
@@ -103,6 +125,7 @@ _FILTER_CONFIG = {
     'digimon_kr':  lambda items, card: filter_digimon_items(
         items, card.card_number, card.is_parallel, card.is_scarce, card.is_special,
         rbk01_marker_required=_digimon_rbk01_marker_required(card),
+        lmk_marker_required=_digimon_lmk_marker_required(card),
     ),
 }
 
