@@ -502,6 +502,20 @@ _DIGIMON_PARALLEL_KEYWORDS = [
     '패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레',
 ]
 
+# 일부 판매자(예: 카드슬래쉬)는 "★"(별 1개)로 패러렐을, "★★"(별 2개)로
+# 희소를 표기함 — 그냥 문자 포함 검사만 하면 '★'가 '★★'의 부분집합이라
+# 겹쳐버리므로, 별 두 개(희소)부터 떼어내고 남은 단독 별만 패러렐로 본다.
+_DIGIMON_SCARCE_STAR   = '★★'
+_DIGIMON_PARALLEL_STAR = '★'
+
+
+def _has_digimon_scarce_star(title: str) -> bool:
+    return _DIGIMON_SCARCE_STAR in title
+
+
+def _has_digimon_parallel_star(title: str) -> bool:
+    return _DIGIMON_PARALLEL_STAR in title.replace(_DIGIMON_SCARCE_STAR, '')
+
 # 판매자가 "패러렐"을 한글 대신 영문 약어로만 표기하는 경우 — 위 키워드로는
 # 못 잡아서 일반 카드 raw_data에 패러렐 상품이 그대로 섞여 들어갔었음
 # (예: "...BT9-081)PSR", "...데크스도루고라몬 [P]", "...데크스도루고라몬 P").
@@ -565,7 +579,7 @@ def _digimon_item_is_valid(title: str, card_number: str,
     if card_number not in title:
         return False
 
-    has_scarce_kw = "희소" in title
+    has_scarce_kw = "희소" in title or _has_digimon_scarce_star(title)
     if is_scarce and not has_scarce_kw:
         return False
     if not is_scarce and has_scarce_kw:
@@ -574,6 +588,7 @@ def _digimon_item_is_valid(title: str, card_number: str,
     has_parallel_kw = (
         any(kw in title for kw in _DIGIMON_PARALLEL_KEYWORDS)
         or _has_digimon_parallel_abbrev(title, card_number)
+        or _has_digimon_parallel_star(title)
     )
     if is_parallel and not has_parallel_kw:
         return False
