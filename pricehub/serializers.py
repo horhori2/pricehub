@@ -142,7 +142,7 @@ class DigimonCardListSerializer(serializers.ModelSerializer):
         model = DigimonCard
         fields = [
             'id', 'card_number', 'name', 'rarity', 'card_type', 'card_level',
-            'is_parallel', 'is_scarce', 'selling_price', 'shop_product_code',
+            'is_parallel', 'is_scarce', 'is_special', 'selling_price', 'shop_product_code',
             'image_url', 'expansion', 'latest_market_price',
         ]
     def get_expansion(self, obj):

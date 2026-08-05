@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.21.0] - 2026-08-05
+
+### Added
+- `DigimonCardListSerializer`(`/api/digimon/kr/expansions/<code>/cards/`)에 `is_special`
+  필드 추가. `is_parallel`/`is_scarce`는 이미 내려주고 있었는데 `is_special`만
+  빠져 있어서, 외부 클라이언트(Windows 가격조정 보조프로그램)가 디지몬 스페셜 카드를
+  필터링할 방법이 없었음.
+
 ## [0.20.2] - 2026-08-04
 
 ### Fixed
