@@ -539,6 +539,18 @@ def _has_digimon_parallel_abbrev(title: str, card_number: str = '') -> bool:
         return True
     return bool(_DIGIMON_TRAILING_P_RE.search(stripped))
 
+# RBK-01(라이징 윈드) — 재록 확장팩. 기존 다른 확장팩 카드를 그대로
+# 재수록하면서 거의 대부분 패러렐로 분류해서 넣는 바람에, 원본 확장팩의
+# 패러렐 카드와 카드번호가 그대로 겹친다(예: BT1-060이 원본 BT1에도,
+# RBK-01에도 둘 다 패러렐로 존재). 판매자들은 제목에 재록판이라는 표시
+# (RB1/라이징윈드/리부트부스트 등)를 남기므로 이걸로 구분한다.
+_DIGIMON_RBK01_MARKERS = ['RB1', '라이징윈드', '라이징 윈드', '리부트부스트', 'RBK-01', 'RBK']
+
+
+def _has_digimon_rbk01_marker(title: str) -> bool:
+    return any(kw in title for kw in _DIGIMON_RBK01_MARKERS)
+
+
 def generate_digimon_search_query(
     card_name: str,
     card_number: str,
@@ -569,14 +581,27 @@ def generate_digimon_search_query(
 
 def _digimon_item_is_valid(title: str, card_number: str,
                             is_parallel: bool = False, is_scarce: bool = False,
-                            is_special: bool = False) -> bool:
+                            is_special: bool = False,
+                            rbk01_marker_required: Optional[bool] = None) -> bool:
     """
     디지몬 상품 1건(제목)이 카드(카드번호·희소/패러렐/스페셜 여부)에 유효한
     매칭인지 판정. _is_excluded()는 호출 전에 처리되어 있어야 함.
     filter_digimon_items()의 매칭 로직 본체 — 오염 데이터 재검사 스크립트에서도
     그대로 재사용하기 위해 분리.
+
+    rbk01_marker_required: RBK-01(라이징 윈드) 재록과 카드번호가 겹치는
+    카드에서만 의미 있음.
+        True  -> 이 카드 자체가 RBK-01 쪽 — 제목에 재록 표시가 있어야 유효.
+        False -> 이 카드번호가 RBK-01에도 있어서 겹침 — 재록 표시가 있으면
+                 그건 RBK-01 상품이니 이 카드(원본)에서는 제외.
+        None  -> RBK-01과 무관한 카드 — 검사 안 함.
     """
     if card_number not in title:
+        return False
+
+    if rbk01_marker_required is True and not _has_digimon_rbk01_marker(title):
+        return False
+    if rbk01_marker_required is False and _has_digimon_rbk01_marker(title):
         return False
 
     has_scarce_kw = "희소" in title or _has_digimon_scarce_star(title)
@@ -610,6 +635,7 @@ def filter_digimon_items(
     is_parallel: bool = False,
     is_scarce: bool = False,
     is_special: bool = False,
+    rbk01_marker_required: Optional[bool] = None,
 ) -> FilterResult:
     """디지몬카드 검색 결과 필터링"""
     valid_items = [
@@ -617,6 +643,7 @@ def filter_digimon_items(
         if not _is_excluded(item)
         and _digimon_item_is_valid(
             _clean_title(item['title']), card_number, is_parallel, is_scarce, is_special,
+            rbk01_marker_required,
         )
     ]
 
@@ -629,6 +656,7 @@ def get_digimon_all_prices(
     is_parallel: bool = False,
     is_scarce: bool = False,
     is_special: bool = False,
+    rbk01_marker_required: Optional[bool] = None,
 ) -> dict:
     """
     디지몬카드 가격 통합 검색 (API 1회 호출).
@@ -655,7 +683,7 @@ def get_digimon_all_prices(
     logger.debug("[디지몬] 검색 결과: %d개", len(items))
 
     min_price, valid_count, min_price_mall, valid_items = filter_digimon_items(
-        items, card_number, is_parallel, is_scarce, is_special,
+        items, card_number, is_parallel, is_scarce, is_special, rbk01_marker_required,
     )
 
     if min_price:

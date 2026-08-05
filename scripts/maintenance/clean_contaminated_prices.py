@@ -259,20 +259,35 @@ def clean_onepiece(dry_run):
 def clean_digimon(dry_run):
     _log("\n" + "=" * 70)
     _log(f"[디지몬] 정리 시작 (dry_run={dry_run})")
-    meta_of = {
-        c.id: {
+
+    # RBK-01(라이징 윈드) 재록 확장팩과 카드번호가 겹치는 카드 판별용.
+    rbk01_card_numbers = set(
+        DigimonCard.objects.filter(expansion__code='RBK-01').values_list('card_number', flat=True)
+    )
+
+    meta_of = {}
+    for c in DigimonCard.objects.only(
+        'id', 'card_number', 'is_parallel', 'is_scarce', 'is_special', 'expansion',
+    ).select_related('expansion'):
+        if c.expansion.code == 'RBK-01':
+            rbk01_marker_required = True
+        elif c.card_number in rbk01_card_numbers:
+            rbk01_marker_required = False
+        else:
+            rbk01_marker_required = None
+        meta_of[c.id] = {
             'card_number': c.card_number,
             'is_parallel': c.is_parallel,
             'is_scarce': c.is_scarce,
             'is_special': c.is_special,
+            'rbk01_marker_required': rbk01_marker_required,
         }
-        for c in DigimonCard.objects.only('id', 'card_number', 'is_parallel', 'is_scarce', 'is_special')
-    }
 
     def validator(item, meta):
         title = _clean_title(item.get('title', ''))
         return (not _is_excluded(item)) and _digimon_item_is_valid(
             title, meta['card_number'], meta['is_parallel'], meta['is_scarce'], meta['is_special'],
+            meta['rbk01_marker_required'],
         )
 
     total = DigimonCardPrice.objects.count()

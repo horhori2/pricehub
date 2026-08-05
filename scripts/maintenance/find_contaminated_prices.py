@@ -218,18 +218,30 @@ def scan_onepiece(writer):
 def scan_digimon(writer):
     _log("\n" + "=" * 70)
     _log("[디지몬] 카드 메타데이터 로딩")
-    cards = {
-        c.id: {
+
+    # RBK-01(라이징 윈드) 재록 확장팩과 카드번호가 겹치는 카드 판별용.
+    rbk01_card_numbers = set(
+        DigimonCard.objects.filter(expansion__code='RBK-01').values_list('card_number', flat=True)
+    )
+
+    cards = {}
+    for c in DigimonCard.objects.only(
+        'id', 'card_number', 'shop_product_code', 'is_parallel', 'is_scarce', 'is_special', 'expansion',
+    ).select_related('expansion'):
+        if c.expansion.code == 'RBK-01':
+            rbk01_marker_required = True
+        elif c.card_number in rbk01_card_numbers:
+            rbk01_marker_required = False
+        else:
+            rbk01_marker_required = None
+        cards[c.id] = {
             'card_number': c.card_number,
             'shop_product_code': c.shop_product_code,
             'is_parallel': c.is_parallel,
             'is_scarce': c.is_scarce,
             'is_special': c.is_special,
+            'rbk01_marker_required': rbk01_marker_required,
         }
-        for c in DigimonCard.objects.only(
-            'id', 'card_number', 'shop_product_code', 'is_parallel', 'is_scarce', 'is_special',
-        )
-    }
 
     total = DigimonCardPrice.objects.count()
     _log(f"[디지몬] 가격 이력 {total}건 스캔 시작 (청크 {CHUNK_SIZE}행)")
@@ -250,6 +262,7 @@ def scan_digimon(writer):
             title = _clean_title(item.get('title', ''))
             valid = (not _is_excluded(item)) and _digimon_item_is_valid(
                 title, meta['card_number'], meta['is_parallel'], meta['is_scarce'], meta['is_special'],
+                meta['rbk01_marker_required'],
             )
             if not valid:
                 row_bad = True

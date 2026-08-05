@@ -65,6 +65,19 @@ def _collect_onepiece(card):
     )
 
 
+def _digimon_rbk01_marker_required(card):
+    """
+    RBK-01(라이징 윈드)은 재록 확장팩이라 원본 카드번호와 그대로 겹친다
+    (원본/RBK-01 둘 다 패러렐로 존재하는 경우가 대부분). _digimon_item_is_valid의
+    rbk01_marker_required 파라미터 참고.
+    """
+    if card.expansion.code == 'RBK-01':
+        return True
+    if DigimonCard.objects.filter(card_number=card.card_number, expansion__code='RBK-01').exclude(pk=card.pk).exists():
+        return False
+    return None
+
+
 def _collect_digimon(card):
     return get_digimon_all_prices(
         card_name=card.name,
@@ -72,6 +85,7 @@ def _collect_digimon(card):
         is_parallel=card.is_parallel,
         is_scarce=card.is_scarce,
         is_special=card.is_special,
+        rbk01_marker_required=_digimon_rbk01_marker_required(card),
     )
 
 
@@ -86,7 +100,10 @@ _COLLECT_CONFIG = {
 _FILTER_CONFIG = {
     'pokemon_kr':  lambda items, card: filter_pokemon_items(items, card.name, card.rarity, card.is_teukil),
     'onepiece_kr': lambda items, card: filter_onepiece_items(items, card.name, card.rarity, card.expansion.name, card.card_number),
-    'digimon_kr':  lambda items, card: filter_digimon_items(items, card.card_number, card.is_parallel, card.is_scarce, card.is_special),
+    'digimon_kr':  lambda items, card: filter_digimon_items(
+        items, card.card_number, card.is_parallel, card.is_scarce, card.is_special,
+        rbk01_marker_required=_digimon_rbk01_marker_required(card),
+    ),
 }
 
 # cfg_key -> 카드 검색어 생성 (기존 generate_*_search_query 재사용)
