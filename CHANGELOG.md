@@ -3,6 +3,11 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.24.1] - 2026-08-05
+
+### Added
+- 일본판 최근 7일 가격 수집 결과 export `japan_prices_20260805_081340.json` 추가.
+
 ## [0.24.0] - 2026-08-05
 
 ### Added
