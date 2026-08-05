@@ -70,7 +70,13 @@ def _digimon_rbk01_marker_required(card):
     RBK-01(라이징 윈드)은 재록 확장팩이라 원본 카드번호와 그대로 겹친다
     (원본/RBK-01 둘 다 패러렐로 존재하는 경우가 대부분). _digimon_item_is_valid의
     rbk01_marker_required 파라미터 참고.
+
+    카드번호 자체가 'RB1-'로 시작하는 카드(RBK-01 자체 번호 체계가 다른
+    확장팩과도 겹치는 경우, 예: RB1-006)는 카드번호 매칭만으로 제목에 항상
+    "RB1"이 들어가 있어 검사가 트리비얼해지므로 None(검사 안 함)으로 고정한다.
     """
+    if card.card_number.startswith('RB1-'):
+        return None
     if card.expansion.code == 'RBK-01':
         return True
     if DigimonCard.objects.filter(card_number=card.card_number, expansion__code='RBK-01').exclude(pk=card.pk).exists():
@@ -88,7 +94,10 @@ def _digimon_lmk_marker_required(card):
     제목에 항상 "LM"이 들어가 있어 검사가 트리비얼해지므로 None(검사 안 함)
     으로 고정한다.
     """
-    if card.card_number.startswith('LM-'):
+    if card.card_number.startswith(('LM-', 'RB1-')):
+        # 'LM-'은 카드번호 자체에 "LM"이 있어 트리비얼해지고, 'RB1-'은
+        # RBK-01 고유 번호 체계라 실제 표기가 RB1 쪽이라 LMK 판정과
+        # 충돌한다 — 둘 다 검사를 건너뛴다(수동 확인 대상).
         return None
     if card.expansion.code in ('LMK-1.0', 'LMK-2.0'):
         return True

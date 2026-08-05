@@ -273,15 +273,20 @@ def clean_digimon(dry_run):
     for c in DigimonCard.objects.only(
         'id', 'card_number', 'is_parallel', 'is_scarce', 'is_special', 'expansion',
     ).select_related('expansion'):
-        if c.expansion.code == 'RBK-01':
+        if c.card_number.startswith('RB1-'):
+            # 카드번호 자체에 "RB1"이 들어있어 마커 검사가 트리비얼해짐.
+            rbk01_marker_required = None
+        elif c.expansion.code == 'RBK-01':
             rbk01_marker_required = True
         elif c.card_number in rbk01_card_numbers:
             rbk01_marker_required = False
         else:
             rbk01_marker_required = None
 
-        if c.card_number.startswith('LM-'):
-            # 카드번호 자체에 "LM"이 들어있어 마커 검사가 트리비얼해짐.
+        if c.card_number.startswith(('LM-', 'RB1-')):
+            # 카드번호 자체에 "LM"이 들어있어 마커 검사가 트리비얼해지거나
+            # (LM-), RBK-01 고유 번호 체계라 실제 표기가 RB1 쪽이라 LMK
+            # 판정과 충돌하는 카드(RB1-)는 검사를 건너뛴다(수동 확인 대상).
             lmk_marker_required = None
         elif c.expansion.code in ('LMK-1.0', 'LMK-2.0'):
             lmk_marker_required = True
