@@ -1267,6 +1267,13 @@ def _bulk_trend_view(request, cfg_key, trend):
             _start = max(1, _end - 6)
     page_range = list(range(_start, _end + 1))
 
+    # 카드 종류별 뱃지 태그 (패러렐/희소/스페셜/특일 등) — 목록에서 바로 확인용
+    tag_func = _TAG_FUNCS.get(cfg_key)
+    show_tag_column = tag_func is not None
+    if tag_func:
+        for d in items:
+            d['card'].tag_badges = tag_func(d['card'])
+
     item_card_ids = [d['card'].pk for d in items]
     seen_raw = {}
     for cp in (
@@ -1283,6 +1290,7 @@ def _bulk_trend_view(request, cfg_key, trend):
         'trend':                  trend,
         'trend_label':            meta['label'],
         'items':                  items,
+        'show_tag_column':        show_tag_column,
         'expansions':             expansions,
         'expansion_code':         expansion_code,
         'sort':                   sort,
@@ -1389,6 +1397,13 @@ def _underpriced_view(request, cfg_key):
     offset          = (page - 1) * per_page
     under_cards     = all_under_cards[offset:offset + per_page]
 
+    # 카드 종류별 뱃지 태그 (패러렐/희소/스페셜/특일 등) — 목록에서 바로 확인용
+    tag_func = _TAG_FUNCS.get(cfg_key)
+    show_tag_column = tag_func is not None
+    if tag_func:
+        for d in under_cards:
+            d['card'].tag_badges = tag_func(d['card'])
+
     # 최신 수집 시각/raw_data는 캐시하지 않으므로, 현재 페이지에 보여줄 카드만 배치로 조회한다.
     under_card_ids = [d['card'].pk for d in under_cards]
     _latest_collected = {}
@@ -1418,6 +1433,7 @@ def _underpriced_view(request, cfg_key):
     return render(request, 'dashboard/bulk_underpriced.html', {
         'active_tab':             'underpriced',
         'under_cards':            under_cards,
+        'show_tag_column':        show_tag_column,
         'card_raw_json':          safe_json_dumps(seen_raw, ensure_ascii=False),
         'expansions':             expansions,
         'expansion_code':         expansion_code,
@@ -1487,6 +1503,15 @@ def _bulk_unpriced_view(request, cfg_key):
             _start = max(1, _end - 6)
     page_range = list(range(_start, _end + 1))
 
+    cards_page = list(cards_page)
+
+    # 카드 종류별 뱃지 태그 (패러렐/희소/스페셜/특일 등) — 목록에서 바로 확인용
+    tag_func = _TAG_FUNCS.get(cfg_key)
+    show_tag_column = tag_func is not None
+    if tag_func:
+        for c in cards_page:
+            c.tag_badges = tag_func(c)
+
     card_ids = [c.pk for c in cards_page]
     seen_raw = {}
     for cp in (
@@ -1501,6 +1526,7 @@ def _bulk_unpriced_view(request, cfg_key):
     return render(request, 'dashboard/bulk_unpriced.html', {
         'active_tab':             'unpriced',
         'cards':                  cards_page,
+        'show_tag_column':        show_tag_column,
         'expansions':             expansions,
         'expansion_code':         expansion_code,
         'sort':                   sort,
