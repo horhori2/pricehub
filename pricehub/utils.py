@@ -92,8 +92,36 @@ _BASE_CARD_NUMBER_RE       = re.compile(r'_[Pp]\d+$', re.IGNORECASE)
 _SUPER_PARALLEL_KEYWORDS  = ['슈퍼 패러렐', '슈퍼패러렐', '슈퍼파라렐', '슈퍼 파라렐']
 _MANGA_KEYWORDS           = ['망가', 'MANGA', 'manga']
 _REDMANGA_KEYWORDS        = ['적망가', '레드망가', '레드', '적']
-_PARALLEL_KEYWORDS        = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레', 'P-']
+_PARALLEL_KEYWORDS        = ['패러렐', '다른', '패레', 'P시크릿레어', '페러럴', '패러럴', '페러렐', '페레']
 _ONEPIECE_GENERAL_RARITIES = {'C', 'R', 'UC', 'SR', 'SEC'}
+
+# 판매자가 "패러렐"을 한글 대신 레어도 코드/영문 약어로만 표기하는 경우
+# (예: "사보 P리더 OP13-004", "사보 L-P", "사보 리더 L PR OP13-004").
+# "P-L"/"P-SR" 같은 레어도 코드 표기는 이 게임 자체 레어도 체계(P-SEC/P-SR/
+# P-L 등, RARITY_CHOICES 참고)와 동일해서 판매자가 그대로 씀. 예전엔 그냥
+# 'P-' 문자열 포함 여부로 봤었는데, 그러면 프로모 카드번호 자체가 전부
+# "P-001"처럼 'P-'를 포함해서 프로모 카드는 항상 "패러렐 키워드 있음"으로
+# 오판정되어 가격 수집이 전혀 안 되는 버그가 있었음(37장 중 raw_data가
+# 제대로 채워진 카드 0장으로 확인됨) — 레어도 코드 전체가 정확히 매치될
+# 때만 인정하도록 수정.
+_ONEPIECE_PARALLEL_RARITY_CODE_RE = re.compile(
+    r'(?<![A-Za-z0-9])P-(?:SEC|SR|SL|UC|L|R|C|D)(?![A-Za-z0-9])'
+)
+_ONEPIECE_PARALLEL_ABBREV_RE = re.compile(r'(?<![A-Za-z0-9])PR(?![A-Za-z0-9])', re.IGNORECASE)
+_ONEPIECE_PARALLEL_ABBREV_SUBSTR = ['P리더', 'L-P']
+
+
+def _has_onepiece_parallel_kw(title: str, base_number: str = '') -> bool:
+    if any(kw in title for kw in _PARALLEL_KEYWORDS):
+        return True
+    if _ONEPIECE_PARALLEL_RARITY_CODE_RE.search(title):
+        return True
+    if any(s in title for s in _ONEPIECE_PARALLEL_ABBREV_SUBSTR):
+        return True
+    if base_number.startswith('P-'):
+        # 프로모 카드번호(P-001 등) 자체와 혼동 방지 — 예: "PROMO"의 "PR"
+        return False
+    return bool(_ONEPIECE_PARALLEL_ABBREV_RE.search(title))
 
 # "두웅" — 덱 동봉 아크릴 스탠드 굿즈(EB03/OP13 등). 카드번호가 D1~D5 같은
 # 자체 부여 번호라 검색어로 못 써서(예: 'D4' 검색은 노이즈만 나옴) 완전히
@@ -364,7 +392,7 @@ def _onepiece_title_matches(title: str, base_number: str,
     if base_number not in title:
         return False
 
-    has_parallel_kw = any(kw in title for kw in _PARALLEL_KEYWORDS)
+    has_parallel_kw = _has_onepiece_parallel_kw(title, base_number)
 
     if is_manga:
         has_kw = (
