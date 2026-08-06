@@ -135,7 +135,7 @@
             style="cursor:pointer;{% if card.selling_price and card.latest_market_price and card.selling_price < card.latest_market_price %}background:rgba(232,96,96,0.08);{% endif %}"
             data-id="{{ card.id }}"
             data-selling="{% if card.selling_price %}{{ card.selling_price|floatformat:0 }}{% else %}0{% endif %}"
-            data-name="{{ card.name|escapejs }}"
+            data-name="{{ card.name }}"
             data-number="{{ card.shop_product_code|default:card.card_number }}"
             data-rarity="{{ card.rarity }}"
             data-image="{{ card.image_url|default:'' }}"

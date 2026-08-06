@@ -92,7 +92,7 @@
         {% for card in cards %}
         <tr id="row-{{ card.id }}"
             data-id="{{ card.id }}"
-            data-name="{{ card.name|escapejs }}"
+            data-name="{{ card.name }}"
             data-number="{{ card.card_number }}"
             data-rarity="{{ card.rarity }}"
             data-expansion="{{ card.expansion.code }}"
