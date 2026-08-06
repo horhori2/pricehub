@@ -12,6 +12,7 @@ from django.shortcuts import render, redirect
 from .views import staff_required
 from . import card_controltower_client, store_price_check
 from .card_controltower_client import CardControltowerAPIError
+from .utils import safe_json_dumps
 
 _TABS = ('drop', 'rise', 'unregistered')
 _PER_PAGE = 100
@@ -67,6 +68,9 @@ def store_price_check_view(request, store):
             start = max(1, end - 6)
     page_range = list(range(start, end + 1))
 
+    # 판매처 목록 사이드 패널 — 지금 보이는 페이지 분량만 조회(카드 목록 페이지와 동일 패턴).
+    card_raw = store_price_check.fetch_market_raw_data(page_rows)
+
     return render(request, 'dashboard/store_price_check.html', {
         'error': error,
         'store': store,
@@ -75,6 +79,7 @@ def store_price_check_view(request, store):
         'tab': tab,
         'q': q,
         'rows': page_rows,
+        'card_raw_json': safe_json_dumps(card_raw, ensure_ascii=False),
         'counts': {'drop': len(drops), 'rise': len(rises), 'unregistered': len(unregistered)},
         'total_count': total_count,
         'page': page,

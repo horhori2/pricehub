@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.27.0] - 2026-08-06
+
+### Added
+- 스토어 가격 비교 페이지(`/store-price-check/`)에 카드 목록 페이지와 동일한 판매처 목록
+  사이드 패널 추가 — 카드 행을 클릭하면 PriceHub가 수집한 판매처별 가격 분포가 오른쪽에
+  뜨고, 클릭하면 "수정" 입력칸에 바로 채워짐(`dashboard.js`의 `showIssuesSidePanel`/
+  `fillIssuePrice` 재사용). 현재 페이지에 보이는 분량만 조회해서 무겁지 않게 함.
+
 ## [0.26.0] - 2026-08-06
 
 ### Added

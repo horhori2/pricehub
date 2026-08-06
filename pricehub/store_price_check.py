@@ -14,7 +14,7 @@ card-controltower(네이버 스마트스토어 매장 관리 백엔드)가 알�
   없어 전부 여기로 떨어진다 — "카탈로그 미보유"가 자연스럽게 포함되는 정의라 별도 분기가
   필요 없다.
 """
-from .models import Card, OnePieceCard, DigimonCard
+from .models import Card, OnePieceCard, DigimonCard, CardPrice, OnePieceCardPrice, DigimonCardPrice
 
 _DROP_STATUSES = {'SLIGHT_DROP', 'MODERATE_DROP', 'SEVERE_DROP'}
 
@@ -49,6 +49,37 @@ _EXTRA_TAG_FIELDS_BY_CARD_TYPE = {
     'POKEMON': ('is_teukil',),
     'DIGIMON': ('is_parallel', 'is_scarce', 'is_special'),
 }
+
+_PRICE_MODEL_BY_CARD_TYPE = {
+    'POKEMON': CardPrice,
+    'ONE_PIECE': OnePieceCardPrice,
+    'DIGIMON': DigimonCardPrice,
+}
+
+
+def fetch_market_raw_data(rows):
+    """
+    현재 화면에 보이는 행(페이지 분량)들의 pricehub_id별 최신 판매처 목록(raw_data) —
+    카드 목록 페이지(_card_list_view)의 사이드 패널과 동일한 패턴. 전체가 아니라
+    "지금 보이는 페이지"만 조회해서 무거워지지 않게 한다.
+    """
+    ids_by_type = {}
+    for r in rows:
+        if r.get('pricehub_id') and r.get('cardType') in _PRICE_MODEL_BY_CARD_TYPE:
+            ids_by_type.setdefault(r['cardType'], set()).add(r['pricehub_id'])
+
+    raw_by_id = {}
+    for card_type, ids in ids_by_type.items():
+        price_model = _PRICE_MODEL_BY_CARD_TYPE[card_type]
+        for cp in (
+            price_model.objects.filter(card_id__in=ids)
+            .exclude(raw_data={}).exclude(raw_data=[])
+            .order_by('-collected_at')
+            .values('card_id', 'raw_data')
+        ):
+            if cp['card_id'] not in raw_by_id:
+                raw_by_id[cp['card_id']] = cp['raw_data']
+    return raw_by_id
 
 
 def _tag_badges(card_type, row):

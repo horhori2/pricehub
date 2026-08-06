@@ -57,6 +57,8 @@
     font-weight: 700; border-bottom: 1px solid var(--border2); white-space: nowrap;
   }
   table.spc-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  table.spc-table tbody tr[data-clickable] { cursor: pointer; }
+  table.spc-table tbody tr.active-row { background: rgba(124,107,255,0.06); }
   .spc-name { font-size: 13px; color: var(--text); }
   .spc-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
   .spc-price { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
@@ -90,7 +92,6 @@
   table.spc-table th.spc-col-ph, table.spc-table td.spc-col-ph { background: rgba(124,107,255,0.07); }
   table.spc-table th.spc-col-cc { color: var(--accent); }
   table.spc-table th.spc-col-ph { color: var(--accent2); }
-  .spc-store-img-label { font-size: 9px; color: var(--text-dim); text-align: center; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -108,11 +109,12 @@
   <a href="/logout/" class="logout-btn">로그아웃</a>
 </header>
 
-<main>
+<div class="layout-issues">
+  <div class="main-area" style="padding: 32px 28px;">
   <div class="page-title">🏪 스토어 가격 비교</div>
   <div class="page-sub" style="margin-bottom:18px;">
     card-controltower(네이버 스마트스토어 관리)가 "오늘의 작업"으로 실제 스토어에 반영한 현재가 기준입니다.
-    PriceHub 판매가와 다르면 여기서 바로 고칠 수 있습니다.
+    PriceHub 판매가와 다르면 여기서 바로 고칠 수 있습니다. 카드를 클릭하면 오른쪽에 판매처 목록이 뜹니다.
   </div>
 
   <div class="spc-store-switch">
@@ -174,7 +176,15 @@
     </thead>
     <tbody>
       {% for r in rows %}
-      <tr>
+      <tr {% if r.pricehub_id %}
+          id="row-{{ r.pricehub_id }}"
+          data-clickable="1"
+          data-image="{{ r.pricehub_image_url|default:'' }}"
+          data-name="{{ r.productName }}"
+          data-number="{{ r.sellerProductCode }}"
+          data-rarity="{{ r.rarity|default:'' }}"
+          onclick="showIssuesSidePanel({{ r.pricehub_id }})"
+          {% endif %}>
         <td class="spc-col-ph">
           {% if r.pricehub_image_url %}
           <img src="{{ r.pricehub_image_url }}" class="card-thumb" loading="lazy">
@@ -224,10 +234,10 @@
           <span class="spc-nomatch">PriceHub 카탈로그에 없음</span>
           {% endif %}
         </td>
-        <td>
+        <td onclick="event.stopPropagation()">
           {% if r.set_price_url %}
           <div class="spc-price-cell">
-            <input type="number" class="spc-price-input" id="spc-inp-{{ r.pricehub_id }}"
+            <input type="number" class="spc-price-input" id="inp-{{ r.pricehub_id }}"
                    value="{{ r.pricehub_price|default:'' }}" min="0" step="100"
                    onkeydown="if(event.key==='Enter') spcSavePrice('{{ r.pricehub_id }}', '{{ r.set_price_url }}')">
             <button class="spc-save-btn" onclick="spcSavePrice('{{ r.pricehub_id }}', '{{ r.set_price_url }}')">저장</button>
@@ -273,11 +283,38 @@
   {% endif %}
 
   {% endif %}
-</main>
+  </div>
 
+  <!-- 사이드 패널: 판매처 목록 (카드 목록 페이지와 동일한 구조/JS 재사용) -->
+  <div class="side-panel">
+    <div class="side-header">
+      <img id="sideCardImage" src="" alt=""
+           style="display:none;width:100%;max-height:200px;object-fit:contain;border-radius:10px;
+                  background:var(--surface2);border:1px solid var(--border);margin-bottom:12px;">
+      <div class="side-title">판매처 목록 <span style="font-size:10px;font-weight:400;color:var(--text-dim);">(클릭하면 가격 입력칸에 반영)</span></div>
+      <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
+      <div class="side-card-info" id="sideCardInfo"></div>
+      <div class="side-card-info" id="sideCollectedInfo" style="display:none;"></div>
+    </div>
+    <div class="side-empty" id="sideEmpty">
+      <div class="side-empty-icon">🏪</div>
+      <div class="side-empty-text" id="sideEmptyText">카드 행을 클릭하면<br>판매처 목록이 표시됩니다</div>
+    </div>
+    <div class="side-store-list" id="sideStoreList" style="display:none;"></div>
+  </div>
+</div>
+
+<script id="cardRawData" type="application/json">{{ card_raw_json|safe }}</script>
+<script src="{% static_v 'dashboard/dashboard.js' %}"></script>
 <script>
+/* 사이드 패널(showIssuesSidePanel)이 참조하는 판매처 원본 데이터 — card_list.html과 동일한 전역 이름 */
+const CARD_RAW = (() => {
+  try { return JSON.parse(document.getElementById('cardRawData').textContent); }
+  catch { return {}; }
+})();
+
 async function spcSavePrice(pricehubId, url) {
-  const inp   = document.getElementById('spc-inp-' + pricehubId);
+  const inp   = document.getElementById('inp-' + pricehubId);
   const price = parseInt(inp.value, 10) || 0;
   const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
