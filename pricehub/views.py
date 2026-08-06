@@ -42,6 +42,11 @@ from .utils import (
     OUR_SHOPS, safe_json_dumps,
     generate_pokemon_search_query, generate_onepiece_search_query, generate_digimon_search_query,
 )
+from . import card_controltower_client
+
+# card-controltower가 도메인 판매를 취급하지 않는 카테고리(일본판)는 "부산/광주 판매중"
+# 배지가 애초에 의미가 없어 조회 자체를 스킵한다.
+_STORE_BADGE_GAME_KEYS = {'pokemon_kr', 'onepiece_kr', 'digimon_kr'}
 
 
 # ════════════════════════════════════════════════════════════════
@@ -256,6 +261,15 @@ def home(request):
             'items': [
                 {'label': '원피스 한글판', 'url': '/purchase-lists/rarity-cleanup/onepiece_kr/'},
                 {'label': '디지몬 한글판', 'url': '/purchase-lists/rarity-cleanup/digimon_kr/'},
+            ],
+        },
+        {
+            'icon': '🏪',
+            'title': '스토어 가격 비교',
+            'desc': 'card-controltower(네이버 스마트스토어 관리)가 실제 스토어에 반영한 현재가와 PriceHub 판매가를 매장별로 대조해 하락확인·가격상승·카탈로그 미등록 카드를 검수합니다.',
+            'items': [
+                {'label': '부산', 'url': '/store-price-check/busan/'},
+                {'label': '광주', 'url': '/store-price-check/gwangju/'},
             ],
         },
     ]
@@ -778,6 +792,15 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
         for c in cards_list:
             c.tag_badges = tag_func(c)
 
+    # 부산/광주 판매중 배지 (card-controltower 연동, 2026-08-06)
+    show_store_status = cfg_key in _STORE_BADGE_GAME_KEYS
+    if show_store_status:
+        sale_index = card_controltower_client.sale_status_index()
+        for c in cards_list:
+            status = sale_index.get(c.shop_product_code, {})
+            c.busan_on_sale = status.get('busan')
+            c.gwangju_on_sale = status.get('gwangju')
+
     _half  = 3
     _start = max(1, page - _half)
     _end   = min(total_pages, page + _half)
@@ -837,6 +860,7 @@ def _card_list_view(request, cfg_key, code, extra_ctx=None):
         'page_range':       page_range,
         'sort':             sort,
         'show_tag_column':  show_tag_column,
+        'show_store_status': show_store_status,
         'show_underpriced_filter': cfg_key != 'pokemon_jp',
         'breadcrumb': [
             ('홈', '/'),
@@ -861,9 +885,16 @@ def _card_detail_view(request, cfg_key, pk):
     latest_price_obj = card.prices.order_by('-collected_at').first()
     market_items, stats = _parse_market_items(latest_price_obj)
 
+    show_store_status = cfg_key in _STORE_BADGE_GAME_KEYS
+    if show_store_status:
+        status = card_controltower_client.sale_status_index().get(card.shop_product_code, {})
+        card.busan_on_sale = status.get('busan')
+        card.gwangju_on_sale = status.get('gwangju')
+
     return render(request, 'dashboard/card_detail.html', {
         'card':                    card,
         'card_type':               cfg_key,
+        'show_store_status':       show_store_status,
         'latest_price_obj':        latest_price_obj,
         'market_items':            market_items,
         'market_items_json':       safe_json_dumps(market_items, ensure_ascii=False),

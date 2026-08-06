@@ -150,6 +150,14 @@
           <td>
             <div class="card-name-text">{{ card.name }}</div>
             <div class="card-number-text">{{ card.shop_product_code }}</div>
+            {% if show_store_status %}
+            <div class="store-status-badges">
+              <span class="store-status-badge {% if card.busan_on_sale %}on{% elif card.busan_on_sale == False %}off{% else %}none{% endif %}"
+                    title="부산 {% if card.busan_on_sale %}판매중{% elif card.busan_on_sale == False %}판매중 아님{% else %}미등록{% endif %}">부산</span>
+              <span class="store-status-badge {% if card.gwangju_on_sale %}on{% elif card.gwangju_on_sale == False %}off{% else %}none{% endif %}"
+                    title="광주 {% if card.gwangju_on_sale %}판매중{% elif card.gwangju_on_sale == False %}판매중 아님{% else %}미등록{% endif %}">광주</span>
+            </div>
+            {% endif %}
           </td>
           <td><span class="rarity-badge">{{ card.rarity }}</span></td>
           {% if show_tag_column %}

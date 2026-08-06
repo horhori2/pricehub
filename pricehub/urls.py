@@ -5,6 +5,7 @@ from django.urls import path, include
 from . import views as v
 from . import purchase_views as pv
 from . import rarity_cleanup_views as rcv
+from . import store_price_check_views as spcv
 from pricehub import api_docs_views
 
 app_name = 'pricehub'
@@ -186,4 +187,10 @@ urlpatterns = [
          rcv.rarity_cleanup_view, name='rarity-cleanup'),
     path('purchase-lists/rarity-cleanup/<str:game_type>/<int:card_id>/save/',
          rcv.rarity_cleanup_save, name='rarity-cleanup-save'),
+
+    # ── 스토어 가격 비교 (card-controltower 실제 판매가 vs PriceHub 판매가) ──
+    path('store-price-check/',
+         spcv.store_price_check_index, name='store-price-check-index'),
+    path('store-price-check/<str:store>/',
+         spcv.store_price_check_view, name='store-price-check'),
 ]

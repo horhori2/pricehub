@@ -91,6 +91,23 @@ REST_FRAMEWORK = {
 PRICEHUB_API_BASE_URL = os.getenv('PRICEHUB_API_BASE_URL', 'http://127.0.0.1:8000')
 PRICEHUB_API_KEY = os.getenv('PRICEHUB_API_KEY', '')
 
+# card-controltower(네이버 스마트스토어 관리 백엔드) 연동 — 스토어 실제 판매가/판매상태 조회.
+# 매장별 관리자 계정으로 로그인해 JWT를 받는 방식(카탈로그 API처럼 별도 API Key 발급 체계가
+# card-controltower엔 아직 없음) — card_controltower_client.py 참고.
+CARD_CONTROLTOWER_BASE_URL = os.getenv('CARD_CONTROLTOWER_BASE_URL', 'http://3.39.22.93')
+CARD_CONTROLTOWER_STORES = {
+    'busan': {
+        'label': '부산',
+        'username': os.getenv('CARD_CONTROLTOWER_BUSAN_USER', ''),
+        'password': os.getenv('CARD_CONTROLTOWER_BUSAN_PASSWORD', ''),
+    },
+    'gwangju': {
+        'label': '광주',
+        'username': os.getenv('CARD_CONTROLTOWER_GWANGJU_USER', ''),
+        'password': os.getenv('CARD_CONTROLTOWER_GWANGJU_PASSWORD', ''),
+    },
+}
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

@@ -3,6 +3,29 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.26.0] - 2026-08-06
+
+### Added
+- **스토어 가격 비교 페이지 추가** (`/store-price-check/<busan|gwangju>/`) — card-controltower
+  (네이버 스마트스토어 관리 백엔드)가 실제 스토어에 반영한 현재가와 PriceHub 판매가를 매장별로
+  대조해 하락확인/가격상승/PriceHub 미등록 3개 탭으로 검수하고, 그 자리에서 PriceHub 판매가를
+  바로 수정할 수 있음. `shop_product_code`(PriceHub) ↔ `sellerProductCode`(card-controltower)로
+  조인하며, 백엔드(card-controltower) 쪽 API 변경은 필요 없이 기존 `GET /api/cards`를 그대로
+  재사용(`card_controltower_client.py`가 매장별 관리자 계정으로 로그인해 JWT 취득). PriceHub
+  이미지/부산점 이미지/광주점 이미지 3종을 나란히 표시하고, 포켓몬 특일·디지몬 패러렐/희소/
+  스페셜 태그도 함께 노출. card-controltower 쪽 데이터(파랑)와 PriceHub 실시간 조회 데이터
+  (보라)를 배경색으로 구분해 어느 시스템 값인지 헷갈리지 않게 함. 홈 화면 "🛠 도구" 섹션에
+  진입점 추가.
+- 포켓몬/원피스/디지몬 한글판 카드 목록·상세 페이지에 "부산/광주 판매중" 배지 추가 — 같은
+  card-controltower 연동으로 해당 카드가 각 매장에 실제로 등록·판매 중인지 바로 확인 가능
+  (일본판은 국내 스토어 판매 대상이 아니라 배지를 표시하지 않음).
+
+### Fixed
+- 위 기능 개발 중 발견 — card-controltower의 `CardType` enum 실제 값은 `ONEPIECE`가 아니라
+  `ONE_PIECE`였음. 처음엔 오타로 구현해 원피스 카드 전체가 PriceHub 카탈로그 매칭에 실패,
+  "미등록"으로 잘못 분류됐었음(실 데이터 검증 중 발견·수정, 최종적으로 광주 하락 1092/
+  상승 767/미등록 2105건으로 실제 수치와 일치 확인).
+
 ## [0.25.1] - 2026-08-06
 
 ### Added

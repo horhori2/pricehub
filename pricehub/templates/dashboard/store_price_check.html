@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+{% load static %}
+{% load cache_bust %}
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token }}">
+<title>스토어 가격 비교 · {{ store_label }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static_v 'dashboard/dashboard.css' %}">
+<style>
+  .spc-store-switch { display: flex; gap: 8px; margin-bottom: 16px; }
+  .spc-store-btn {
+    padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border2);
+    color: var(--text-muted); font-size: 13px; font-weight: 700; text-decoration: none;
+  }
+  .spc-store-btn.active { background: var(--accent2); border-color: var(--accent2); color: #fff; }
+
+  .spc-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .spc-tab {
+    padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border);
+    color: var(--text-muted); font-size: 13px; font-weight: 700; text-decoration: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .spc-tab.active { border-color: var(--accent2); color: var(--accent2); background: rgba(124,107,255,0.08); }
+  .spc-tab .cnt {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 7px;
+    border-radius: 10px; background: var(--surface2); color: var(--text-dim);
+  }
+  .spc-tab.active .cnt { background: var(--accent2); color: #fff; }
+  .spc-tab.drop.active { border-color: var(--danger); color: var(--danger); background: rgba(240,96,96,0.08); }
+  .spc-tab.drop.active .cnt { background: var(--danger); }
+  .spc-tab.rise.active { border-color: var(--success); color: var(--success); background: rgba(61,214,140,0.08); }
+  .spc-tab.rise.active .cnt { background: var(--success); }
+
+  .spc-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .spc-search { display: flex; gap: 8px; }
+  .spc-search input {
+    background: var(--bg); border: 1px solid var(--border2); border-radius: 8px;
+    color: var(--text); font-family: inherit; font-size: 13px; padding: 7px 12px; width: 220px;
+  }
+  .spc-search button, .spc-refresh {
+    background: var(--surface2); border: 1px solid var(--border2); border-radius: 8px;
+    color: var(--text-muted); font-size: 13px; font-weight: 600; padding: 7px 14px;
+    cursor: pointer; text-decoration: none;
+  }
+
+  .spc-error {
+    background: rgba(240,96,96,0.08); border: 1px solid var(--danger); border-radius: 10px;
+    color: var(--danger); padding: 14px 18px; font-size: 13px; margin-bottom: 16px;
+  }
+
+  table.spc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.spc-table th {
+    text-align: left; padding: 9px 10px; color: var(--text-dim); font-size: 11px;
+    font-weight: 700; border-bottom: 1px solid var(--border2); white-space: nowrap;
+  }
+  table.spc-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .spc-name { font-size: 13px; color: var(--text); }
+  .spc-code { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+  .spc-price { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  .spc-rate-drop { color: var(--danger); }
+  .spc-rate-rise { color: var(--success); }
+  .spc-nomatch { color: var(--text-dim); font-size: 12px; }
+
+  .spc-price-cell { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+  .spc-price-input {
+    width: 100px; flex-shrink: 0; background: var(--bg); border: 1px solid var(--border2);
+    border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; padding: 6px 8px; height: 30px; box-sizing: border-box;
+  }
+  .spc-price-input:focus { outline: none; border-color: var(--accent2); }
+  .spc-save-btn {
+    flex-shrink: 0; white-space: nowrap; background: var(--accent2); border: none;
+    border-radius: 6px; color: #fff; font-size: 12px; font-weight: 700; font-family: inherit;
+    padding: 0 14px; height: 30px; cursor: pointer;
+  }
+  .spc-save-btn:hover { opacity: 0.9; }
+  .spc-saved-badge { font-size: 11px; color: var(--success); white-space: nowrap; display: none; }
+  .spc-saved-badge.show { display: inline; }
+  table.spc-table th:last-child, table.spc-table td:last-child { min-width: 180px; }
+
+  /* 데이터 출처 구분 — card-controltower(파랑) vs PriceHub 실시간 조회(보라) */
+  .spc-legend { display: flex; gap: 18px; margin-bottom: 10px; font-size: 12px; color: var(--text-muted); }
+  .spc-legend-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+  .spc-legend-dot.cc { background: var(--accent); }
+  .spc-legend-dot.ph { background: var(--accent2); }
+  table.spc-table th.spc-col-cc, table.spc-table td.spc-col-cc { background: rgba(91,141,239,0.06); }
+  table.spc-table th.spc-col-ph, table.spc-table td.spc-col-ph { background: rgba(124,107,255,0.07); }
+  table.spc-table th.spc-col-cc { color: var(--accent); }
+  table.spc-table th.spc-col-ph { color: var(--accent2); }
+  .spc-store-img-label { font-size: 9px; color: var(--text-dim); text-align: center; margin-top: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <a href="/" class="back-btn">← 홈</a>
+    <div class="breadcrumb">
+      {% for crumb in breadcrumb %}
+        {% if crumb.1 %}<a href="{{ crumb.1 }}">{{ crumb.0 }}</a>{% else %}<strong style="color:var(--text)">{{ crumb.0 }}</strong>{% endif %}
+        {% if not forloop.last %}<span>/</span>{% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  <a href="/logout/" class="logout-btn">로그아웃</a>
+</header>
+
+<main>
+  <div class="page-title">🏪 스토어 가격 비교</div>
+  <div class="page-sub" style="margin-bottom:18px;">
+    card-controltower(네이버 스마트스토어 관리)가 "오늘의 작업"으로 실제 스토어에 반영한 현재가 기준입니다.
+    PriceHub 판매가와 다르면 여기서 바로 고칠 수 있습니다.
+  </div>
+
+  <div class="spc-store-switch">
+    {% for key, cfg in stores.items %}
+    <a class="spc-store-btn {% if key == store %}active{% endif %}"
+       href="{% url 'pricehub:store-price-check' store=key %}?tab={{ tab }}">
+      {{ cfg.label }}
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if error %}
+  <div class="spc-error">⚠️ card-controltower 연동 실패: {{ error }}</div>
+  {% else %}
+
+  <div class="spc-tabs">
+    <a class="spc-tab drop {% if tab == 'drop' %}active{% endif %}"
+       href="{% url 'pricehub:store-price-check' store=store %}?tab=drop">
+      📉 하락확인 <span class="cnt">{{ counts.drop }}</span>
+    </a>
+    <a class="spc-tab rise {% if tab == 'rise' %}active{% endif %}"
+       href="{% url 'pricehub:store-price-check' store=store %}?tab=rise">
+      📈 가격상승 <span class="cnt">{{ counts.rise }}</span>
+    </a>
+    <a class="spc-tab {% if tab == 'unregistered' %}active{% endif %}"
+       href="{% url 'pricehub:store-price-check' store=store %}?tab=unregistered">
+      ❓ PriceHub 미등록 <span class="cnt">{{ counts.unregistered }}</span>
+    </a>
+  </div>
+
+  <div class="spc-toolbar">
+    <form class="spc-search" method="get">
+      <input type="hidden" name="tab" value="{{ tab }}">
+      <input type="text" name="q" value="{{ q }}" placeholder="상품명·상품코드 검색">
+      <button type="submit">검색</button>
+    </form>
+    <a class="spc-refresh" href="?tab={{ tab }}{% if q %}&q={{ q }}{% endif %}&refresh=1">🔄 새로고침(card-controltower 재조회)</a>
+  </div>
+
+  {% if rows %}
+  <div class="spc-legend">
+    <span><span class="spc-legend-dot cc"></span>card-controltower 데이터</span>
+    <span><span class="spc-legend-dot ph"></span>PriceHub 데이터(지금 조회)</span>
+  </div>
+  <table class="spc-table">
+    <thead>
+      <tr>
+        <th class="spc-col-ph">PriceHub 이미지</th>
+        <th class="spc-col-cc">부산점 이미지</th>
+        <th class="spc-col-cc">광주점 이미지</th>
+        <th>카드</th>
+        <th>레어도 / 확장팩</th>
+        <th class="spc-col-cc">스토어 현재가</th>
+        <th class="spc-col-cc">PriceHub 조회값</th>
+        <th class="spc-col-cc">변동률</th>
+        <th class="spc-col-ph">PriceHub 판매가(현재)</th>
+        <th>수정</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td class="spc-col-ph">
+          {% if r.pricehub_image_url %}
+          <img src="{{ r.pricehub_image_url }}" class="card-thumb" loading="lazy">
+          {% else %}
+          <span class="spc-nomatch">-</span>
+          {% endif %}
+        </td>
+        <td class="spc-col-cc">
+          {% if r.store_images.busan %}
+          <img src="{{ r.store_images.busan }}" class="card-thumb" loading="lazy">
+          {% else %}
+          <span class="spc-nomatch">-</span>
+          {% endif %}
+        </td>
+        <td class="spc-col-cc">
+          {% if r.store_images.gwangju %}
+          <img src="{{ r.store_images.gwangju }}" class="card-thumb" loading="lazy">
+          {% else %}
+          <span class="spc-nomatch">-</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="spc-name">{{ r.productName }}</div>
+          <div class="spc-code">{{ r.sellerProductCode }}</div>
+          {% if r.tag_badges %}
+          <div style="margin-top:3px;">
+            {% for label, css_class in r.tag_badges %}
+            <span class="tag-badge {{ css_class }}">{{ label }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </td>
+        <td>{{ r.rarity|default:"-" }} / {{ r.expansionName|default:"-" }}</td>
+        <td class="spc-col-cc"><span class="spc-price">{{ r.currentPrice|default:"-" }}</span></td>
+        <td class="spc-col-cc"><span class="spc-price">{{ r.suggestedPrice|default:"-" }}</span></td>
+        <td class="spc-col-cc">
+          {% if r.priceChangeRate %}
+          <span class="{% if r.priceChangeRate < 0 %}spc-rate-drop{% else %}spc-rate-rise{% endif %}">
+            {{ r.priceChangeRate }}%
+          </span>
+          {% else %}-{% endif %}
+        </td>
+        <td class="spc-col-ph">
+          {% if r.pricehub_id %}
+          <span class="spc-price" id="spc-disp-{{ r.pricehub_id }}">{{ r.pricehub_price|default:"0" }}원</span>
+          {% else %}
+          <span class="spc-nomatch">PriceHub 카탈로그에 없음</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if r.set_price_url %}
+          <div class="spc-price-cell">
+            <input type="number" class="spc-price-input" id="spc-inp-{{ r.pricehub_id }}"
+                   value="{{ r.pricehub_price|default:'' }}" min="0" step="100"
+                   onkeydown="if(event.key==='Enter') spcSavePrice('{{ r.pricehub_id }}', '{{ r.set_price_url }}')">
+            <button class="spc-save-btn" onclick="spcSavePrice('{{ r.pricehub_id }}', '{{ r.set_price_url }}')">저장</button>
+            <span class="spc-saved-badge" id="spc-badge-{{ r.pricehub_id }}">✓ 저장됨</span>
+          </div>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if total_pages > 1 %}
+  <div class="pagination-bar">
+    {% if page > 1 %}
+    <a class="pg-btn" href="?tab={{ tab }}{% if q %}&q={{ q }}{% endif %}&page={{ page|add:"-1" }}">← 이전</a>
+    {% else %}
+    <span class="pg-btn disabled">← 이전</span>
+    {% endif %}
+    <div class="pg-pages">
+      {% for p in page_range %}
+        {% if p == page %}
+        <span class="pg-num active">{{ p }}</span>
+        {% else %}
+        <a class="pg-num" href="?tab={{ tab }}{% if q %}&q={{ q }}{% endif %}&page={{ p }}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+    {% if page < total_pages %}
+    <a class="pg-btn" href="?tab={{ tab }}{% if q %}&q={{ q }}{% endif %}&page={{ page|add:"1" }}">다음 →</a>
+    {% else %}
+    <span class="pg-btn disabled">다음 →</span>
+    {% endif %}
+    <span class="pg-info">{{ page }} / {{ total_pages }}페이지 · 총 {{ total_count }}건</span>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty">
+    <div style="font-size:40px;margin-bottom:12px;opacity:0.4;">✅</div>
+    <div style="font-size:16px;font-weight:700;">표시할 항목이 없습니다.</div>
+  </div>
+  {% endif %}
+
+  {% endif %}
+</main>
+
+<script>
+async function spcSavePrice(pricehubId, url) {
+  const inp   = document.getElementById('spc-inp-' + pricehubId);
+  const price = parseInt(inp.value, 10) || 0;
+  const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+  try {
+    const res  = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+      body: JSON.stringify({ selling_price: price }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('spc-disp-' + pricehubId).textContent = price.toLocaleString() + '원';
+      document.getElementById('spc-badge-' + pricehubId)?.classList.add('show');
+    } else {
+      alert('저장 실패: ' + (data.error || ''));
+    }
+  } catch {
+    alert('오류가 발생했습니다.');
+  }
+}
+</script>
+</body>
+</html>

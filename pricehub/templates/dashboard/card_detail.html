@@ -48,6 +48,16 @@
       </div>
       <div class="card-name-title">{{ card.name }}</div>
       <div class="card-expansion">{{ card.expansion.name }}</div>
+      {% if show_store_status %}
+      <div class="store-status-badges" style="margin-top:6px;">
+        <span class="store-status-badge {% if card.busan_on_sale %}on{% elif card.busan_on_sale == False %}off{% else %}none{% endif %}">
+          부산 {% if card.busan_on_sale %}판매중{% elif card.busan_on_sale == False %}판매중 아님{% else %}미등록{% endif %}
+        </span>
+        <span class="store-status-badge {% if card.gwangju_on_sale %}on{% elif card.gwangju_on_sale == False %}off{% else %}none{% endif %}">
+          광주 {% if card.gwangju_on_sale %}판매중{% elif card.gwangju_on_sale == False %}판매중 아님{% else %}미등록{% endif %}
+        </span>
+      </div>
+      {% endif %}
 
       <!-- 통계 (한글판만) -->
       {% if card_type != 'pokemon_jp' and stats %}
