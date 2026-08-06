@@ -147,17 +147,25 @@ _SEARCH_QUERY_CONFIG = {
 
 
 def _clean_supplied_items(raw_items):
-    """Electron이 붙여넣은 텍스트에서 파싱해 보낸 항목을 raw_data 형태로 정리."""
+    """Electron이 붙여넣은 텍스트에서 파싱해 보낸 항목을 raw_data 형태로 정리.
+
+    imageUrl은 자동 매크로가 클립보드 HTML에서 상품 썸네일 <img src>를 추출해 보내는
+    값(수동 붙여넣기는 텍스트뿐이라 항상 빈 문자열). http(s) 스킴이 아니면 버린다 —
+    이후 어딘가에서 <img src="...">로 그대로 렌더링될 가능성에 대비한 최소한의 방어.
+    """
     cleaned = []
     for item in raw_items or []:
         mall = (item.get('mallName') or '').strip()
         title = (item.get('title') or '').strip()
+        image_url = (item.get('imageUrl') or '').strip()
+        if not image_url.startswith(('http://', 'https://')):
+            image_url = ''
         try:
             price = float(item.get('lprice') or 0)
         except (TypeError, ValueError):
             price = 0
         if mall and title and price > 0:
-            cleaned.append({'title': title, 'mallName': mall, 'lprice': price})
+            cleaned.append({'title': title, 'mallName': mall, 'lprice': price, 'imageUrl': image_url})
     return cleaned
 
 

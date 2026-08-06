@@ -3,6 +3,16 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.28.0] - 2026-08-06
+
+### Added
+- Windows 가격조정 보조프로그램(Electron)의 카드 1건 수집 API(`_clean_supplied_items`,
+  `bulk_api_views.py`)가 상품 항목의 `imageUrl`도 받아서 `raw_data`/`latest_raw_data`에
+  같이 저장하도록 확장. 그 앱의 자동 매크로가 네이버쇼핑 클립보드 HTML에서 상품 썸네일
+  URL을 추출해 보내기 시작함(수동 붙여넣기는 텍스트뿐이라 항상 빈 문자열). `http(s)`
+  스킴이 아니면 버리는 최소 검증 추가 — 이후 어딘가에서 `<img src="...">`로 그대로
+  렌더링될 가능성에 대비.
+
 ## [0.27.0] - 2026-08-06
 
 ### Added

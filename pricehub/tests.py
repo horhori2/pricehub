@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, SimpleTestCase, TestCase
 
+from pricehub.bulk_api_views import _clean_supplied_items
 from pricehub.models import Card, CardPrice, Expansion, PurchaseList, PurchaseListItem, round_to_100
 from pricehub.utils import (
     _doong_item_is_valid,
@@ -171,6 +172,35 @@ class FilterPokemonItemsPriceResultTests(SimpleTestCase):
         self.assertEqual(price, 1000.0)
         self.assertEqual(count, 3)
         self.assertEqual(mall, 'B샵')
+
+
+class CleanSuppliedItemsTests(SimpleTestCase):
+    """Windows Electron 앱(가격조정 보조프로그램)이 보낸 items 정리 — imageUrl 처리 위주"""
+
+    def test_keeps_http_image_url(self):
+        cleaned = _clean_supplied_items([
+            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 1000, 'imageUrl': 'https://shopping-phinf.pstatic.net/a.jpg'},
+        ])
+        self.assertEqual(cleaned[0]['imageUrl'], 'https://shopping-phinf.pstatic.net/a.jpg')
+
+    def test_strips_non_http_image_url_scheme(self):
+        cleaned = _clean_supplied_items([
+            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 1000, 'imageUrl': 'javascript:alert(1)'},
+        ])
+        self.assertEqual(cleaned[0]['imageUrl'], '')
+
+    def test_missing_image_url_defaults_to_empty_string(self):
+        cleaned = _clean_supplied_items([
+            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 1000},
+        ])
+        self.assertEqual(cleaned[0]['imageUrl'], '')
+
+    def test_still_drops_items_missing_required_fields(self):
+        cleaned = _clean_supplied_items([
+            {'title': '', 'mallName': 'A샵', 'lprice': 1000, 'imageUrl': 'https://x.test/a.jpg'},
+            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 0, 'imageUrl': 'https://x.test/a.jpg'},
+        ])
+        self.assertEqual(cleaned, [])
 
 
 def _digimon_item(title, price, mall='테스트몰'):
