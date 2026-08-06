@@ -59,16 +59,19 @@ _PRICE_MODEL_BY_CARD_TYPE = {
 
 def fetch_market_raw_data(rows):
     """
-    현재 화면에 보이는 행(페이지 분량)들의 pricehub_id별 최신 판매처 목록(raw_data) —
+    현재 화면에 보이는 행(페이지 분량)들의 pricehub_key별 최신 판매처 목록(raw_data) —
     카드 목록 페이지(_card_list_view)의 사이드 패널과 동일한 패턴. 전체가 아니라
     "지금 보이는 페이지"만 조회해서 무거워지지 않게 한다.
+
+    키를 pricehub_id(순수 정수)가 아니라 pricehub_key(cardType 접두사 포함)로 쓰는 이유는
+    categorize()의 pricehub_key 주석 참고 — 여기서도 안 맞추면 결국 같은 충돌이 재현된다.
     """
     ids_by_type = {}
     for r in rows:
         if r.get('pricehub_id') and r.get('cardType') in _PRICE_MODEL_BY_CARD_TYPE:
             ids_by_type.setdefault(r['cardType'], set()).add(r['pricehub_id'])
 
-    raw_by_id = {}
+    raw_by_key = {}
     for card_type, ids in ids_by_type.items():
         price_model = _PRICE_MODEL_BY_CARD_TYPE[card_type]
         for cp in (
@@ -77,9 +80,10 @@ def fetch_market_raw_data(rows):
             .order_by('-collected_at')
             .values('card_id', 'raw_data')
         ):
-            if cp['card_id'] not in raw_by_id:
-                raw_by_id[cp['card_id']] = cp['raw_data']
-    return raw_by_id
+            key = f"{card_type}:{cp['card_id']}"
+            if key not in raw_by_key:
+                raw_by_key[key] = cp['raw_data']
+    return raw_by_key
 
 
 def _tag_badges(card_type, row):
@@ -160,6 +164,12 @@ def categorize(all_store_cards, primary_store):
         if match:
             base_url = _BASE_URL_BY_CARD_TYPE[card_type]
             row['pricehub_id'] = match['id']
+            # POKEMON/ONE_PIECE/DIGIMON은 서로 다른 Django 모델(각자 독립된 auto-increment
+            # PK)이라, 같은 정수 id가 게임이 다른 카드를 가리키는 경우가 실제로 있다(2026-08-06,
+            # 8페이지에서 포켓몬 id=7142와 디지몬 id=7142가 동시에 나타나 클릭 시 엉뚱한 카드의
+            # 판매처 목록이 뜨는 버그로 발견). DOM id/JS 키로는 반드시 이 pricehub_key(카드
+            # 종류 접두사 포함)를 쓰고, pricehub_id는 실제 PriceHub URL(/set-price/ 등)에만 쓴다.
+            row['pricehub_key'] = f"{card_type}:{match['id']}"
             row['pricehub_price'] = match['selling_price']
             row['pricehub_name'] = match['name']
             row['pricehub_image_url'] = match.get('image_url')
@@ -167,6 +177,7 @@ def categorize(all_store_cards, primary_store):
             row['tag_badges'] = _tag_badges(card_type, match)
         else:
             row['pricehub_id'] = None
+            row['pricehub_key'] = None
             row['pricehub_price'] = None
             row['pricehub_name'] = None
             row['pricehub_image_url'] = None

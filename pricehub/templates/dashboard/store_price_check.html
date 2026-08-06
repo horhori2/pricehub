@@ -176,14 +176,14 @@
     </thead>
     <tbody>
       {% for r in rows %}
-      <tr {% if r.pricehub_id %}
-          id="row-{{ r.pricehub_id }}"
+      <tr {% if r.pricehub_key %}
+          id="row-{{ r.pricehub_key }}"
           data-clickable="1"
           data-image="{{ r.pricehub_image_url|default:'' }}"
           data-name="{{ r.productName }}"
           data-number="{{ r.sellerProductCode }}"
           data-rarity="{{ r.rarity|default:'' }}"
-          onclick="showIssuesSidePanel({{ r.pricehub_id }})"
+          onclick="spcShowSidePanel('{{ r.pricehub_key }}')"
           {% endif %}>
         <td class="spc-col-ph">
           {% if r.pricehub_image_url %}
@@ -228,8 +228,8 @@
           {% else %}-{% endif %}
         </td>
         <td class="spc-col-ph">
-          {% if r.pricehub_id %}
-          <span class="spc-price" id="spc-disp-{{ r.pricehub_id }}">{{ r.pricehub_price|default:"0" }}원</span>
+          {% if r.pricehub_key %}
+          <span class="spc-price" id="spc-disp-{{ r.pricehub_key }}">{{ r.pricehub_price|default:"0" }}원</span>
           {% else %}
           <span class="spc-nomatch">PriceHub 카탈로그에 없음</span>
           {% endif %}
@@ -237,11 +237,11 @@
         <td onclick="event.stopPropagation()">
           {% if r.set_price_url %}
           <div class="spc-price-cell">
-            <input type="number" class="spc-price-input" id="inp-{{ r.pricehub_id }}"
+            <input type="number" class="spc-price-input" id="inp-{{ r.pricehub_key }}"
                    value="{{ r.pricehub_price|default:'' }}" min="0" step="100"
-                   onkeydown="if(event.key==='Enter') spcSavePrice('{{ r.pricehub_id }}', '{{ r.set_price_url }}')">
-            <button class="spc-save-btn" onclick="spcSavePrice('{{ r.pricehub_id }}', '{{ r.set_price_url }}')">저장</button>
-            <span class="spc-saved-badge" id="spc-badge-{{ r.pricehub_id }}">✓ 저장됨</span>
+                   onkeydown="if(event.key==='Enter') spcSavePrice('{{ r.pricehub_key }}', '{{ r.set_price_url }}')">
+            <button class="spc-save-btn" onclick="spcSavePrice('{{ r.pricehub_key }}', '{{ r.set_price_url }}')">저장</button>
+            <span class="spc-saved-badge" id="spc-badge-{{ r.pricehub_key }}">✓ 저장됨</span>
           </div>
           {% endif %}
         </td>
@@ -285,7 +285,7 @@
   {% endif %}
   </div>
 
-  <!-- 사이드 패널: 판매처 목록 (카드 목록 페이지와 동일한 구조/JS 재사용) -->
+  <!-- 사이드 패널: 판매처 목록 (카드 목록 페이지와 HTML/CSS 구조는 같음, JS는 이 페이지 전용 — 하단 스크립트 주석 참고) -->
   <div class="side-panel">
     <div class="side-header">
       <img id="sideCardImage" src="" alt=""
@@ -305,16 +305,91 @@
 </div>
 
 <script id="cardRawData" type="application/json">{{ card_raw_json|safe }}</script>
-<script src="{% static_v 'dashboard/dashboard.js' %}"></script>
 <script>
-/* 사이드 패널(showIssuesSidePanel)이 참조하는 판매처 원본 데이터 — card_list.html과 동일한 전역 이름 */
+/*
+ * 판매처 목록 사이드 패널 — card_list.html의 showIssuesSidePanel/fillIssuePrice를 그대로
+ * 재사용하지 않고 이 페이지 전용으로 다시 구현했다. 원본은 카드 id가 정수라는 전제로
+ * onclick 문자열을 `${cardId}`(따옴표 없이) 생성하는데, 이 페이지는 포켓몬/원피스/디지몬
+ * 세 Django 모델을 한 목록에 섞어서 보여주는 게 문제 — 각 모델이 독립된 auto-increment PK라
+ * 정수 id 하나만으로는 카드가 특정되지 않는다(실제로 포켓몬 id=7142와 디지몬 id=7142가
+ * 동시에 존재해, id만으로 만든 DOM id/CARD_RAW 키가 충돌 — 클릭한 카드와 다른(정확히는
+ * DOM에서 먼저 나오는) 카드의 판매처 목록이 뜨는 버그로 실사용 중 발견, 2026-08-06).
+ * "cardType:id" 조합 키(pricehub_key)를 문자열로 취급해 충돌을 없앤다.
+ */
 const CARD_RAW = (() => {
   try { return JSON.parse(document.getElementById('cardRawData').textContent); }
   catch { return {}; }
 })();
 
-async function spcSavePrice(pricehubId, url) {
-  const inp   = document.getElementById('inp-' + pricehubId);
+let _spcActiveKey = null;
+
+function spcShowSidePanel(key) {
+  if (_spcActiveKey) {
+    document.getElementById('row-' + _spcActiveKey)?.classList.remove('active-row');
+  }
+  _spcActiveKey = key;
+
+  const row = document.getElementById('row-' + key);
+  if (!row) return;
+  row.classList.add('active-row');
+
+  const imgEl = document.getElementById('sideCardImage');
+  if (row.dataset.image) { imgEl.src = row.dataset.image; imgEl.style.display = 'block'; }
+  else                     imgEl.style.display = 'none';
+
+  document.getElementById('sideCardName').textContent = row.dataset.name;
+  document.getElementById('sideCardName').style.color = 'var(--text)';
+  document.getElementById('sideCardInfo').textContent = `${row.dataset.number} · ${row.dataset.rarity}`;
+
+  const raw   = CARD_RAW[key];
+  const empty = document.getElementById('sideEmpty');
+  const list  = document.getElementById('sideStoreList');
+
+  if (!raw || !Array.isArray(raw) || !raw.length) {
+    document.getElementById('sideEmptyText').textContent = '판매처 데이터가 없습니다.';
+    empty.style.display = 'flex'; list.style.display = 'none';
+  } else {
+    const sorted = [...raw].sort((a, b) => parseInt(a.lprice) - parseInt(b.lprice));
+    list.innerHTML = sorted.map((item, idx) => {
+      const price    = parseInt(item.lprice);
+      const mall     = item.mallName || '알 수 없음';
+      const thumbSrc = item.image || '';
+      const title    = (item.title || '').replace(/<[^>]+>/g, '');
+      return `
+        <div class="side-store-row${idx === 0 ? ' cheapest' : ''}"
+             onclick="spcFillPrice('${key}', ${price})">
+          <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+            ${thumbSrc
+              ? `<img src="${thumbSrc}" alt="" style="width:48px;height:48px;object-fit:contain;
+                   border-radius:6px;background:var(--surface2);border:1px solid var(--border);flex-shrink:0;">`
+              : `<div style="width:48px;height:48px;border-radius:6px;background:var(--surface2);
+                   border:1px solid var(--border);flex-shrink:0;"></div>`}
+            <div style="min-width:0;">
+              <div class="side-store-name">${mall}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;
+                   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                   title="${title}">${title}</div>
+              <div class="side-store-price${idx === 0 ? ' cheapest' : ''}" style="margin-top:3px;">
+                ${price.toLocaleString()}원
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+    empty.style.display = 'none'; list.style.display = 'block';
+  }
+}
+
+function spcFillPrice(key, price) {
+  const input = document.getElementById('inp-' + key);
+  if (!input) return;
+  input.value = price;
+  input.focus();
+  document.getElementById('row-' + key)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function spcSavePrice(key, url) {
+  const inp   = document.getElementById('inp-' + key);
   const price = parseInt(inp.value, 10) || 0;
   const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
 
@@ -326,8 +401,8 @@ async function spcSavePrice(pricehubId, url) {
     });
     const data = await res.json();
     if (data.success) {
-      document.getElementById('spc-disp-' + pricehubId).textContent = price.toLocaleString() + '원';
-      document.getElementById('spc-badge-' + pricehubId)?.classList.add('show');
+      document.getElementById('spc-disp-' + key).textContent = price.toLocaleString() + '원';
+      document.getElementById('spc-badge-' + key)?.classList.add('show');
     } else {
       alert('저장 실패: ' + (data.error || ''));
     }
