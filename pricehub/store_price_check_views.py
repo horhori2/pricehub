@@ -71,11 +71,18 @@ def store_price_check_view(request, store):
     # 판매처 목록 사이드 패널 — 지금 보이는 페이지 분량만 조회(카드 목록 페이지와 동일 패턴).
     card_raw = store_price_check.fetch_market_raw_data(page_rows)
 
+    # "이 비교가 언제 card-controltower에 요청한 데이터 기준인지" — 매장별로 다를 수 있다
+    # (부산/광주 캐시가 서로 다른 시점에 채워졌을 수 있어서, 둘 다 표시).
+    fetched_at = {
+        s: card_controltower_client.get_fetched_at(s) for s in settings.CARD_CONTROLTOWER_STORES
+    }
+
     return render(request, 'dashboard/store_price_check.html', {
         'error': error,
         'store': store,
         'store_label': settings.CARD_CONTROLTOWER_STORES[store]['label'],
         'stores': settings.CARD_CONTROLTOWER_STORES,
+        'fetched_at': fetched_at,
         'tab': tab,
         'q': q,
         'rows': page_rows,

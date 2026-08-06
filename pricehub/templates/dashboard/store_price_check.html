@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% load static %}
 {% load cache_bust %}
+{% load japan_filters %}
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -11,6 +12,10 @@
 <link rel="stylesheet" href="{% static_v 'dashboard/dashboard.css' %}">
 <style>
   .spc-store-switch { display: flex; gap: 8px; margin-bottom: 16px; }
+  .spc-fetched-at {
+    font-size: 12px; color: var(--text-dim); font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 16px;
+  }
   .spc-store-btn {
     padding: 7px 16px; border-radius: 8px; border: 1px solid var(--border2);
     color: var(--text-muted); font-size: 13px; font-weight: 700; text-decoration: none;
@@ -123,6 +128,15 @@
        href="{% url 'pricehub:store-price-check' store=key %}?tab={{ tab }}">
       {{ cfg.label }}
     </a>
+    {% endfor %}
+  </div>
+
+  <div class="spc-fetched-at">
+    🕐 card-controltower 조회 시점 —
+    {% for key, cfg in stores.items %}
+      {{ cfg.label }}:
+      {% if fetched_at|get_item:key %}{{ fetched_at|get_item:key|date:"Y-m-d H:i:s" }}{% else %}아직 조회 안 됨{% endif %}
+      {% if not forloop.last %}· {% endif %}
     {% endfor %}
   </div>
 

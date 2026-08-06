@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.30.0] - 2026-08-06
+
+### Added
+- 스토어 가격 비교 페이지에 "card-controltower 조회 시점" 표시 추가 — 부산/광주 각각
+  마지막으로 card-controltower에 실제 요청을 보낸 시각(캐시 히트 중이면 캐시가 만들어진
+  시각). 데이터 캐시(5분)와 같은 TTL로 같이 저장/만료(`card_controltower_client.
+  get_fetched_at`) — 화면 값이 지금 이 순간 기준인지 몇 분 전 캐시인지 구분할 수 있게 함.
+
 ## [0.29.1] - 2026-08-06
 
 ### Fixed

@@ -11,6 +11,7 @@ card-controltower는 pricehub 같은 API Key 발급 체계가 없고 매장별 �
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone
 
 # JWT 만료는 24시간(card-controltower의 jwt.expiration-hours)이지만 안전 마진을 두고
 # 이보다 짧게 캐시한다 — 만료 시각을 정확히 안 챙겨도 재로그인 비용이 크지 않기 때문.
@@ -65,11 +66,18 @@ def _get_token(store, force_refresh=False):
     return token
 
 
+def _fetched_at_key(store):
+    return f'card-controltower:cards-fetched-at:{store}'
+
+
 def fetch_store_cards(store, force_refresh=False):
     """
     매장(busan/gwangju)의 전체 카드 목록(GET /api/cards) — 상품명/판매자상품코드/
     현재가(Naver 실제가)/수정가(PriceHub 최근 조회값)/가격변동상태/판매상태 등 전부 포함.
     5분 캐시(force_refresh=True면 무시하고 새로 조회, 화면에 "새로고침" 버튼용).
+
+    실제로 card-controltower에 요청을 보낸 시각도 같이 캐시해둔다(get_fetched_at) —
+    "이 비교가 언제 기준 데이터인지" 화면에 표시하기 위함(2026-08-06 요청).
     """
     cache_key = f'card-controltower:cards:{store}'
     if not force_refresh:
@@ -98,8 +106,16 @@ def fetch_store_cards(store, force_refresh=False):
     except requests.RequestException as e:
         raise CardControltowerAPIError(f'card-controltower 카드 목록 조회 실패: {store} ({e})') from e
 
+    fetched_at = timezone.now()
     cache.set(cache_key, data, _CARDS_CACHE_TTL)
+    cache.set(_fetched_at_key(store), fetched_at, _CARDS_CACHE_TTL)
     return data
+
+
+def get_fetched_at(store):
+    """마지막으로 card-controltower에 실제 요청을 보낸 시각(캐시가 살아있는 동안만 유지,
+    데이터 캐시와 같은 TTL). 아직 한 번도 조회 안 했거나 캐시가 만료됐으면 None."""
+    return cache.get(_fetched_at_key(store))
 
 
 def fetch_all_store_cards(force_refresh=False):
