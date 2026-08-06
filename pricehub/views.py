@@ -1276,14 +1276,17 @@ def _bulk_trend_view(request, cfg_key, trend):
 
     item_card_ids = [d['card'].pk for d in items]
     seen_raw = {}
+    _latest_collected = {}
     for cp in (
         price_model.objects.filter(card_id__in=item_card_ids)
-        .exclude(raw_data={}).exclude(raw_data=[])
         .order_by('-collected_at')
-        .values('card_id', 'raw_data')
+        .values('card_id', 'collected_at', 'raw_data')
     ):
-        if cp['card_id'] not in seen_raw:
+        _latest_collected.setdefault(cp['card_id'], cp['collected_at'])
+        if cp['card_id'] not in seen_raw and cp['raw_data'] not in ({}, []):
             seen_raw[cp['card_id']] = cp['raw_data']
+    for d in items:
+        d['card'].latest_collected_at = _latest_collected.get(d['card'].pk)
 
     return render(request, 'dashboard/bulk_trend.html', {
         'active_tab':             trend,
@@ -1418,6 +1421,7 @@ def _underpriced_view(request, cfg_key):
             seen_raw[cp['card_id']] = cp['raw_data']
     for d in under_cards:
         d['collected_at'] = _latest_collected.get(d['card'].pk)
+        d['card'].latest_collected_at = d['collected_at']
 
     # 페이지 번호 목록 (최대 7개, 현재 페이지 중심)
     _half = 3
@@ -1514,14 +1518,17 @@ def _bulk_unpriced_view(request, cfg_key):
 
     card_ids = [c.pk for c in cards_page]
     seen_raw = {}
+    _latest_collected = {}
     for cp in (
         price_model.objects.filter(card_id__in=card_ids)
-        .exclude(raw_data={}).exclude(raw_data=[])
         .order_by('-collected_at')
-        .values('card_id', 'raw_data')
+        .values('card_id', 'collected_at', 'raw_data')
     ):
-        if cp['card_id'] not in seen_raw:
+        _latest_collected.setdefault(cp['card_id'], cp['collected_at'])
+        if cp['card_id'] not in seen_raw and cp['raw_data'] not in ({}, []):
             seen_raw[cp['card_id']] = cp['raw_data']
+    for c in cards_page:
+        c.latest_collected_at = _latest_collected.get(c.pk)
 
     return render(request, 'dashboard/bulk_unpriced.html', {
         'active_tab':             'unpriced',

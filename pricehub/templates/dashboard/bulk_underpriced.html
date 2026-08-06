@@ -92,6 +92,7 @@
             data-rarity="{{ item.card.rarity }}"
             data-expansion="{{ item.card.expansion.code }}"
             data-image="{{ item.card.image_url|default:'' }}"
+            data-collected="{% if item.card.latest_collected_at %}{{ item.card.latest_collected_at|date:'Y.m.d H:i' }}{% endif %}"
             data-selling="{{ item.selling_price }}"
             data-drop-pct="{{ item.under_pct }}"
             onclick="showIssuesSidePanel({{ item.card.id }})">
@@ -189,6 +190,7 @@
       <div class="side-title">판매처 목록 (클릭하면 가격 반영)</div>
       <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
       <div class="side-card-info" id="sideCardInfo"></div>
+      <div class="side-card-info" id="sideCollectedInfo" style="display:none;"></div>
     </div>
     <div class="side-empty" id="sideEmpty">
       <div class="side-empty-icon">🏪</div>

@@ -97,6 +97,7 @@
             data-rarity="{{ item.card.rarity }}"
             data-expansion="{{ item.card.expansion.code }}"
             data-image="{{ item.card.image_url|default:'' }}"
+            data-collected="{% if item.card.latest_collected_at %}{{ item.card.latest_collected_at|date:'Y.m.d H:i' }}{% endif %}"
             data-selling="{{ item.selling_price }}"
             data-modified="{{ item.modified_price }}"
             data-drop-pct="{{ item.pct }}"
@@ -192,6 +193,7 @@
       <div class="side-title">판매처 목록 (클릭하면 가격 반영)</div>
       <div class="side-card-name" id="sideCardName" style="color:var(--text-dim);">카드를 클릭하세요</div>
       <div class="side-card-info" id="sideCardInfo"></div>
+      <div class="side-card-info" id="sideCollectedInfo" style="display:none;"></div>
       <!-- {{ trend_label }} 요약 -->
       <div id="sidePriceSummary" style="display:none;margin-top:10px;padding:10px 12px;
            background:var(--surface2);border:1px solid var(--border2);border-radius:8px;">
