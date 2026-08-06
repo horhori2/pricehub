@@ -20,6 +20,8 @@ JS로 재구현하지 않기 위함 — 두 클라이언트(대시보드/Electro
 판정/저장 로직은 하나도 새로 만들지 않는다. items가 없는 요청은 기존 라이브
 검색 경로로 폴백(오픈 API가 살아있다면 계속 동작).
 """
+import re
+
 from django.shortcuts import get_object_or_404
 from django.urls import path
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
@@ -146,26 +148,37 @@ _SEARCH_QUERY_CONFIG = {
 }
 
 
+# dashboard.js/store_price_check.html이 item.image를 이스케이프 없이
+# <img src="${thumbSrc}">로 그대로 꽂아 넣기 때문에(템플릿 리터럴 innerHTML), 스킴만
+# 확인하면 큰따옴표를 섞어 속성을 탈출하는 저장형 XSS가 가능하다(예:
+# https://x/a.jpg" onerror="alert(1)). 공백·따옴표·꺾쇠괄호가 전혀 없는 단일 토큰
+# http(s) URL만 허용해 원천 차단한다.
+_SAFE_IMAGE_URL_RE = re.compile(r'^https?://[^\s"\'<>]+$')
+
+
 def _clean_supplied_items(raw_items):
     """Electron이 붙여넣은 텍스트에서 파싱해 보낸 항목을 raw_data 형태로 정리.
 
-    imageUrl은 자동 매크로가 클립보드 HTML에서 상품 썸네일 <img src>를 추출해 보내는
-    값(수동 붙여넣기는 텍스트뿐이라 항상 빈 문자열). http(s) 스킴이 아니면 버린다 —
-    이후 어딘가에서 <img src="...">로 그대로 렌더링될 가능성에 대비한 최소한의 방어.
+    image는 자동 매크로가 클립보드 HTML에서 상품 썸네일 <img src>를 추출해 보내는
+    값(수동 붙여넣기는 텍스트뿐이라 항상 빈 문자열). 필드명을 "image"로 맞춘 이유:
+    기존 자동 수집기(네이버 오픈 API) raw_data가 이미 이 이름을 쓰고 있어서
+    card_detail.html/store_price_check.html/dashboard.js가 전부 item.image를 읽는다 —
+    다른 이름(imageUrl)으로 보내면 저장은 되지만 화면에는 안 뜬다(2026-08-06 발견·수정).
+    _SAFE_IMAGE_URL_RE에 안 맞으면 버린다(스킴 검증 + XSS 방어, 위 주석 참고).
     """
     cleaned = []
     for item in raw_items or []:
         mall = (item.get('mallName') or '').strip()
         title = (item.get('title') or '').strip()
-        image_url = (item.get('imageUrl') or '').strip()
-        if not image_url.startswith(('http://', 'https://')):
+        image_url = (item.get('image') or '').strip()
+        if not _SAFE_IMAGE_URL_RE.match(image_url):
             image_url = ''
         try:
             price = float(item.get('lprice') or 0)
         except (TypeError, ValueError):
             price = 0
         if mall and title and price > 0:
-            cleaned.append({'title': title, 'mallName': mall, 'lprice': price, 'imageUrl': image_url})
+            cleaned.append({'title': title, 'mallName': mall, 'lprice': price, 'image': image_url})
     return cleaned
 
 

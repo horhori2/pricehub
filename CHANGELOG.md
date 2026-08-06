@@ -3,6 +3,21 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.29.1] - 2026-08-06
+
+### Fixed
+- Windows 가격조정 보조프로그램(Electron)이 보낸 상품 이미지가 저장은 됐지만 화면에는
+  안 뜨던 문제 수정. 그 앱이 필드명 `imageUrl`로 보냈는데, `card_detail.html`/
+  `store_price_check.html`/`dashboard.js`는 전부 기존 자동 수집기(네이버 오픈 API)
+  raw_data가 쓰던 `image`를 읽고 있어서 저장은 정상이었지만 표시가 안 됐음
+  (`_clean_supplied_items`가 받는 키를 `image`로 통일).
+
+### Security
+- 위 수정 김에 이미지 URL 검증을 스킴 확인만 하던 것에서, 공백·따옴표·꺾쇠괄호가 없는
+  단일 토큰 URL만 허용하도록 강화. `dashboard.js`/`store_price_check.html`이
+  `<img src="${thumbSrc}">`처럼 이스케이프 없이 그대로 꽂아 넣는 코드라, 따옴표가 섞인
+  URL이 통과하면 저장형 XSS(속성 탈출)로 이어질 수 있었음.
+
 ## [0.29.0] - 2026-08-06
 
 ### Fixed

@@ -175,30 +175,44 @@ class FilterPokemonItemsPriceResultTests(SimpleTestCase):
 
 
 class CleanSuppliedItemsTests(SimpleTestCase):
-    """Windows Electron 앱(가격조정 보조프로그램)이 보낸 items 정리 — imageUrl 처리 위주"""
+    """Windows Electron 앱(가격조정 보조프로그램)이 보낸 items 정리 — image 필드 처리 위주.
+
+    필드명은 "image" — 기존 자동 수집기(네이버 오픈 API) raw_data가 이미 이 이름을
+    쓰고 있어서 card_detail.html 등 화면 코드가 전부 item.image를 읽는다. 한때 이 앱이
+    "imageUrl"로 보내서 저장은 됐지만 화면에는 안 뜨던 사고가 있었다(2026-08-06).
+    """
 
     def test_keeps_http_image_url(self):
         cleaned = _clean_supplied_items([
-            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 1000, 'imageUrl': 'https://shopping-phinf.pstatic.net/a.jpg'},
+            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 1000, 'image': 'https://shopping-phinf.pstatic.net/a.jpg'},
         ])
-        self.assertEqual(cleaned[0]['imageUrl'], 'https://shopping-phinf.pstatic.net/a.jpg')
+        self.assertEqual(cleaned[0]['image'], 'https://shopping-phinf.pstatic.net/a.jpg')
 
     def test_strips_non_http_image_url_scheme(self):
         cleaned = _clean_supplied_items([
-            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 1000, 'imageUrl': 'javascript:alert(1)'},
+            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 1000, 'image': 'javascript:alert(1)'},
         ])
-        self.assertEqual(cleaned[0]['imageUrl'], '')
+        self.assertEqual(cleaned[0]['image'], '')
+
+    def test_strips_image_url_with_quote_attribute_breakout(self):
+        # dashboard.js가 <img src="${thumbSrc}">로 이스케이프 없이 꽂아 넣으므로,
+        # 큰따옴표가 섞인 URL은 속성을 탈출하는 저장형 XSS가 될 수 있어 통째로 버려야 함.
+        cleaned = _clean_supplied_items([
+            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 1000,
+             'image': 'https://x.test/a.jpg" onerror="alert(1)'},
+        ])
+        self.assertEqual(cleaned[0]['image'], '')
 
     def test_missing_image_url_defaults_to_empty_string(self):
         cleaned = _clean_supplied_items([
             {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 1000},
         ])
-        self.assertEqual(cleaned[0]['imageUrl'], '')
+        self.assertEqual(cleaned[0]['image'], '')
 
     def test_still_drops_items_missing_required_fields(self):
         cleaned = _clean_supplied_items([
-            {'title': '', 'mallName': 'A샵', 'lprice': 1000, 'imageUrl': 'https://x.test/a.jpg'},
-            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 0, 'imageUrl': 'https://x.test/a.jpg'},
+            {'title': '', 'mallName': 'A샵', 'lprice': 1000, 'image': 'https://x.test/a.jpg'},
+            {'title': '뚜벅쵸', 'mallName': 'A샵', 'lprice': 0, 'image': 'https://x.test/a.jpg'},
         ])
         self.assertEqual(cleaned, [])
 
