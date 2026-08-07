@@ -3,6 +3,13 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.30.3] - 2026-08-07
+
+### Added
+- 가격 스냅샷 API(`/api/{game}/cards/<id>/price-snapshot/`) 응답에 `collected_at`
+  (최신 가격 수집 시각) 추가 — card-controltower의 "하락 확인" 리뷰에서 판매처
+  목록과 함께 수집 시점을 보여주기 위함.
+
 ## [0.30.2] - 2026-08-06
 
 ### Fixed

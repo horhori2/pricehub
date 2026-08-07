@@ -153,7 +153,8 @@ class PriceSnapshotMixin(APIKeyMixin, generics.GenericAPIView):
 
         latest_price_obj = card.prices.order_by('-collected_at').first()
         market_items, stats = _parse_market_items(latest_price_obj)
-        return Response({'market_items': market_items, 'stats': stats})
+        collected_at = latest_price_obj.collected_at if latest_price_obj else None
+        return Response({'market_items': market_items, 'stats': stats, 'collected_at': collected_at})
 
 
 class PriceHistoryMixin(APIKeyMixin, generics.GenericAPIView):
