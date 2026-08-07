@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.30.2] - 2026-08-06
+
+### Fixed
+- 공통 판매가 저장 함수(`_set_price`)가 `selling_price`만 갱신하고 `modified_price`
+  (일괄 판매가 설정에서 계산해둔 대기 중 가격)는 그대로 둬서, 스토어 가격 비교 등에서
+  가격을 저장해도 예전 `modified_price`가 새 `selling_price`와 비교되어 가격 하락/상승
+  대기 목록에 유령처럼 다시 뜨던 문제 수정 — 저장 시 `modified_price`도 0으로 초기화.
+
 ## [0.30.1] - 2026-08-06
 
 ### Added

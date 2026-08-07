@@ -416,7 +416,14 @@ def _calc_stats(prices):
 def _set_price(model_class, pk, request):
     """공통 판매가 저장 (AJAX POST). 저가 경고 판정용 reviewed_market_price가
     있는 모델(한글판 3종)이면 같이 찍어서, 이 가격으로 확정한 카드가 같은
-    시장가로 저가 경고 목록에 다시 뜨지 않게 한다."""
+    시장가로 저가 경고 목록에 다시 뜨지 않게 한다.
+
+    modified_price(일괄 판매가 설정에서 계산해둔 대기 중 가격)가 있는 모델이면
+    0으로 같이 초기화한다 — 안 그러면 여기서 판매가를 새로 확정해도 예전
+    modified_price가 그대로 남아, 새 selling_price와 비교되어 가격 하락/상승
+    대기 목록에 유령처럼 다시 뜬다(스토어 가격 비교 등 이 함수를 쓰는 다른
+    화면에서 저장해도 동일하게 적용되어야 함).
+    """
     obj = get_object_or_404(model_class, pk=pk)
     try:
         data = json.loads(request.body)
@@ -428,6 +435,9 @@ def _set_price(model_class, pk, request):
         if hasattr(obj, 'reviewed_market_price'):
             obj.reviewed_market_price = getattr(obj, 'latest_market_price', None)
             update_fields.append('reviewed_market_price')
+        if hasattr(obj, 'modified_price'):
+            obj.modified_price = 0
+            update_fields.append('modified_price')
         obj.save(update_fields=update_fields)
         return JsonResponse({'success': True, 'selling_price': obj.selling_price})
     except (ValueError, TypeError) as e:
