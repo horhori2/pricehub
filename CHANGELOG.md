@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.31.1] - 2026-08-07
+
+### Fixed
+- 카드 상세 페이지의 부산/광주 판매 상태 배지(`.store-status-badge`)가 세로 padding
+  1px 때문에 위 태그줄(레어도/카드번호 등)에 비해 찌그러져 보이던 문제 수정 —
+  새 디자인 토큰(`--space-2xs`/`--radius-xs`/`--fs-xs`)으로 교체. 템플릿의 중복
+  인라인 `margin-top`도 정리.
+
 ## [0.31.0] - 2026-08-07
 
 ### Added

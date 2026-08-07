@@ -165,11 +165,12 @@ main { max-width: 1200px; margin: 0 auto; padding: 32px 28px; }
 .price-set { color: var(--success); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
 .price-unset { color: var(--text-dim); font-size: 12px; }
 
-/* 부산/광주 판매중 배지 (card-controltower 연동, 2026-08-06) */
-.store-status-badges { display: flex; gap: 4px; margin-top: 4px; }
+/* 부산/광주 판매중 배지 (card-controltower 연동, 2026-08-06) —
+   세로 padding이 1px라 위 .badge 태그줄(3px 10px)에 비해 찌그러져 보이던 것 수정(2026-08-07). */
+.store-status-badges { display: flex; gap: var(--space-2xs); margin-top: var(--space-xs); }
 .store-status-badge {
-  display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px;
-  font-weight: 700; white-space: nowrap;
+  display: inline-block; padding: var(--space-2xs) var(--space-xs); border-radius: var(--radius-xs); font-size: var(--fs-xs);
+  font-weight: 700; white-space: nowrap; line-height: 1.4;
 }
 .store-status-badge.on   { background: rgba(61,214,140,0.12); color: var(--success); border: 1px solid rgba(61,214,140,0.3); }
 .store-status-badge.off  { background: rgba(240,96,96,0.1);  color: var(--danger);  border: 1px solid rgba(240,96,96,0.25); }
