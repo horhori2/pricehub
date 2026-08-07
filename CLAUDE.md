@@ -47,6 +47,93 @@ price_adjust  ──(가격 수집 결과 write)──▶  pricehub  ◀──(�
 예정이다. 새 기능을 이 파일 위에 계속 쌓지 말 것 — 정식으로 필요해지면 "일시적 예외"가
 아니라 위 데이터 흐름 자체를 다시 설계해야 한다는 신호로 볼 것.
 
+## 디자인 시스템 지침
+
+이 앱은 Django 서버 렌더링 템플릿(`pricehub/templates/*.html`) + 순수 CSS(`static/dashboard/`,
+`static/admin/`) 구조라 React 쪽(`card-controltower-front`)처럼 컴포넌트/토큰 함수는 없지만,
+같은 원칙을 CSS 커스텀 프로퍼티(`var(--token)`)로 적용한다.
+
+> **핵심 원칙: 색·폰트 크기·간격(gap/padding/margin)·radius는 전부 `var(--token)`으로 쓴다.
+> 새 CSS·새 템플릿의 `style="..."`에 hex 색상이나 raw px를 직접 넣지 않는다.**
+
+### 토큰 위치
+
+| 파일 | 역할 |
+|------|------|
+| `static/dashboard/dashboard.css`의 `:root` | 색상 + 타이포그래피/간격/radius 스케일. 대시보드 전 페이지가 로드. |
+| `static/dashboard/login.css`의 `:root` | 로그인 페이지 전용 — 로그인 전이라 `dashboard.css`를 로드할 수 없어 **같은 값을 별도로 복제**한다. 토큰을 추가·변경하면 두 파일 다 고칠 것. |
+| `static/admin/css/custom_card_admin.css` | Django Admin(라이트 테마) 전용 — 대시보드는 다크 테마라 위 색상 토큰과 톤이 근본적으로 다르다. **의도적으로 분리되어 있으며 대시보드 토큰을 끌어오지 않는다.** |
+
+### 색상 (기존)
+
+```css
+--bg / --surface / --surface2 / --surface3   /* 배경 레이어 (어두운 순) */
+--border / --border2                          /* 테두리 */
+--accent / --accent2                          /* 액센트 */
+--success / --warning / --danger              /* 액션 결과 */
+--text / --text-muted / --text-dim            /* 텍스트 */
+--trend-down* / --trend-up*                   /* 가격 방향 표시 전용(액션 결과와 의미가 다름) */
+--favorite / --rank-silver / --rank-bronze    /* 즐겨찾기·순위뱃지 전용 */
+```
+
+### 타이포그래피 / 간격 / radius (2026-08-07 도입)
+
+```css
+--fs-xs: 11px;  --fs-sm: 13px;  --fs-md: 14px;  --fs-lg: 16px;
+--fs-xl: 20px;  --fs-2xl: 24px; --fs-3xl: 32px;
+
+--space-2xs: 4px; --space-xs: 6px;  --space-sm: 8px;  --space-md: 12px;
+--space-lg: 16px; --space-xl: 20px; --space-2xl: 24px; --space-3xl: 28px;
+
+--radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px;
+--radius-lg: 12px; --radius-xl: 16px; --radius-pill: 999px;  /* 완전한 원/필 모양 전용 */
+```
+
+### ✅ / ❌
+
+```css
+/* ✅ */
+.card-badge {
+  padding: var(--space-2xs) var(--space-sm);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  color: var(--danger);
+}
+
+/* ❌ — 하드코딩 색/크기/간격 */
+.card-badge { padding: 4px 8px; border-radius: 6px; font-size: 13px; color: #f06060; }
+```
+
+템플릿의 인라인 `style=""`도 동일하게 적용한다: `style="padding: var(--space-sm); color: var(--accent);"`
+처럼 값 자리에 `var(--token)`을 쓴다. 인라인 스타일이 여러 줄 반복되면(같은 배지·버튼이
+템플릿마다 되풀이되는 경우) CSS 클래스로 뽑아 `dashboard.css`에 추가하는 쪽을 우선 검토한다 —
+인라인 스타일은 그 한 곳에서만 쓰는 값에만 쓴다.
+
+### 적용 범위 — 기존 코드는 전면 마이그레이션하지 않는다
+
+`dashboard.css`(약 700줄)·`custom_card_admin.css`·`templates/*.html`의 기존 코드는 대부분
+이 스케일 도입 이전에 raw px로 작성되어 있고(폰트 크기만 19종 난립), 위험 대비 이득이 낮아
+한 번에 다시 쓰지 않았다. 규칙은 다음과 같다:
+
+- **새 CSS 규칙·새 템플릿은 반드시 토큰만 쓴다.**
+- **기존 규칙을 고칠 일이 생기면(버그 수정 등으로 손대는 김에) 그 규칙만 토큰으로 옮긴다** —
+  파일 전체를 갈아엎지 않는다. `login.css`가 그 예시다(2026-08-07에 정확히 스케일 값과
+  일치하는 부분만 토큰으로 바꾸고, `48px`/`36px`/`15px`처럼 스케일에 없는 값은 시각적 회귀
+  위험 때문에 그대로 남겨 주석으로 표시해뒀다).
+- 값이 스케일에 정확히 없으면(예: `48px`) 억지로 반올림하지 말고, 먼저 그 값이 정말
+  필요한 고유 크기인지(로그인 박스 패딩처럼) 판단한다 — 필요하면 스케일에 없는 값 그대로
+  두고 주석으로 "레거시 값"임을 표시한다.
+
+### 검증
+
+수정한 CSS/템플릿 파일에서 아래가 검색되면(주석·레거시로 표시해둔 줄 제외) 토큰화가
+빠진 것이다:
+
+```bash
+grep -nE "#[0-9a-fA-F]{3,6}\b|font-size:\s*[0-9]|padding:\s*[0-9]|margin[a-z-]*:\s*[0-9]|gap:\s*[0-9]|border-radius:\s*[0-9]" <바꾼 파일>
+```
+(`custom_card_admin.css`는 위 표 참고 — 대시보드 토큰 대상이 아니므로 이 검증에서 제외한다.)
+
 ## 커밋 시 CHANGELOG.md 갱신
 
 사용자가 최종적으로 커밋을 요청하면, 커밋에 포함되는 변경사항을 `CHANGELOG.md`에 반드시 기록한다.

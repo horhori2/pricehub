@@ -3,6 +3,17 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.31.0] - 2026-08-07
+
+### Added
+- 대시보드 CSS에 디자인 시스템 지침 도입 — 타이포그래피(`--fs-*`)/간격(`--space-*`)/
+  radius(`--radius-*`) CSS 커스텀 프로퍼티 스케일을 `dashboard.css`/`login.css`의
+  `:root`에 추가하고, `login.css`는 스케일과 정확히 일치하는 값만 토큰으로 교체
+  (시각적 변화 없음). CLAUDE.md에 색상/타이포그래피/간격/radius 규칙과 검증 방법 문서화.
+  card-controltower-front CLAUDE.md의 디자인 시스템 지침과 같은 목적 — 기존
+  `dashboard.css` 전체(약 700줄)는 위험 대비 이득이 낮아 전면 마이그레이션하지 않고,
+  새 코드·수정하는 코드부터 점진적으로 적용한다.
+
 ## [0.30.3] - 2026-08-07
 
 ### Added
