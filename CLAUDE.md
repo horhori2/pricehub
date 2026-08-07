@@ -2,6 +2,51 @@
 
 Claude Code가 이 저장소에서 작업할 때 따라야 하는 지침.
 
+## 전체 시스템 구조 (연관 레포 4개)
+
+pricehub는 카드 가격·매장 관리 시스템 전체 중 "가격 수집·관리" 축을 담당하는 레포다.
+연관 레포는 아래 4개(코드베이스 5개) — 새 기능이 이 경계를 넘나드는 작업이면 항상 이 그림을
+먼저 참고해서 방향을 정한다.
+
+| 레포 | 경로 | 역할 | 작업자 |
+|---|---|---|---|
+| **pricehub** (이 레포) | `12. 자동가격수집기/pricehub` | 개별 카드·가격 정보 수집·관리 — 가격 데이터의 SSOT | 가격 관리자 |
+| **price_adjust** | `27.price_adjust_win` | 네이버 쇼핑 오픈API 종료로 수동 수집한 가격을 pricehub DB에 저장(Electron, 매크로) | 가격 수집 아르바이트 |
+| **card-controltower** | `23.offlinestore-naver-control-back/card-controltower`(백엔드, Spring)<br>`22. 네이버 스마트스토어 매장 관리 front/card-controltower-front`(프론트, React) | 매장별 카드 가격·재고·네이버스토어 연동 관리 — 매장 운영 데이터의 SSOT | 매장 관리자 |
+| **purchasing-customers** | `24.purchasing-customers-flutter` | 매장 손님용 매입 접수 태블릿 앱 | 손님 |
+
+### 데이터 흐름 (단방향, 순환 없음 — 2026-08-06 실제 코드 확인 기준)
+
+```
+price_adjust  ──(가격 수집 결과 write)──▶  pricehub  ◀──(판매가/매입가 read)──  card-controltower 백엔드
+                                                                                      │ (자체 API, JWT)
+                                                                                      ▼
+                                                                          card-controltower-front (매장 관리자)
+                                                                                      ▲
+                                                                     /api/buybacks/* (공개, X-Store-Code)
+                                                                                      │
+                                                                     purchasing-customers (손님, 태블릿)
+```
+
+- `price_adjust → pricehub`: **쓰기 전용** (`/api/{game}/bulk-price/collect-card/{id}/`)
+- `card-controltower → pricehub`: **읽기 전용** (`PriceHubClient`) — pricehub에는 아무것도 쓰지 않음.
+  pricehub가 느려지거나 rate limit에 걸려도 매입가는 `null` 폴백(직원 수기 입력)이라 죽지는 않음.
+- **태블릿(purchasing-customers)은 pricehub를 직접 호출하지 않는다** — 항상 card-controltower의
+  `/api/buybacks/*`만 거친다. 이 경계를 깨는 변경(태블릿→pricehub 직접 호출, pricehub→
+  card-controltower 쓰기 등)은 설계 의도에서 벗어나므로 하지 않는다.
+- pricehub의 "매입리스트"(가격 관리자가 정하는 매입 대상/추천가 정책)와 card-controltower의
+  "Buyback"(손님이 실제로 들고 온 매입 건)은 이름은 비슷하지만 서로 다른 개념이다 — 헷갈리지 말 것.
+
+### ⚠️ 임시 예외: `card_controltower_client.py` (pricehub → card-controltower 역방향 읽기)
+
+`pricehub/card_controltower_client.py`/`store_price_check*.py`(스토어 가격 비교 페이지)는
+위 원칙과 반대로 **pricehub가 card-controltower를 호출**해서 매장 카드 목록·실제 네이버
+판매가·판매상태를 읽어온다(2026-08-06 추가). 카드 정보 수정·스토어 상품의 pricehub 초기
+가격 설정 작업 때문에 **임시로** 만들어둔 것 — 원래 설계 방향(card-controltower만 pricehub를
+읽는 단방향)에 대한 예외이며, 나중에 비활성화(주석 처리)하고 긴급 상황에서만 다시 켜서 쓸
+예정이다. 새 기능을 이 파일 위에 계속 쌓지 말 것 — 정식으로 필요해지면 "일시적 예외"가
+아니라 위 데이터 흐름 자체를 다시 설계해야 한다는 신호로 볼 것.
+
 ## 커밋 시 CHANGELOG.md 갱신
 
 사용자가 최종적으로 커밋을 요청하면, 커밋에 포함되는 변경사항을 `CHANGELOG.md`에 반드시 기록한다.

@@ -3,6 +3,14 @@
 이 프로젝트의 주요 변경사항을 버전별로 기록합니다.
 형식은 [Keep a Changelog](https://keepachangelog.com/ko/1.0.0/)를 따릅니다.
 
+## [0.30.1] - 2026-08-06
+
+### Added
+- CLAUDE.md/README.md에 전체 시스템 구조(pricehub/price_adjust/card-controltower/
+  purchasing-customers 4개 레포 역할·데이터 흐름) 문서화. `card_controltower_client.py`
+  (스토어 가격 비교용, pricehub→card-controltower 역방향 읽기)는 원래 설계에 대한
+  임시 예외임을 CLAUDE.md에 명시.
+
 ## [0.30.0] - 2026-08-06
 
 ### Added
